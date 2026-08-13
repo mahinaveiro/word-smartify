@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Check, Save, BookOpen } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Check, Save, BookOpen, LogOut } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -13,6 +14,7 @@ import { useToast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
 import { useProfile, useBooks } from '@/hooks/use-data'
 import { useActions } from '@/hooks/use-actions'
+import { useAuth } from '@/features/auth/auth-provider'
 
 const GOAL_OPTIONS = [5, 10, 15, 20, 30]
 
@@ -21,6 +23,20 @@ export function SettingsView() {
   const { data: books } = useBooks()
   const { updateProfile, revalidateUser } = useActions()
   const { toast } = useToast()
+  const { user, signOut } = useAuth()
+  const router = useRouter()
+  const [signingOut, setSigningOut] = useState(false)
+
+  async function onSignOut() {
+    setSigningOut(true)
+    try {
+      await signOut()
+      router.replace('/auth')
+    } catch {
+      setSigningOut(false)
+      toast({ title: 'Could not sign out. Try again.', tone: 'error' })
+    }
+  }
 
   const [name, setName] = useState('')
   const [avatarId, setAvatarId] = useState('mint')
@@ -185,6 +201,30 @@ export function SettingsView() {
                 </button>
               )
             })}
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Account */}
+      <section>
+        <SectionHeader title="Account" />
+        <Card>
+          <CardContent className="flex flex-col gap-4 p-5">
+            {user ? (
+              <div>
+                <p className="font-heading text-sm font-semibold">Signed in as</p>
+                <p className="truncate text-sm text-muted-foreground">{user.email}</p>
+              </div>
+            ) : null}
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={onSignOut}
+              loading={signingOut}
+            >
+              <LogOut className="size-4" aria-hidden />
+              Sign out
+            </Button>
           </CardContent>
         </Card>
       </section>

@@ -39,6 +39,11 @@ export class AuthError extends Error {
   }
 }
 
+/** Narrows an unknown caught value to an AuthError (survives class identity edge cases). */
+export function isAuthError(err: unknown): err is AuthError {
+  return err instanceof AuthError || (typeof err === 'object' && err !== null && (err as { name?: string }).name === 'AuthError')
+}
+
 export interface SignUpInput {
   display_name: string
   email: string

@@ -112,7 +112,7 @@ export function MockTestsView() {
       const correctCount = finalized.correct_answers
       const earnedXp = correctCount * XP.CORRECT_QUIZ
       if (earnedXp > 0) {
-        await repositories.stats.addXp(CURRENT_USER_ID, earnedXp)
+        await repositories.stats.addXp(getActiveUserId(), earnedXp)
       }
       setResult(finalized)
       revalidateUser()

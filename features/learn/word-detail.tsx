@@ -1,7 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Lightbulb, Quote } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, Lightbulb, Quote } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -12,6 +13,8 @@ export function WordDetail({ wordId }: { wordId: string }) {
   const router = useRouter()
   const { data: word } = useWord(wordId)
   const { data: progress } = useWordProgress(wordId)
+  // Bangla is a deliberate reveal — English stays primary until the learner asks.
+  const [showBangla, setShowBangla] = useState(false)
 
   if (!word) return <WordDetailSkeleton />
 
@@ -44,7 +47,32 @@ export function WordDetail({ wordId }: { wordId: string }) {
             </p>
             <p className="mt-1 text-pretty text-base font-medium leading-relaxed">{word.english_meaning}</p>
             {word.bangla_meaning ? (
-              <p className="mt-2 text-sm text-muted-foreground">{word.bangla_meaning}</p>
+              <div className="mt-3 border-t-2 border-dashed border-foreground/15 pt-3">
+                {showBangla ? (
+                  <div className="flex items-start justify-between gap-3">
+                    <p lang="bn" className="text-pretty text-sm leading-relaxed text-foreground">
+                      {word.bangla_meaning}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowBangla(false)}
+                      className="press inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                      aria-expanded={true}
+                    >
+                      <EyeOff className="size-3.5" aria-hidden /> Hide
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowBangla(true)}
+                    className="press inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                    aria-expanded={false}
+                  >
+                    <Eye className="size-3.5" aria-hidden /> Show Bangla meaning
+                  </button>
+                )}
+              </div>
             ) : null}
           </div>
 
