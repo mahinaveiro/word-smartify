@@ -1,0 +1,77 @@
+'use client'
+
+import * as React from 'react'
+import { createPortal } from 'react-dom'
+import { X } from 'lucide-react'
+import { IconButton } from '@/components/ui/icon-button'
+import { cn } from '@/lib/utils'
+
+export interface DrawerProps {
+  open: boolean
+  onClose: () => void
+  title?: string
+  side?: 'left' | 'right' | 'bottom'
+  children?: React.ReactNode
+  className?: string
+}
+
+export function Drawer({
+  open,
+  onClose,
+  title,
+  side = 'bottom',
+  children,
+  className,
+}: DrawerProps) {
+  const [mounted, setMounted] = React.useState(false)
+  React.useEffect(() => setMounted(true), [])
+
+  React.useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    document.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  }, [open, onClose])
+
+  if (!mounted || !open) return null
+
+  const position =
+    side === 'left'
+      ? 'inset-y-0 left-0 h-full w-[86%] max-w-sm border-r-2 slide-in-from-left'
+      : side === 'right'
+        ? 'inset-y-0 right-0 h-full w-[86%] max-w-sm border-l-2 slide-in-from-right'
+        : 'inset-x-0 bottom-0 max-h-[85dvh] w-full rounded-t-xl border-t-2 slide-in-from-bottom'
+
+  return createPortal(
+    <div className="fixed inset-0 z-[90]">
+      <div
+        className="absolute inset-0 bg-foreground/40 duration-micro animate-in fade-in"
+        onClick={onClose}
+        aria-hidden
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className={cn(
+          'absolute border-foreground bg-card shadow-brutal-lg duration-normal animate-in',
+          position,
+          className,
+        )}
+      >
+        <div className="flex items-center justify-between gap-4 border-b-2 border-foreground/10 p-4">
+          <h2 className="font-heading text-base font-bold">{title}</h2>
+          <IconButton label="Close" variant="ghost" size="sm" onClick={onClose}>
+            <X />
+          </IconButton>
+        </div>
+        <div className="no-scrollbar overflow-y-auto p-4">{children}</div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
