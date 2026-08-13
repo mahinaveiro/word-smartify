@@ -166,7 +166,13 @@ export class LocalAuthRepository implements AuthRepository {
     const updated = writeAuth((draft) => {
       draft.accounts[email].user.email_confirmed = true
       delete draft.confirmTokens[token]
+      // Confirming establishes a real session too, mirroring signIn — otherwise
+      // the user only "looks" signed in until the next reload, and any page
+      // that reads the active user id in the meantime falls back to the demo
+      // account's data instead of their own freshly provisioned (empty) stats.
+      draft.session = { userId: draft.accounts[email].user.id, email }
     }).accounts[email].user
+    setActiveUserId(updated.id)
     return delay({ ...updated })
   }
 
