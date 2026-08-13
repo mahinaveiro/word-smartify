@@ -24,8 +24,9 @@ export function LeaderboardView() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        eyebrow="Compete"
         title="Leaderboard"
-        subtitle="Ranked by total XP. Keep your streak alive to climb."
+        description="Ranked by total XP. Keep your streak alive to climb."
       />
 
       <div className="grid grid-cols-3 items-end gap-2 sm:gap-3">
