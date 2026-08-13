@@ -46,6 +46,9 @@
   --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Only used for lang="bn" Bangla meaning text — Noto Sans Bengali covers
+     glyphs the primary UI fonts don't ship. */
+  --font-bengali: var(--font-noto-bengali), 'Noto Sans Bengali', sans-serif;
 
   --radius-sm: 6px;
   --radius-md: 10px;
