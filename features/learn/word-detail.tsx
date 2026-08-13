@@ -50,7 +50,7 @@ export function WordDetail({ wordId }: { wordId: string }) {
               <div className="mt-3 border-t-2 border-dashed border-foreground/15 pt-3">
                 {showBangla ? (
                   <div className="flex items-start justify-between gap-3">
-                    <p lang="bn" className="text-pretty text-sm leading-relaxed text-foreground">
+                    <p lang="bn" className="font-bengali text-pretty text-sm leading-relaxed text-foreground">
                       {word.bangla_meaning}
                     </p>
                     <button

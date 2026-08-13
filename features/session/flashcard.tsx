@@ -46,7 +46,9 @@ export function Flashcard({
             </p>
             <p className="mt-1 text-pretty text-lg font-medium leading-relaxed">{word.english_meaning}</p>
             {word.bangla_meaning ? (
-              <p className="mt-1 text-sm text-muted-foreground">{word.bangla_meaning}</p>
+              <p lang="bn" className="font-bengali mt-1 text-sm text-muted-foreground">
+                {word.bangla_meaning}
+              </p>
             ) : null}
           </div>
 
