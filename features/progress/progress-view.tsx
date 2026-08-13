@@ -11,7 +11,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Cell,
 } from 'recharts'
 import { Flame, Trophy, Zap, BookOpen } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
