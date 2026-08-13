@@ -67,12 +67,24 @@ export function useAllProgress() {
   return useSWR(['progress', uid], () => repo.wordProgress.getAllProgress(uid))
 }
 
+export function useWordProgress(wordId: string | null) {
+  return useSWR(wordId ? ['word-progress', uid, wordId] : null, () =>
+    repo.wordProgress.getWordProgress(uid, wordId as string),
+  )
+}
+
 export function useProgressCounts() {
   return useSWR(['progress-counts', uid], () => repo.wordProgress.countByStatus(uid))
 }
 
 export function useDueForReview() {
   return useSWR(['due', uid], () => repo.wordProgress.getDueForReview(uid))
+}
+
+export function useLevelProgress(bookId: string | null) {
+  return useSWR(bookId ? ['level-progress', uid, bookId] : null, () =>
+    repo.wordProgress.getLevelProgress(uid, bookId as string),
+  )
 }
 
 export function useDailyProgress(date: string) {

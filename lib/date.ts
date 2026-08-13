@@ -8,6 +8,21 @@ export function isoDaysAgo(days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+/** Add (or subtract) days to an ISO 'YYYY-MM-DD' date. */
+export function addDaysISO(iso: string, days: number): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const date = new Date(y, (m ?? 1) - 1, d ?? 1)
+  date.setDate(date.getDate() + days)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+/** Single-letter/short weekday for compact chart axes. */
+export function shortDay(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const date = new Date(y, (m ?? 1) - 1, d ?? 1)
+  return date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2)
+}
+
 export function shortDate(iso: string): string {
   // iso: 'YYYY-MM-DD'
   const [y, m, d] = iso.split('-').map(Number)

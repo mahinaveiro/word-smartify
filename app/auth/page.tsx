@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { Wordmark } from '@/components/shell/wordmark'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Input, Field } from '@/components/ui/input'
 
 export default function AuthPage() {
   const router = useRouter()
@@ -48,24 +48,30 @@ export default function AuthPage() {
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {mode === 'signup' ? (
-              <Input label="Name" name="name" placeholder="Your name" autoComplete="name" />
+              <Field label="Name" htmlFor="name">
+                <Input id="name" name="name" placeholder="Your name" autoComplete="name" />
+              </Field>
             ) : null}
-            <Input
-              label="Email"
-              name="email"
-              type="email"
-              placeholder="you@example.com"
-              autoComplete="email"
-              required
-            />
-            <Input
-              label="Password"
-              name="password"
-              type="password"
-              placeholder="••••••••"
-              autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-              required
-            />
+            <Field label="Email" htmlFor="email">
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+              />
+            </Field>
+            <Field label="Password" htmlFor="password">
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="••••••••"
+                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                required
+              />
+            </Field>
             <Button type="submit" size="block" loading={loading}>
               {mode === 'signin' ? 'Sign in' : 'Create account'}
               <ArrowRight className="size-4" strokeWidth={2.25} />

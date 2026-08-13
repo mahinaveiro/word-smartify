@@ -258,6 +258,30 @@ class LocalWordProgressRepository implements WordProgressRepository {
     }
     return delay(counts)
   }
+  async getLevelProgress(userId: UUID, bookId: UUID) {
+    ensureSeeded()
+    const ds = getDataset()
+    const chapterIds = new Set(ds.chapters.filter((c) => c.book_id === bookId).map((c) => c.id))
+    const levels = ds.levels.filter((l) => chapterIds.has(l.chapter_id))
+    const progress = readStore().wordProgress
+    const byWord = new Map<string, WordStatus>()
+    for (const p of Object.values(progress)) {
+      if (p.user_id === userId) byWord.set(p.word_id, p.status)
+    }
+    const out: Record<string, { level_id: string; total: number; learned: number; mastered: number }> = {}
+    for (const level of levels) {
+      const words = ds.wordsByLevel.get(level.id) ?? []
+      let learned = 0
+      let mastered = 0
+      for (const w of words) {
+        const s = byWord.get(w.id)
+        if (s && s !== 'new') learned++
+        if (s === 'mastered') mastered++
+      }
+      out[level.id] = { level_id: level.id, total: words.length, learned, mastered }
+    }
+    return delay(out)
+  }
   async updateWordProgress(
     userId: UUID,
     wordId: UUID,

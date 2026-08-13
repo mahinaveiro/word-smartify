@@ -76,11 +76,23 @@ export interface StatsRepository {
   getLeaderboard(limit?: number): Promise<Array<{ profile: Profile; stats: UserStats }>>
 }
 
+export interface LevelProgressSummary {
+  level_id: UUID
+  total: number
+  learned: number
+  mastered: number
+}
+
 export interface WordProgressRepository {
   getWordProgress(userId: UUID, wordId: UUID): Promise<UserWordProgress | null>
   getAllProgress(userId: UUID): Promise<UserWordProgress[]>
   getDueForReview(userId: UUID, now?: string): Promise<UserWordProgress[]>
   countByStatus(userId: UUID): Promise<Record<WordStatus, number>>
+  /**
+   * Per-level learned/mastered rollup for a book. Backed later by a Supabase
+   * view or RPC joining user_word_progress -> words grouped by level_id.
+   */
+  getLevelProgress(userId: UUID, bookId: UUID): Promise<Record<UUID, LevelProgressSummary>>
   updateWordProgress(
     userId: UUID,
     wordId: UUID,

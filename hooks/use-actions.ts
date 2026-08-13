@@ -35,6 +35,7 @@ export function useActions() {
       'daily',
       'daily-range',
       'leaderboard',
+      'level-progress',
     ].includes(key[0]))
   }, [mutate])
 

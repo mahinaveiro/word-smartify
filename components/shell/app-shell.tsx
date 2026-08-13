@@ -9,7 +9,7 @@ import { MobileTopBar } from './mobile-top-bar'
 /** Routes that take over the screen for focused activities. */
 function isFocusRoute(pathname: string): boolean {
   return (
-    /^\/learn\/[^/]+/.test(pathname) || // an active learning session
+    /^\/session\//.test(pathname) || // an active learning session
     /^\/mock-tests\/[^/]+/.test(pathname) // a running / reviewing mock test
   )
 }
