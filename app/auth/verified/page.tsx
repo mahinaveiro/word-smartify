@@ -1,11 +1,11 @@
 import { Suspense } from 'react'
-import { AuthView } from '@/features/auth/auth-view'
+import { VerifiedView } from '@/features/auth/verified-view'
 import { AuthLoading } from '@/features/auth/auth-loading'
 
-export default function AuthPage() {
+export default function VerifiedPage() {
   return (
     <Suspense fallback={<AuthLoading />}>
-      <AuthView />
+      <VerifiedView />
     </Suspense>
   )
 }

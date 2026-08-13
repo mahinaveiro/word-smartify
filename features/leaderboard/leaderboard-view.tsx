@@ -8,10 +8,11 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Avatar } from '@/features/shared/avatar'
 import { cn } from '@/lib/utils'
 import { useLeaderboard } from '@/hooks/use-data'
-import { CURRENT_USER_ID } from '@/repositories'
+import { getActiveUserId } from '@/repositories'
 
 export function LeaderboardView() {
   const { data, error, isLoading, mutate } = useLeaderboard(20)
+  const meId = getActiveUserId()
 
   if (isLoading) return <LeaderboardSkeleton />
   if (error || !data) return <ErrorState onRetry={() => mutate()} />
@@ -24,14 +25,15 @@ export function LeaderboardView() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        eyebrow="Compete"
         title="Leaderboard"
-        subtitle="Ranked by total XP. Keep your streak alive to climb."
+        description="Ranked by total XP. Keep your streak alive to climb."
       />
 
       <div className="grid grid-cols-3 items-end gap-2 sm:gap-3">
         {podium.map((entry) => {
           const rank = data.indexOf(entry) + 1
-          const isMe = entry.profile.id === CURRENT_USER_ID
+          const isMe = entry.profile.id === meId
           const height = rank === 1 ? 'h-28' : rank === 2 ? 'h-20' : 'h-16'
           const medal = rank === 1 ? 'bg-mint text-mint-foreground' : rank === 2 ? 'bg-muted text-foreground' : 'bg-coral text-coral-foreground'
           return (
@@ -66,7 +68,7 @@ export function LeaderboardView() {
       <div className="flex flex-col gap-2">
         {rest.map((entry, i) => {
           const rank = i + 4
-          const isMe = entry.profile.id === CURRENT_USER_ID
+          const isMe = entry.profile.id === meId
           return (
             <Card
               key={entry.profile.id}

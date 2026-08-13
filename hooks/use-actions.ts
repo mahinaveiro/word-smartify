@@ -8,12 +8,11 @@
 
 import { useSWRConfig } from 'swr'
 import { useCallback } from 'react'
-import { repositories, CURRENT_USER_ID } from '@/repositories'
+import { repositories, getActiveUserId } from '@/repositories'
 import { applyQuizResult, xpForNewWord, xpForQuiz, XP } from '@/lib/learning-logic'
 import { todayISO } from '@/lib/date'
 
 const repo = repositories
-const uid = CURRENT_USER_ID
 
 export interface QuizAnswerResult {
   correct: boolean
@@ -42,6 +41,7 @@ export function useActions() {
   /** Record a single quiz answer for a word, applying all product rules. */
   const recordQuizAnswer = useCallback(
     async (wordId: string, correct: boolean): Promise<QuizAnswerResult> => {
+      const uid = getActiveUserId()
       const prev = await repo.wordProgress.getWordProgress(uid, wordId)
       const newWordXp = xpForNewWord(prev)
       const quizXp = xpForQuiz(prev, correct)
@@ -72,6 +72,7 @@ export function useActions() {
   /** Increment today's daily progress after finishing a learning session. */
   const recordSessionProgress = useCallback(
     async (input: { newWords: number; reviews: number }) => {
+      const uid = getActiveUserId()
       const date = todayISO()
       const profile = await repo.profiles.getProfile(uid)
       const goal = profile?.daily_goal ?? 10
@@ -119,6 +120,7 @@ export function useActions() {
   )
 
   const completeDailyChallenge = useCallback(async () => {
+    const uid = getActiveUserId()
     const date = todayISO()
     const today = await repo.dailyProgress.getDailyProgress(uid, date)
     if (today?.challenge_completed) return { alreadyDone: true }
@@ -133,6 +135,7 @@ export function useActions() {
 
   const updateProfile = useCallback(
     async (patch: Parameters<typeof repo.profiles.updateProfile>[1]) => {
+      const uid = getActiveUserId()
       await repo.profiles.updateProfile(uid, patch)
     },
     [],

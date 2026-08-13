@@ -4,6 +4,7 @@ import { Space_Grotesk, DM_Sans } from 'next/font/google'
 import './globals.css'
 import { ToastProvider } from '@/components/ui/toast'
 import { RepositoryProvider } from '@/repositories/provider'
+import { AuthProvider } from '@/features/auth/auth-provider'
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -57,7 +58,9 @@ export default function RootLayout({
     >
       <body className="min-h-dvh antialiased">
         <RepositoryProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <AuthProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </AuthProvider>
         </RepositoryProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

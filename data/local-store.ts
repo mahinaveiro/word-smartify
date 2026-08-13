@@ -91,6 +91,53 @@ export function writeStore(mutator: (draft: UserDataShape) => void): UserDataSha
   return data
 }
 
+/**
+ * The active (signed-in) user id. Defaults to the seeded demo user so the app
+ * is populated before any auth happens and during SSR. The local AuthService
+ * updates this pointer on sign-in / sign-out. When Supabase auth lands, the
+ * session user id replaces this — the repositories keep reading it the same way.
+ */
+const ACTIVE_USER_KEY = 'word-smartify:active-user'
+let activeUserId: string | null = null
+
+export function getActiveUserId(): string {
+  if (activeUserId) return activeUserId
+  if (hasWindow()) {
+    try {
+      const v = window.localStorage.getItem(ACTIVE_USER_KEY)
+      if (v) {
+        activeUserId = v
+        return v
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return CURRENT_USER_ID
+}
+
+export function setActiveUserId(id: string) {
+  activeUserId = id
+  if (hasWindow()) {
+    try {
+      window.localStorage.setItem(ACTIVE_USER_KEY, id)
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export function clearActiveUserId() {
+  activeUserId = null
+  if (hasWindow()) {
+    try {
+      window.localStorage.removeItem(ACTIVE_USER_KEY)
+    } catch {
+      // ignore
+    }
+  }
+}
+
 export function progressKey(userId: string, wordId: string) {
   return `${userId}:${wordId}`
 }

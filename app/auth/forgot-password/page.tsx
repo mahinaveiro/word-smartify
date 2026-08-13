@@ -1,11 +1,11 @@
 import { Suspense } from 'react'
-import { AuthView } from '@/features/auth/auth-view'
+import { ForgotPasswordView } from '@/features/auth/forgot-password-view'
 import { AuthLoading } from '@/features/auth/auth-loading'
 
-export default function AuthPage() {
+export default function ForgotPasswordPage() {
   return (
     <Suspense fallback={<AuthLoading />}>
-      <AuthView />
+      <ForgotPasswordView />
     </Suspense>
   )
 }

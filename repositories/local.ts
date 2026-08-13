@@ -49,6 +49,7 @@ import {
   writeStore,
 } from '@/data/local-store'
 import { ensureSeeded } from '@/data/seed-user'
+import { LocalAuthRepository } from './local-auth'
 
 /** Simulated latency — small so the app never feels slow. */
 function delay<T>(value: T, ms = 40): Promise<T> {
@@ -425,6 +426,7 @@ class LocalMockTestRepository implements MockTestRepository {
 
 export function createLocalRepositories(): Repositories {
   return {
+    auth: new LocalAuthRepository(),
     books: new LocalBookRepository(),
     chapters: new LocalChapterRepository(),
     levels: new LocalLevelRepository(),

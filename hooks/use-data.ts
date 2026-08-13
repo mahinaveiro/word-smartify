@@ -4,13 +4,16 @@
  * SWR-based read hooks over the repository layer. Components never touch
  * repositories directly for reads — they use these, which gives caching and
  * cross-component sync for free.
+ *
+ * User-scoped hooks resolve the ACTIVE user id (from the auth session) at call
+ * time and include it in the SWR key, so switching accounts naturally
+ * refetches the right data.
  */
 
 import useSWR from 'swr'
-import { repositories, CURRENT_USER_ID } from '@/repositories'
+import { repositories, getActiveUserId } from '@/repositories'
 
 const repo = repositories
-const uid = CURRENT_USER_ID
 
 export function useBooks() {
   return useSWR('books', () => repo.books.getBooks())
@@ -52,10 +55,12 @@ export function useQuizForWord(wordId: string | null) {
 }
 
 export function useProfile() {
+  const uid = getActiveUserId()
   return useSWR(['profile', uid], () => repo.profiles.getProfile(uid))
 }
 
 export function useStats() {
+  const uid = getActiveUserId()
   return useSWR(['stats', uid], () => repo.stats.getStats(uid))
 }
 
@@ -64,39 +69,47 @@ export function useLeaderboard(limit = 10) {
 }
 
 export function useAllProgress() {
+  const uid = getActiveUserId()
   return useSWR(['progress', uid], () => repo.wordProgress.getAllProgress(uid))
 }
 
 export function useWordProgress(wordId: string | null) {
+  const uid = getActiveUserId()
   return useSWR(wordId ? ['word-progress', uid, wordId] : null, () =>
     repo.wordProgress.getWordProgress(uid, wordId as string),
   )
 }
 
 export function useProgressCounts() {
+  const uid = getActiveUserId()
   return useSWR(['progress-counts', uid], () => repo.wordProgress.countByStatus(uid))
 }
 
 export function useDueForReview() {
+  const uid = getActiveUserId()
   return useSWR(['due', uid], () => repo.wordProgress.getDueForReview(uid))
 }
 
 export function useLevelProgress(bookId: string | null) {
+  const uid = getActiveUserId()
   return useSWR(bookId ? ['level-progress', uid, bookId] : null, () =>
     repo.wordProgress.getLevelProgress(uid, bookId as string),
   )
 }
 
 export function useDailyProgress(date: string) {
+  const uid = getActiveUserId()
   return useSWR(['daily', uid, date], () => repo.dailyProgress.getDailyProgress(uid, date))
 }
 
 export function useDailyRange(fromDate: string, toDate: string) {
+  const uid = getActiveUserId()
   return useSWR(['daily-range', uid, fromDate, toDate], () =>
     repo.dailyProgress.getRange(uid, fromDate, toDate),
   )
 }
 
 export function useMockTests() {
+  const uid = getActiveUserId()
   return useSWR(['mock-tests', uid], () => repo.mockTests.getMockTestsForUser(uid))
 }
