@@ -21,6 +21,7 @@ import type {
   Word,
   WordStatus,
 } from '@/types/database'
+import type { AuthUser, SignUpInput, SignUpResult } from '@/types/auth'
 
 export interface Paginated<T> {
   items: T[]
@@ -128,8 +129,34 @@ export interface MockTestRepository {
   getMockTestsForUser(userId: UUID): Promise<MockTest[]>
 }
 
+/**
+ * Identity / session. The local implementation fakes it in the browser; the
+ * Supabase implementation will map 1:1 onto Supabase Auth (sign up, sign in,
+ * email confirmation, password recovery) without changing any UI.
+ */
+export interface AuthRepository {
+  /** Current session user, or null if signed out. */
+  getSession(): Promise<AuthUser | null>
+  /** Creates the account + its profile/stats; requires email confirmation. */
+  signUp(input: SignUpInput): Promise<SignUpResult>
+  /** Verifies credentials and opens a session. */
+  signIn(email: string, password: string): Promise<AuthUser>
+  signOut(): Promise<void>
+  /** Re-issues the confirmation token (local returns it to simulate the email). */
+  resendConfirmation(email: string): Promise<{ confirmationToken?: string }>
+  /** Marks the account confirmed. */
+  confirmEmail(token: string): Promise<AuthUser>
+  /**
+   * Starts recovery. Always resolves (never leaks whether the email exists).
+   * Local returns the token to simulate the emailed reset link.
+   */
+  requestPasswordReset(email: string): Promise<{ resetToken?: string }>
+  resetPassword(token: string, newPassword: string): Promise<void>
+}
+
 /** Aggregated access point so features depend on one object. */
 export interface Repositories {
+  auth: AuthRepository
   books: BookRepository
   chapters: ChapterRepository
   levels: LevelRepository

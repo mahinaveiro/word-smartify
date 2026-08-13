@@ -11,5 +11,5 @@ import { createLocalRepositories } from './local'
 
 export const repositories: Repositories = createLocalRepositories()
 
-export { CURRENT_USER_ID } from '@/data/local-store'
+export { CURRENT_USER_ID, getActiveUserId } from '@/data/local-store'
 export type * from './interfaces'

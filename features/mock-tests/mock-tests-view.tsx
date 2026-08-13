@@ -24,7 +24,7 @@ import { QuizCard } from '@/features/session/quiz-card'
 import { useToast } from '@/components/ui/toast'
 import { formatDuration, shortDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
-import { repositories, CURRENT_USER_ID } from '@/repositories'
+import { repositories, getActiveUserId } from '@/repositories'
 import { useMockTests } from '@/hooks/use-data'
 import { useActions } from '@/hooks/use-actions'
 import { XP } from '@/lib/learning-logic'
@@ -61,7 +61,7 @@ export function MockTestsView() {
     try {
       const seed = Math.floor(Math.random() * 100000)
       const qs = await repositories.quizzes.getRandomQuestions(count, seed)
-      const test = await repositories.mockTests.createMockTest(CURRENT_USER_ID, {
+      const test = await repositories.mockTests.createMockTest(getActiveUserId(), {
         total_questions: qs.length,
       })
       testIdRef.current = test.id
