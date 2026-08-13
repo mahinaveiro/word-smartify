@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import { Space_Grotesk, DM_Sans } from 'next/font/google'
 import './globals.css'
 import { ToastProvider } from '@/components/ui/toast'
+import { RepositoryProvider } from '@/repositories/provider'
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -32,7 +33,6 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: '/icon.svg',
-    apple: '/apple-icon.png',
   },
 }
 
@@ -56,7 +56,9 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${dmSans.variable} bg-background`}
     >
       <body className="min-h-dvh antialiased">
-        <ToastProvider>{children}</ToastProvider>
+        <RepositoryProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </RepositoryProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
