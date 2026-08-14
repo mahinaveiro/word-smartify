@@ -51,9 +51,11 @@ export function MockTestsView() {
   const [index, setIndex] = useState(0)
   const [answers, setAnswers] = useState<Answered[]>([])
   const [starting, setStarting] = useState(false)
+  const [finishing, setFinishing] = useState(false)
   const [result, setResult] = useState<MockTest | null>(null)
   const testIdRef = useRef<string | null>(null)
   const startedAtRef = useRef<number>(0)
+  const finishRecorded = useRef(false)
 
   const start = useCallback(async (count: number) => {
     setStarting(true)
@@ -65,6 +67,7 @@ export function MockTestsView() {
       })
       testIdRef.current = test.id
       startedAtRef.current = Date.now()
+      finishRecorded.current = false
       setQuestions(qs)
       setAnswers([])
       setIndex(0)
@@ -98,27 +101,35 @@ export function MockTestsView() {
       setIndex((i) => i + 1)
       return
     }
-    // finalize
-    const time = Math.round((Date.now() - startedAtRef.current) / 1000)
-    if (testIdRef.current) {
-      const finalized = await repositories.mockTests.finalizeMockTest(testIdRef.current, {
-        time_taken_seconds: time,
-      })
-      const correctCount = finalized.correct_answers
-      const earnedXp = correctCount * XP.CORRECT_QUIZ
-      if (earnedXp > 0) {
-        await repositories.stats.addXp(getActiveUserId(), earnedXp)
+    if (finishRecorded.current || finishing) return
+    finishRecorded.current = true
+    setFinishing(true)
+    try {
+      const time = Math.round((Date.now() - startedAtRef.current) / 1000)
+      if (testIdRef.current) {
+        const finalized = await repositories.mockTests.finalizeMockTest(testIdRef.current, {
+          time_taken_seconds: time,
+        })
+        const correctCount = finalized.correct_answers
+        const earnedXp = correctCount * XP.CORRECT_QUIZ
+        if (earnedXp > 0) {
+          await repositories.stats.addXp(getActiveUserId(), earnedXp)
+        }
+        setResult(finalized)
+        revalidateUser()
+        mutate()
+        toast({
+          title: 'Test complete!',
+          description: `You scored ${finalized.score}% and earned +${earnedXp} XP.`,
+          tone: 'success',
+        })
       }
-      setResult(finalized)
-      revalidateUser()
-      mutate()
-      toast({
-        title: 'Test complete!',
-        description: `You scored ${finalized.score}% and earned +${earnedXp} XP.`,
-        tone: 'success',
-      })
+      setPhase('summary')
+    } catch {
+      finishRecorded.current = false
+    } finally {
+      setFinishing(false)
     }
-    setPhase('summary')
   }
 
   function quit() {
@@ -151,7 +162,7 @@ export function MockTestsView() {
         <div className="flex flex-1 flex-col justify-center py-6">
           <QuizCard question={current} selected={quiz.selected} onSelect={choose} revealed={quiz.revealed} />
         </div>
-        <Button size="lg" className="mt-auto w-full" onClick={next} disabled={!quiz.revealed}>
+        <Button size="lg" className="mt-auto w-full" onClick={next} disabled={!quiz.revealed || finishing} loading={finishing}>
           {index < total - 1 ? 'Next question' : 'Finish test'}
           <ArrowRight className="size-5" aria-hidden />
         </Button>

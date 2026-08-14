@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, ArrowRight, Trophy, Zap, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -25,7 +25,9 @@ export function ReviewView() {
   const [phase, setPhase] = useState<Phase>('quiz')
   const [index, setIndex] = useState(0)
   const [busy, setBusy] = useState(false)
+  const [finishing, setFinishing] = useState(false)
   const [results, setResults] = useState<QuizAnswerResult[]>([])
+  const finishRecorded = useRef(false)
 
   const total = cards?.length ?? 0
   const card = cards?.[index]
@@ -46,7 +48,14 @@ export function ReviewView() {
           icon={RotateCcw}
           title="Couldn't load your review"
           description="We could not load your review queue. Please try again."
-          action={<Button onClick={() => mutate()}>Retry</Button>}
+          action={
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button variant="outline" onClick={() => router.push('/dashboard')}>
+                Back to dashboard
+              </Button>
+              <Button onClick={() => mutate()}>Retry</Button>
+            </div>
+          }
         />
       </div>
     )
@@ -59,7 +68,14 @@ export function ReviewView() {
           icon={Trophy}
           title="Nothing due right now"
           description="You're all caught up. Come back later, or keep learning new words."
-          action={<Button onClick={() => router.push('/learn')}>Go to Learn</Button>}
+          action={
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button variant="outline" onClick={() => router.push('/dashboard')}>
+                Back to dashboard
+              </Button>
+              <Button onClick={() => router.push('/learn')}>Go to Learn</Button>
+            </div>
+          }
         />
       </div>
     )
@@ -87,14 +103,23 @@ export function ReviewView() {
       setIndex((i) => i + 1)
       return
     }
-    const learned = results.filter((r) => r.becameLearned).length
-    const reviews = results.length - learned
-    const res = await recordSessionProgress({ newWords: learned, reviews })
-    revalidateUser()
-    if (res.goalJustCompleted) {
-      toast({ title: 'Daily goal complete!', description: '+25 XP bonus earned.', tone: 'success' })
+    if (finishRecorded.current || finishing) return
+    finishRecorded.current = true
+    setFinishing(true)
+    try {
+      const learned = results.filter((r) => r.becameLearned).length
+      const reviews = results.length - learned
+      const res = await recordSessionProgress({ newWords: learned, reviews })
+      revalidateUser()
+      if (res.goalJustCompleted) {
+        toast({ title: 'Daily goal complete!', description: '+25 XP bonus earned.', tone: 'success' })
+      }
+      setPhase('summary')
+    } catch {
+      finishRecorded.current = false
+    } finally {
+      setFinishing(false)
     }
-    setPhase('summary')
   }
 
   const progressPct = phase === 'summary' ? 100 : Math.round((index / total) * 100)
@@ -149,7 +174,13 @@ export function ReviewView() {
 
       <div className="mt-auto">
         {phase === 'quiz' ? (
-          <Button size="lg" className="w-full" onClick={next} disabled={!quiz.revealed || busy} loading={busy}>
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={next}
+            disabled={!quiz.revealed || busy || finishing}
+            loading={busy || finishing}
+          >
             {index < total - 1 ? 'Next word' : 'Finish'}
             <ArrowRight className="size-5" aria-hidden />
           </Button>

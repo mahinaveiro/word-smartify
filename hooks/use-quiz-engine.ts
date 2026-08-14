@@ -23,13 +23,16 @@ export function useQuizEngine(question: QuizQuestion | null) {
   const [selected, setSelected] = useState<string | null>(null)
   const [phase, setPhase] = useState<QuizPhase>('answering')
   const answeredQuestionId = useRef<string | null>(null)
+  const activeQuestionId = useRef<string | null>(null)
 
-  // Moving to a new (or cleared) question resets the machine exactly once.
+  // A new question id (including null when the session clears) fully resets the machine.
   useEffect(() => {
-    if (question?.id !== answeredQuestionId.current) {
-      setSelected(null)
-      setPhase('answering')
-    }
+    const id = question?.id ?? null
+    if (id === activeQuestionId.current) return
+    activeQuestionId.current = id
+    setSelected(null)
+    setPhase('answering')
+    answeredQuestionId.current = null
   }, [question?.id])
 
   const submit = useCallback(

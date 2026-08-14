@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, ArrowRight, Trophy, Zap, Sparkles, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -29,7 +29,9 @@ export function SessionView({ levelId }: { levelId: string }) {
   const [index, setIndex] = useState(0)
   const [flipped, setFlipped] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [finishing, setFinishing] = useState(false)
   const [results, setResults] = useState<QuizAnswerResult[]>([])
+  const finishRecorded = useRef(false)
 
   const total = cards?.length ?? 0
   const card = cards?.[index]
@@ -85,8 +87,12 @@ export function SessionView({ levelId }: { levelId: string }) {
   async function nextQuiz() {
     if (index < total - 1) {
       setIndex((i) => i + 1)
-    } else {
-      // finish: record session-level progress
+      return
+    }
+    if (finishRecorded.current || finishing) return
+    finishRecorded.current = true
+    setFinishing(true)
+    try {
       const learned = results.filter((r) => r.becameLearned).length
       const reviews = results.length - learned
       const res = await recordSessionProgress({ newWords: learned, reviews })
@@ -95,6 +101,10 @@ export function SessionView({ levelId }: { levelId: string }) {
         toast({ title: 'Daily goal complete!', description: '+25 XP bonus earned.', tone: 'success' })
       }
       setPhase('summary')
+    } catch {
+      finishRecorded.current = false
+    } finally {
+      setFinishing(false)
     }
   }
 
@@ -121,9 +131,9 @@ export function SessionView({ levelId }: { levelId: string }) {
       </p>
 
       <div className="flex flex-1 flex-col justify-center py-6">
-        {phase === 'flashcards' ? (
+        {phase === 'flashcards' && card ? (
           <Flashcard word={card.word} flipped={flipped} onFlip={() => setFlipped((f) => !f)} />
-        ) : phase === 'quiz' ? (
+        ) : phase === 'quiz' && card ? (
           <QuizCard
             question={card.question}
             selected={quiz.selected}
@@ -143,7 +153,13 @@ export function SessionView({ levelId }: { levelId: string }) {
             <ArrowRight className="size-5" aria-hidden />
           </Button>
         ) : phase === 'quiz' ? (
-          <Button size="lg" className="w-full" onClick={nextQuiz} disabled={!quiz.revealed || busy} loading={busy}>
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={nextQuiz}
+            disabled={!quiz.revealed || busy || finishing}
+            loading={busy || finishing}
+          >
             {index < total - 1 ? 'Next question' : 'Finish'}
             <ArrowRight className="size-5" aria-hidden />
           </Button>
