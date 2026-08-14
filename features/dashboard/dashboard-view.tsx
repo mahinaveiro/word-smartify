@@ -1,63 +1,40 @@
 'use client'
 
 import Link from 'next/link'
-import { Flame, Sparkles, Target, BookOpen, Trophy, Zap, CircleCheckBig, ArrowRight } from 'lucide-react'
+import { ArrowRight, BookOpen, CircleCheckBig, Flame, Sparkles, Target, Trophy, Zap } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { GoalRing } from '@/features/shared/goal-ring'
 import { StatTile } from '@/features/shared/stat-tile'
-import { useProfile, useStats, useDailyProgress, useDueForReview, useBooks, useLevelsForBook } from '@/hooks/use-data'
-import { useActions } from '@/hooks/use-actions'
-import { xpToLevel } from '@/lib/learning-logic'
-import { todayISO } from '@/lib/date'
-import { useToast } from '@/components/ui/toast'
+import { useBookProgress, useDailyPlan, useProfile, useStats } from '@/hooks/use-data'
 
 export function DashboardView() {
   const { data: profile } = useProfile()
   const { data: stats } = useStats()
-  const today = todayISO()
-  const { data: daily } = useDailyProgress(today)
-  const { data: due } = useDueForReview()
-  const { data: books } = useBooks()
-  const currentBookId = profile?.current_book_id ?? books?.[0]?.id ?? null
-  const { data: levels } = useLevelsForBook(currentBookId)
-  const { completeDailyChallenge, revalidateUser } = useActions()
-  const { toast } = useToast()
+  const { data: plan } = useDailyPlan()
+  const { data: bookProgress } = useBookProgress()
 
-  if (!profile || !stats) return <DashboardSkeleton />
-
-  const goal = profile.daily_goal
-  const doneToday = daily?.new_words_completed ?? 0
-  const level = xpToLevel(stats.total_xp)
-  const dueCount = due?.length ?? 0
-  const nextLevel = levels?.[0]
-  const challengeDone = daily?.challenge_completed ?? false
+  if (!profile || !stats || !plan) return <DashboardSkeleton />
 
   const firstName = profile.display_name.split(' ')[0]
-
-  async function onChallenge() {
-    const res = await completeDailyChallenge()
-    revalidateUser()
-    toast(
-      res.alreadyDone
-        ? { title: 'Already completed', description: "You've claimed today's challenge.", tone: 'default' }
-        : { title: 'Challenge complete!', description: '+15 XP added to your total.', tone: 'success' },
-    )
-  }
+  const bookSummary = plan.currentBook
+    ? bookProgress?.find((progress) => progress.book_id === plan.currentBook?.id)
+    : undefined
+  const bookPercent = bookSummary && bookSummary.total > 0
+    ? Math.round((bookSummary.learned / bookSummary.total) * 100)
+    : 0
+  const level = plan.newLearning.level
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Greeting */}
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
           <p className="font-heading text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             {greeting()}
           </p>
-          <h1 className="truncate text-balance font-heading text-2xl font-bold sm:text-3xl">
-            {firstName}
-          </h1>
+          <h1 className="truncate text-balance font-heading text-2xl font-bold sm:text-3xl">{firstName}</h1>
         </div>
         <Badge variant="coral" className="shrink-0 gap-1.5 px-3 py-1.5 text-sm">
           <Flame className="size-4" aria-hidden />
@@ -65,129 +42,151 @@ export function DashboardView() {
         </Badge>
       </div>
 
-      {/* Daily goal hero */}
-      <Card className="overflow-hidden">
-        <CardContent className="flex items-center gap-5 p-5">
-          <GoalRing value={doneToday} max={goal} sublabel="today" />
-          <div className="min-w-0 flex-1">
-            <p className="font-heading text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Daily goal
-            </p>
-            <p className="mt-0.5 text-pretty text-lg font-bold leading-snug">
-              {doneToday >= goal
-                ? 'Goal smashed. Keep the streak alive!'
-                : `${goal - doneToday} more word${goal - doneToday === 1 ? '' : 's'} to hit today's goal`}
-            </p>
-            <div className="mt-3">
-              <Button asChild size="sm">
-                <Link href="/learn">
-                  {doneToday > 0 ? 'Keep learning' : 'Start learning'}
-                  <ArrowRight className="size-4" aria-hidden />
-                </Link>
-              </Button>
+      <Card className={plan.dayComplete ? 'overflow-hidden border-mint bg-mint/15' : 'overflow-hidden bg-coral/10'}>
+        <CardContent className="p-5 sm:p-7">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
+            <div className="flex items-center gap-5">
+              <GoalRing value={plan.progress.newWordsCompleted} max={plan.goal} sublabel="today" />
+              <div>
+                <p className="font-heading text-sm font-semibold uppercase tracking-wide text-muted-foreground">Today&apos;s plan</p>
+                <h2 className="mt-1 font-heading text-2xl font-bold">
+                  {plan.dayComplete ? 'Day complete!' : `${plan.progress.newWordsCompleted} of ${plan.goal} words`}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {plan.dayComplete
+                    ? 'Your assigned new-word goal is done. Extra practice keeps the momentum going.'
+                    : `${plan.newLearning.remaining} new word${plan.newLearning.remaining === 1 ? '' : 's'} left in the assigned goal.`}
+                </p>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Level progress */}
-      <Card flat className="border-foreground/15 bg-muted/40">
-        <CardContent className="flex items-center gap-4 p-4">
-          <span className="grid size-12 shrink-0 place-items-center rounded-md border-2 border-foreground bg-mint font-heading text-lg font-bold text-mint-foreground shadow-brutal-sm">
-            {level.level}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-baseline justify-between gap-2">
-              <p className="font-heading text-sm font-bold">Level {level.level}</p>
-              <p className="text-xs tabular-nums text-muted-foreground">
-                {level.into}/{level.span} XP
-              </p>
-            </div>
-            <div className="mt-2 h-2.5 overflow-hidden rounded-full border-2 border-foreground bg-card">
-              <div
-                className="h-full bg-mint transition-[width] duration-[--duration-major]"
-                style={{ width: `${level.pct}%` }}
+            <div className="grid flex-1 gap-3 sm:grid-cols-3">
+              <PlanItem
+                icon={BookOpen}
+                title="New learning"
+                detail={level ? `${plan.newLearning.remaining} left · ${level.title}` : 'All levels complete'}
+                done={plan.dayComplete}
+                href={level ? `/session/${level.id}` : '/learn'}
+                action={plan.dayComplete ? 'Practice more' : 'Open session'}
+                accent="mint"
+              />
+              <PlanItem
+                icon={Target}
+                title="Reviews"
+                detail={`${plan.review.due} ready · ${plan.progress.reviewsCompleted} done today`}
+                done={plan.review.due === 0}
+                href="/review"
+                action="Open reviews"
+                accent="coral"
+              />
+              <PlanItem
+                icon={Sparkles}
+                title="Daily challenge"
+                detail={plan.challenge.completed ? 'Finished for today' : 'Short quiz · +15 XP'}
+                done={plan.challenge.completed}
+                href="/challenge"
+                action={plan.challenge.completed ? 'View challenge' : 'Take challenge'}
+                accent="ink"
               />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile icon={Zap} value={stats.total_xp.toLocaleString()} label="Total XP" accent="ink" />
         <StatTile icon={BookOpen} value={stats.words_learned.toLocaleString()} label="Words learned" />
         <StatTile icon={Trophy} value={stats.words_mastered.toLocaleString()} label="Mastered" accent="mint" />
         <StatTile icon={Flame} value={stats.longest_streak} label="Best streak" />
       </div>
 
-      {/* Review + Challenge */}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-2">
         <Card>
-          <CardContent className="flex flex-col gap-3 p-5">
-            <div className="flex items-center gap-2">
-              <Target className="size-5 text-coral" aria-hidden />
-              <h2 className="font-heading text-base font-bold">Review due</h2>
+          <CardContent className="flex flex-col gap-4 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Where you are</p>
+                <h2 className="font-heading text-xl font-bold">{plan.currentBook?.name ?? 'Choose a book'}</h2>
+              </div>
+              <BookOpen className="size-6 text-mint" aria-hidden />
             </div>
-            <p className="text-sm text-muted-foreground">
-              {dueCount > 0
-                ? `${dueCount} word${dueCount === 1 ? '' : 's'} ready to reinforce.`
-                : 'Nothing due right now. Great job staying on top of reviews.'}
-            </p>
-            <Button asChild variant={dueCount > 0 ? 'primary' : 'outline'} size="sm" disabled={dueCount === 0}>
-              <Link href="/review">Review {dueCount > 0 ? `(${dueCount})` : ''}</Link>
-            </Button>
+            {bookSummary ? (
+              <>
+                <div className="flex items-center justify-between text-sm">
+                  <span>{bookSummary.learned.toLocaleString()} of {bookSummary.total.toLocaleString()} learned</span>
+                  <span className="font-heading font-bold">{bookPercent}%</span>
+                </div>
+                <div className="h-3 overflow-hidden rounded-full border-2 border-foreground bg-card">
+                  <div className="h-full bg-mint" style={{ width: `${bookPercent}%` }} />
+                </div>
+              </>
+            ) : <p className="text-sm text-muted-foreground">Pick a book from Learn to start your path.</p>}
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="flex flex-col gap-3 p-5">
-            <div className="flex items-center gap-2">
-              <Sparkles className="size-5 text-mint" aria-hidden />
-              <h2 className="font-heading text-base font-bold">Daily challenge</h2>
+          <CardContent className="flex flex-col gap-4 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Next move</p>
+                <h2 className="font-heading text-xl font-bold">{level?.title ?? 'Explore your library'}</h2>
+              </div>
+              <ArrowRight className="size-6 text-coral" aria-hidden />
             </div>
             <p className="text-sm text-muted-foreground">
-              {challengeDone
-                ? 'Completed today. Come back tomorrow for a new one.'
-                : 'Finish a quick challenge for bonus XP.'}
+              {level ? `${level.word_count} words are waiting in your next level.` : 'Review your progress or browse a new level.'}
             </p>
-            <Button onClick={onChallenge} variant="accent" size="sm" disabled={challengeDone}>
-              {challengeDone ? (
-                <>
-                  <CircleCheckBig className="size-4" aria-hidden /> Done
-                </>
-              ) : (
-                'Claim +15 XP'
-              )}
+            <Button asChild size="sm" className="self-start">
+              <Link href={level ? `/session/${level.id}` : '/learn'}>
+                {level ? 'Open next level' : 'Open Learn'} <ArrowRight className="size-4" aria-hidden />
+              </Link>
             </Button>
           </CardContent>
         </Card>
       </div>
+    </div>
+  )
+}
 
-      {nextLevel ? (
-        <Card>
-          <CardContent className="flex items-center justify-between gap-4 p-5">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Up next
-              </p>
-              <p className="truncate font-heading text-base font-bold">{nextLevel.title}</p>
-              <p className="text-sm text-muted-foreground">{nextLevel.word_count} words</p>
-            </div>
-            <Button asChild size="sm" className="shrink-0">
-              <Link href={`/learn/level/${nextLevel.id}`}>Open</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
+function PlanItem({
+  icon: Icon,
+  title,
+  detail,
+  done,
+  href,
+  action,
+  accent,
+}: {
+  icon: typeof BookOpen
+  title: string
+  detail: string
+  done: boolean
+  href: string
+  action: string
+  accent: 'mint' | 'coral' | 'ink'
+}) {
+  return (
+    <div className="flex min-h-32 flex-col justify-between rounded-md border-2 border-foreground bg-card p-3 shadow-brutal-sm">
+      <div className="flex items-start justify-between gap-2">
+        <span className={`grid size-8 place-items-center rounded-md border-2 border-foreground ${accent === 'mint' ? 'bg-mint' : accent === 'coral' ? 'bg-coral' : 'bg-foreground text-background'}`}>
+          <Icon className="size-4" aria-hidden />
+        </span>
+        {done ? <CircleCheckBig className="size-5 text-mint-foreground" aria-label="Done" /> : null}
+      </div>
+      <div className="mt-3">
+        <p className="font-heading text-sm font-bold">{title}</p>
+        <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{detail}</p>
+      </div>
+      <Button asChild variant="ghost" size="sm" className="mt-2 justify-start px-0 shadow-none">
+        <Link href={href}>{action} <ArrowRight className="size-3.5" aria-hidden /></Link>
+      </Button>
     </div>
   )
 }
 
 function greeting(): string {
-  const h = new Date().getHours()
-  if (h < 12) return 'Good morning'
-  if (h < 18) return 'Good afternoon'
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 18) return 'Good afternoon'
   return 'Good evening'
 }
 
@@ -195,13 +194,14 @@ function DashboardSkeleton() {
   return (
     <div className="flex flex-col gap-6">
       <Skeleton className="h-10 w-48" />
-      <Skeleton className="h-32 w-full" />
+      <Skeleton className="h-48 w-full" />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 w-full" />
-        ))}
+        {Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-24 w-full" />)}
       </div>
-      <Skeleton className="h-40 w-full" />
+      <div className="grid gap-3 lg:grid-cols-2">
+        <Skeleton className="h-44 w-full" />
+        <Skeleton className="h-44 w-full" />
+      </div>
     </div>
   )
 }

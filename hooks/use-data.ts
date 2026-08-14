@@ -13,6 +13,7 @@
 import useSWR from 'swr'
 import { repositories, getActiveUserId } from '@/repositories'
 import { buildTodayPlan } from '@/services/daily-loop'
+import { buildProgressSummary } from '@/services/progress'
 
 const repo = repositories
 
@@ -124,6 +125,11 @@ export function useDailyRange(fromDate: string, toDate: string) {
 export function useDailyPlan() {
   const uid = getActiveUserId()
   return useSWR(['daily-plan', uid], () => buildTodayPlan(uid))
+}
+
+export function useProgressSummary() {
+  const uid = getActiveUserId()
+  return useSWR(['progress-summary', uid], () => buildProgressSummary(uid))
 }
 
 export function useMockTests() {
