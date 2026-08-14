@@ -77,7 +77,7 @@ export function SessionView({ levelId }: { levelId: string }) {
     if (!event) return
     setBusy(true)
     try {
-      const res = await recordQuizAnswer(card.word.id, event.isCorrect)
+      const res = await recordQuizAnswer(card.word.id, event.isCorrect, 'learning')
       setResults((prev) => [...prev, res])
     } finally {
       setBusy(false)
@@ -95,9 +95,9 @@ export function SessionView({ levelId }: { levelId: string }) {
     try {
       const learned = results.filter((r) => r.becameLearned).length
       const reviews = results.length - learned
-      const res = await recordSessionProgress({ newWords: learned, reviews })
+      await recordSessionProgress({ newWords: learned, reviews })
       revalidateUser()
-      if (res.goalJustCompleted) {
+      if (results.some((result) => result.goalJustCompleted)) {
         toast({ title: 'Daily goal complete!', description: '+25 XP bonus earned.', tone: 'success' })
       }
       setPhase('summary')

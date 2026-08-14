@@ -11,6 +11,7 @@
 
 import type {
   Book,
+  BookProgressSummary,
   Chapter,
   DailyProgress,
   ISODate,
@@ -24,6 +25,7 @@ import type {
   UUID,
   Word,
   WordStatus,
+  PublicProfile,
 } from '@/types/database'
 import type {
   BookRepository,
@@ -42,7 +44,6 @@ import type {
 import { getDataset, getQuizForWord } from '@/data/dataset'
 import { makeId, makeRng, NOW, shuffle } from '@/data/seed-utils'
 import {
-  CURRENT_USER_ID,
   dailyKey,
   progressKey,
   readStore,
@@ -159,6 +160,25 @@ class LocalProfileRepository implements ProfileRepository {
     const p = readStore().profiles[userId]
     return delay(p ? clone(p) : null)
   }
+  async getPublicProfile(userId: UUID): Promise<PublicProfile | null> {
+    ensureSeeded()
+    const store = readStore()
+    const profile = store.profiles[userId]
+    const stats = store.stats[userId]
+    if (!profile || !stats) return delay(null)
+    const bookProgress = await new LocalWordProgressRepository().getBookProgress(userId)
+    return delay(clone({
+      id: profile.id,
+      display_name: profile.display_name,
+      avatar_id: profile.avatar_id,
+      current_streak: stats.current_streak,
+      longest_streak: stats.longest_streak,
+      total_xp: stats.total_xp,
+      words_learned: stats.words_learned,
+      words_mastered: stats.words_mastered,
+      book_progress: bookProgress,
+    }))
+  }
   async updateProfile(
     userId: UUID,
     patch: Partial<Omit<Profile, 'id' | 'created_at'>>,
@@ -205,14 +225,17 @@ class LocalStatsRepository implements StatsRepository {
     }).stats[userId]
     return delay(clone(s))
   }
-  async getLeaderboard(limit = 10): Promise<Array<{ profile: Profile; stats: UserStats }>> {
+  async getLeaderboard(limit = 10): Promise<Array<{ rank: number; profile: Profile; stats: UserStats }>> {
     ensureSeeded()
     const store = readStore()
-    const me = store.profiles[CURRENT_USER_ID]
-    const meStats = store.stats[CURRENT_USER_ID]
-    const rows = [...store.demoLeaderboard]
-    if (me && meStats) rows.push({ profile: me, stats: meStats })
-    rows.sort((a, b) => b.stats.total_xp - a.stats.total_xp)
+    const rows = Object.values(store.profiles)
+      .map((profile) => {
+        const stats = store.stats[profile.id]
+        return stats ? { profile, stats } : null
+      })
+      .filter((row): row is { profile: Profile; stats: UserStats } => row != null)
+      .sort((a, b) => b.stats.total_xp - a.stats.total_xp || a.profile.display_name.localeCompare(b.profile.display_name))
+      .map((row, index) => ({ ...row, rank: index + 1 }))
     return delay(clone(rows.slice(0, limit)))
   }
 }
@@ -282,6 +305,31 @@ class LocalWordProgressRepository implements WordProgressRepository {
       out[level.id] = { level_id: level.id, total: words.length, learned, mastered }
     }
     return delay(out)
+  }
+  async getBookProgress(userId: UUID): Promise<BookProgressSummary[]> {
+    ensureSeeded()
+    const ds = getDataset()
+    const store = readStore()
+    const demo = store.demoBookProgress[userId]
+    if (demo) return delay(clone(demo))
+    const byWord = new Map(
+      Object.values(store.wordProgress)
+        .filter((progress) => progress.user_id === userId)
+        .map((progress) => [progress.word_id, progress.status]),
+    )
+    return delay(clone(ds.books.map((book) => {
+      const words = ds.words.filter((word) => {
+        const level = ds.levelById.get(word.level_id)
+        const chapter = level ? ds.chapters.find((item) => item.id === level.chapter_id) : undefined
+        return chapter?.book_id === book.id
+      })
+      return {
+        book_id: book.id,
+        total: words.length,
+        learned: words.filter((word) => byWord.get(word.id) != null && byWord.get(word.id) !== 'new').length,
+        mastered: words.filter((word) => byWord.get(word.id) === 'mastered').length,
+      }
+    })))
   }
   async updateWordProgress(
     userId: UUID,

@@ -49,11 +49,14 @@ function dateDaysAgo(days: number): string {
 
 export function ensureSeeded() {
   const store = readStore()
-  if (store.profiles[CURRENT_USER_ID]) return
+  const demosSeeded =
+    store.demoLeaderboard.length > 0 &&
+    store.profiles[store.demoLeaderboard[0]?.profile.id ?? ''] != null
+  if (store.profiles[CURRENT_USER_ID] && demosSeeded) return
 
   writeStore((draft) => {
-    seedCurrentUser(draft)
-    seedLeaderboard(draft)
+    if (!draft.profiles[CURRENT_USER_ID]) seedCurrentUser(draft)
+    if (!demosSeeded) seedLeaderboard(draft)
   })
 }
 
@@ -146,6 +149,7 @@ function seedCurrentUser(draft: UserDataShape) {
 
 function seedLeaderboard(draft: UserDataShape) {
   const rng = makeRng(7)
+  const ds = getDataset()
   const board: UserDataShape['demoLeaderboard'] = DEMO_NAMES.map((name, i) => {
     const xp = 400 + Math.floor(rng() * 2600)
     const profile: Profile = {
@@ -166,6 +170,22 @@ function seedLeaderboard(draft: UserDataShape) {
       words_mastered: Math.floor(xp / 20),
       last_activity_at: isoDaysAgo(Math.floor(rng() * 3)),
     }
+    draft.profiles[profile.id] = profile
+    draft.stats[profile.id] = stats
+    draft.demoBookProgress[profile.id] = ds.books.map((book) => {
+      const total = ds.words.filter((word) => {
+        const level = ds.levelById.get(word.level_id)
+        const chapter = level ? ds.chapters.find((item) => item.id === level.chapter_id) : undefined
+        return chapter?.book_id === book.id
+      }).length
+      const learned = Math.min(total, Math.floor(stats.words_learned / Math.max(1, ds.books.length)) + i)
+      return {
+        book_id: book.id,
+        total,
+        learned,
+        mastered: Math.min(learned, Math.floor(stats.words_mastered / Math.max(1, ds.books.length))),
+      }
+    })
     return { profile, stats }
   })
   draft.demoLeaderboard = board

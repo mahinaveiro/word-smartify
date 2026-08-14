@@ -7,6 +7,7 @@
 
 import type {
   Book,
+  BookProgressSummary,
   Chapter,
   DailyProgress,
   ISODate,
@@ -20,6 +21,7 @@ import type {
   UUID,
   Word,
   WordStatus,
+  PublicProfile,
 } from '@/types/database'
 import type { AuthUser, SignUpInput, SignUpResult } from '@/types/auth'
 
@@ -65,6 +67,7 @@ export interface QuizRepository {
 
 export interface ProfileRepository {
   getProfile(userId: UUID): Promise<Profile | null>
+  getPublicProfile(userId: UUID): Promise<PublicProfile | null>
   updateProfile(userId: UUID, patch: Partial<Omit<Profile, 'id' | 'created_at'>>): Promise<Profile>
 }
 
@@ -74,7 +77,7 @@ export interface StatsRepository {
   /** Adds XP and updates last_activity; returns the new stats. */
   addXp(userId: UUID, amount: number): Promise<UserStats>
   /** Leaderboard is DERIVED from user_stats.total_xp (no separate table). */
-  getLeaderboard(limit?: number): Promise<Array<{ profile: Profile; stats: UserStats }>>
+  getLeaderboard(limit?: number): Promise<Array<{ rank: number; profile: Profile; stats: UserStats }>>
 }
 
 export interface LevelProgressSummary {
@@ -94,6 +97,7 @@ export interface WordProgressRepository {
    * view or RPC joining user_word_progress -> words grouped by level_id.
    */
   getLevelProgress(userId: UUID, bookId: UUID): Promise<Record<UUID, LevelProgressSummary>>
+  getBookProgress(userId: UUID): Promise<BookProgressSummary[]>
   updateWordProgress(
     userId: UUID,
     wordId: UUID,
@@ -152,6 +156,8 @@ export interface AuthRepository {
    */
   requestPasswordReset(email: string): Promise<{ resetToken?: string }>
   resetPassword(token: string, newPassword: string): Promise<void>
+  changePassword(currentPassword: string, newPassword: string): Promise<void>
+  deleteAccount(): Promise<void>
 }
 
 /** Aggregated access point so features depend on one object. */

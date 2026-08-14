@@ -15,6 +15,8 @@ interface AuthContextValue {
   confirmEmail: (token: string) => Promise<AuthUser>
   requestPasswordReset: (email: string) => Promise<{ resetToken?: string }>
   resetPassword: (token: string, newPassword: string) => Promise<void>
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>
+  deleteAccount: () => Promise<void>
   /** Re-reads the session (used after out-of-band confirmation/reset). */
   refresh: () => Promise<void>
 }
@@ -82,6 +84,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       confirmEmail,
       requestPasswordReset: (email: string) => auth.requestPasswordReset(email),
       resetPassword: (token: string, newPassword: string) => auth.resetPassword(token, newPassword),
+      changePassword: (currentPassword: string, newPassword: string) =>
+        auth.changePassword(currentPassword, newPassword),
+      deleteAccount: async () => {
+        await auth.deleteAccount()
+        setUser(null)
+      },
       refresh,
     }),
     [user, loading, signIn, signUp, signOut, confirmEmail, auth, refresh],
