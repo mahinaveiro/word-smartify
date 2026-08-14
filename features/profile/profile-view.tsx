@@ -145,11 +145,12 @@ export function ProfileView() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <StatTile icon={Zap} value={stats.total_xp.toLocaleString()} label="Total XP" accent="ink" />
         <StatTile icon={BookOpen} value={stats.words_learned.toLocaleString()} label="Words learned" />
         <StatTile icon={Trophy} value={stats.words_mastered.toLocaleString()} label="Mastered" accent="mint" />
         <StatTile icon={Flame} value={stats.current_streak} label="Streak" accent="coral" />
+        <StatTile icon={Flame} value={stats.longest_streak} label="Best streak" accent="coral" className="col-span-2 sm:col-span-1" />
       </div>
 
       <section>

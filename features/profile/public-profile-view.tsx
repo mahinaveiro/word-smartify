@@ -9,12 +9,11 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/features/shared/stat-tile'
 import { Avatar } from '@/features/shared/avatar'
-import { usePublicProfile } from '@/hooks/use-data'
-
-const BOOK_NAMES = ['Word Smart I', 'Word Smart II']
+import { useBooks, usePublicProfile } from '@/hooks/use-data'
 
 export function PublicProfileView({ userId }: { userId: string }) {
   const { data: profile, error, isLoading } = usePublicProfile(userId)
+  const { data: books } = useBooks()
 
   if (isLoading) return <PublicProfileSkeleton />
   if (error || !profile) {
@@ -66,13 +65,14 @@ export function PublicProfileView({ userId }: { userId: string }) {
       <section>
         <h2 className="mb-3 font-heading text-base font-bold uppercase tracking-wide">Book progress</h2>
         <div className="grid gap-3 sm:grid-cols-2">
-          {profile.book_progress.map((progress, index) => {
+          {profile.book_progress.map((progress) => {
             const percent = progress.total > 0 ? Math.round((progress.learned / progress.total) * 100) : 0
+            const bookName = books?.find((book) => book.id === progress.book_id)?.name ?? progress.book_id
             return (
               <Card key={progress.book_id}>
                 <CardContent className="flex flex-col gap-3 p-5">
                   <div className="flex items-center justify-between gap-3">
-                    <h3 className="font-heading font-bold">{BOOK_NAMES[index] ?? `Book ${index + 1}`}</h3>
+                    <h3 className="font-heading font-bold">{bookName}</h3>
                     <span className="text-sm font-heading font-bold">{percent}%</span>
                   </div>
                   <div className="h-3 overflow-hidden rounded-full border-2 border-foreground bg-card">
