@@ -2,28 +2,34 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, Save, BookOpen, LogOut } from 'lucide-react'
+import { Check, KeyRound, Save, BookOpen, LogOut, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Field } from '@/components/ui/input'
+import { Modal } from '@/components/ui/modal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SectionHeader } from '@/components/ui/section-header'
-import { Avatar, AVATAR_OPTIONS } from '@/features/shared/avatar'
+import { Avatar } from '@/features/shared/avatar'
+import { AvatarPicker, DisplayNameField, profileSaveDisabled } from '@/features/profile/profile-form'
+import { PasswordChecklist } from '@/features/auth/password-checklist'
+import { PasswordField } from '@/features/auth/password-field'
 import { useToast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
 import { useProfile, useBooks } from '@/hooks/use-data'
 import { useActions } from '@/hooks/use-actions'
 import { useAuth } from '@/features/auth/auth-provider'
+import { checkPassword } from '@/lib/password'
+import { isAuthError } from '@/types/auth'
 
 const GOAL_OPTIONS = [5, 10, 15, 20, 30]
 
 export function SettingsView() {
-  const { data: profile } = useProfile()
+  const { data: profile, mutate: mutateProfile } = useProfile()
   const { data: books } = useBooks()
   const { updateProfile, revalidateUser } = useActions()
   const { toast } = useToast()
-  const { user, signOut } = useAuth()
+  const { user, signOut, changePassword, deleteAccount } = useAuth()
   const router = useRouter()
   const [signingOut, setSigningOut] = useState(false)
 
@@ -43,6 +49,14 @@ export function SettingsView() {
   const [dailyGoal, setDailyGoal] = useState(10)
   const [bookId, setBookId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deletePhrase, setDeletePhrase] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   // Hydrate local form state once the profile loads.
   useEffect(() => {
@@ -62,22 +76,70 @@ export function SettingsView() {
     bookId !== profile.current_book_id
 
   async function onSave() {
-    if (!name.trim()) {
-      toast({ title: 'Name required', description: 'Please enter a display name.', tone: 'error' })
-      return
-    }
+    if (profileSaveDisabled(name, saving)) return
     setSaving(true)
     try {
-      await updateProfile({
+      const updated = await updateProfile({
         display_name: name.trim(),
         avatar_id: avatarId,
         daily_goal: dailyGoal,
         current_book_id: bookId,
       })
-      revalidateUser()
+      await mutateProfile(updated, false)
+      await revalidateUser()
       toast({ title: 'Settings saved', description: 'Your preferences have been updated.', tone: 'success' })
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function onChangePassword() {
+    setPasswordError(null)
+    if (!currentPassword) {
+      setPasswordError('Enter your current password.')
+      return
+    }
+    if (!checkPassword(newPassword).valid) {
+      setPasswordError('New password does not meet the requirements below.')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New password and confirmation do not match.')
+      return
+    }
+    setPasswordSaving(true)
+    try {
+      await changePassword(currentPassword, newPassword)
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      toast({ title: 'Password changed', description: 'Your new password is active.', tone: 'success' })
+    } catch (error) {
+      if (isAuthError(error)) {
+        if (error.code === 'invalid_credentials') setPasswordError('Your current password is incorrect.')
+        else if (error.code === 'weak_password') setPasswordError('New password does not meet the requirements below.')
+        else setPasswordError(error.message)
+      } else {
+        setPasswordError('Could not change your password. Try again.')
+      }
+    } finally {
+      setPasswordSaving(false)
+    }
+  }
+
+  async function onDeleteAccount() {
+    if (deletePhrase !== 'DELETE') return
+    setDeleting(true)
+    try {
+      await deleteAccount()
+      setDeleteOpen(false)
+      router.replace('/auth')
+    } catch (error) {
+      setDeleting(false)
+      toast({
+        title: isAuthError(error) ? error.message : 'Could not delete your account.',
+        tone: 'error',
+      })
     }
   }
 
@@ -98,40 +160,8 @@ export function SettingsView() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2.5" role="group" aria-label="Choose avatar color">
-              {AVATAR_OPTIONS.map((opt) => {
-                const active = opt === avatarId
-                return (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => setAvatarId(opt)}
-                    aria-pressed={active}
-                    aria-label={`Avatar color ${opt}`}
-                    className={cn(
-                      'press relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                    )}
-                  >
-                    <Avatar name={name || profile.display_name} avatarId={opt} size="md" />
-                    {active ? (
-                      <span className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full border-2 border-foreground bg-foreground text-primary-foreground">
-                        <Check className="size-3" strokeWidth={3} aria-hidden />
-                      </span>
-                    ) : null}
-                  </button>
-                )
-              })}
-            </div>
-
-            <Field label="Display name" htmlFor="display-name">
-              <Input
-                id="display-name"
-                value={name}
-                maxLength={40}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your name"
-              />
-            </Field>
+            <AvatarPicker name={name || profile.display_name} value={avatarId} onChange={setAvatarId} disabled={saving} />
+            <DisplayNameField value={name} onChange={setName} disabled={saving} />
           </CardContent>
         </Card>
       </section>
@@ -229,13 +259,58 @@ export function SettingsView() {
         </Card>
       </section>
 
+      <section>
+        <SectionHeader title="Change password" />
+        <Card>
+          <CardContent className="flex flex-col gap-4 p-5">
+            <PasswordField id="current-password" label="Current password" value={currentPassword} onChange={setCurrentPassword} autoComplete="current-password" />
+            <div>
+              <PasswordField id="new-password" label="New password" value={newPassword} onChange={setNewPassword} autoComplete="new-password" />
+              <PasswordChecklist value={newPassword} />
+            </div>
+            <PasswordField id="confirm-password" label="Confirm new password" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" error={passwordError ?? undefined} />
+            <Button variant="outline" className="self-start" onClick={onChangePassword} loading={passwordSaving} disabled={passwordSaving || !currentPassword || !newPassword || !confirmPassword}>
+              <KeyRound className="size-4" aria-hidden /> Change password
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section>
+        <SectionHeader title="Danger zone" />
+        <Card className="border-coral">
+          <CardContent className="flex flex-col gap-3 p-5">
+            <p className="text-sm text-muted-foreground">Deleting your account permanently removes your profile, progress, daily history, and mock tests from this local device.</p>
+            <Button variant="destructive" className="self-start" onClick={() => { setDeletePhrase(''); setDeleteOpen(true) }}>
+              <Trash2 className="size-4" aria-hidden /> Delete account
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
+
       {/* Sticky save */}
       <div className="sticky bottom-20 z-10 sm:bottom-6">
-        <Button size="lg" className="w-full" onClick={onSave} disabled={!dirty || saving} loading={saving}>
+        <Button size="lg" className="w-full" onClick={onSave} disabled={!dirty || profileSaveDisabled(name, saving)} loading={saving}>
           <Save className="size-5" aria-hidden />
           {dirty ? 'Save changes' : 'All changes saved'}
         </Button>
       </div>
+      <Modal
+        open={deleteOpen}
+        onClose={() => { if (!deleting) setDeleteOpen(false) }}
+        title="Delete your account?"
+        description="This cannot be undone. Type DELETE to confirm that you want to erase your local account data."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={deleting}>Cancel</Button>
+            <Button variant="destructive" onClick={onDeleteAccount} loading={deleting} disabled={deletePhrase !== 'DELETE' || deleting}>Delete permanently</Button>
+          </>
+        }
+      >
+        <Field label="Type DELETE to continue" htmlFor="delete-confirmation">
+          <Input id="delete-confirmation" value={deletePhrase} onChange={(event) => setDeletePhrase(event.target.value)} autoComplete="off" autoFocus />
+        </Field>
+      </Modal>
     </div>
   )
 }
