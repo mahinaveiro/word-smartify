@@ -14,6 +14,7 @@ import { useLevel } from '@/hooks/use-data'
 import { useActions, type QuizAnswerResult } from '@/hooks/use-actions'
 import { Flashcard } from './flashcard'
 import { QuizCard } from './quiz-card'
+import { useQuizEngine } from '@/hooks/use-quiz-engine'
 
 type Phase = 'flashcards' | 'quiz' | 'summary'
 
@@ -27,12 +28,12 @@ export function SessionView({ levelId }: { levelId: string }) {
   const [phase, setPhase] = useState<Phase>('flashcards')
   const [index, setIndex] = useState(0)
   const [flipped, setFlipped] = useState(false)
-  const [selected, setSelected] = useState<string | null>(null)
-  const [revealed, setRevealed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [results, setResults] = useState<QuizAnswerResult[]>([])
 
   const total = cards?.length ?? 0
+  const card = cards?.[index]
+  const quiz = useQuizEngine(phase === 'quiz' ? card?.question ?? null : null)
 
   const summary = useMemo(() => {
     const correct = results.filter((r) => r.correct).length
@@ -51,7 +52,6 @@ export function SessionView({ levelId }: { levelId: string }) {
     )
   }
 
-  const card = cards[index]
   const progressPct = phase === 'summary' ? 100 : Math.round(((index + (phase === 'quiz' ? 0.5 : 0)) / total) * 100)
 
   function close() {
@@ -66,19 +66,16 @@ export function SessionView({ levelId }: { levelId: string }) {
       // move to quiz
       setPhase('quiz')
       setIndex(0)
-      setSelected(null)
-      setRevealed(false)
     }
   }
 
   async function chooseAnswer(option: string) {
-    if (revealed) return
-    setSelected(option)
-    setRevealed(true)
+    if (!card) return
+    const event = quiz.submit(option)
+    if (!event) return
     setBusy(true)
-    const correct = option === card.question.correct_answer
     try {
-      const res = await recordQuizAnswer(card.word.id, correct)
+      const res = await recordQuizAnswer(card.word.id, event.isCorrect)
       setResults((prev) => [...prev, res])
     } finally {
       setBusy(false)
@@ -88,8 +85,6 @@ export function SessionView({ levelId }: { levelId: string }) {
   async function nextQuiz() {
     if (index < total - 1) {
       setIndex((i) => i + 1)
-      setSelected(null)
-      setRevealed(false)
     } else {
       // finish: record session-level progress
       const learned = results.filter((r) => r.becameLearned).length
@@ -131,9 +126,9 @@ export function SessionView({ levelId }: { levelId: string }) {
         ) : phase === 'quiz' ? (
           <QuizCard
             question={card.question}
-            selected={selected}
+            selected={quiz.selected}
             onSelect={chooseAnswer}
-            revealed={revealed}
+            revealed={quiz.revealed}
           />
         ) : (
           <SessionSummary summary={summary} total={total} />
@@ -148,7 +143,7 @@ export function SessionView({ levelId }: { levelId: string }) {
             <ArrowRight className="size-5" aria-hidden />
           </Button>
         ) : phase === 'quiz' ? (
-          <Button size="lg" className="w-full" onClick={nextQuiz} disabled={!revealed || busy} loading={busy}>
+          <Button size="lg" className="w-full" onClick={nextQuiz} disabled={!quiz.revealed || busy} loading={busy}>
             {index < total - 1 ? 'Next question' : 'Finish'}
             <ArrowRight className="size-5" aria-hidden />
           </Button>

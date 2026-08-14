@@ -135,7 +135,7 @@ export function DashboardView() {
                 : 'Nothing due right now. Great job staying on top of reviews.'}
             </p>
             <Button asChild variant={dueCount > 0 ? 'primary' : 'outline'} size="sm" disabled={dueCount === 0}>
-              <Link href="/learn">Review {dueCount > 0 ? `(${dueCount})` : ''}</Link>
+              <Link href="/review">Review {dueCount > 0 ? `(${dueCount})` : ''}</Link>
             </Button>
           </CardContent>
         </Card>

@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils'
 import { repositories, getActiveUserId } from '@/repositories'
 import { useMockTests } from '@/hooks/use-data'
 import { useActions } from '@/hooks/use-actions'
+import { useQuizEngine } from '@/hooks/use-quiz-engine'
 import { XP } from '@/lib/learning-logic'
 import type { MockTest, QuizQuestion } from '@/types/database'
 
@@ -48,8 +49,6 @@ export function MockTestsView() {
   const [phase, setPhase] = useState<Phase>('idle')
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
   const [index, setIndex] = useState(0)
-  const [selected, setSelected] = useState<string | null>(null)
-  const [revealed, setRevealed] = useState(false)
   const [answers, setAnswers] = useState<Answered[]>([])
   const [starting, setStarting] = useState(false)
   const [result, setResult] = useState<MockTest | null>(null)
@@ -69,8 +68,6 @@ export function MockTestsView() {
       setQuestions(qs)
       setAnswers([])
       setIndex(0)
-      setSelected(null)
-      setRevealed(false)
       setResult(null)
       setPhase('running')
     } finally {
@@ -80,18 +77,18 @@ export function MockTestsView() {
 
   const current = questions[index]
   const total = questions.length
+  const quiz = useQuizEngine(phase === 'running' ? current ?? null : null)
 
   async function choose(option: string) {
-    if (revealed || !current) return
-    const correct = option === current.correct_answer
-    setSelected(option)
-    setRevealed(true)
-    setAnswers((prev) => [...prev, { question: current, selected: option, correct }])
+    if (!current) return
+    const event = quiz.submit(option)
+    if (!event) return
+    setAnswers((prev) => [...prev, { question: current, selected: option, correct: event.isCorrect }])
     if (testIdRef.current) {
       await repositories.mockTests.saveMockAnswer(testIdRef.current, {
         question_id: current.id,
         user_answer: option,
-        is_correct: correct,
+        is_correct: event.isCorrect,
       })
     }
   }
@@ -99,8 +96,6 @@ export function MockTestsView() {
   async function next() {
     if (index < total - 1) {
       setIndex((i) => i + 1)
-      setSelected(null)
-      setRevealed(false)
       return
     }
     // finalize
@@ -133,7 +128,7 @@ export function MockTestsView() {
 
   // ------------------------------------------------------------------ running
   if (phase === 'running' && current) {
-    const progressPct = Math.round(((index + (revealed ? 1 : 0)) / total) * 100)
+    const progressPct = Math.round(((index + (quiz.revealed ? 1 : 0)) / total) * 100)
     return (
       <div className="mx-auto flex min-h-[70dvh] max-w-lg flex-col">
         <div className="flex items-center gap-3">
@@ -154,9 +149,9 @@ export function MockTestsView() {
           Mock test · Question {index + 1}
         </p>
         <div className="flex flex-1 flex-col justify-center py-6">
-          <QuizCard question={current} selected={selected} onSelect={choose} revealed={revealed} />
+          <QuizCard question={current} selected={quiz.selected} onSelect={choose} revealed={quiz.revealed} />
         </div>
-        <Button size="lg" className="mt-auto w-full" onClick={next} disabled={!revealed}>
+        <Button size="lg" className="mt-auto w-full" onClick={next} disabled={!quiz.revealed}>
           {index < total - 1 ? 'Next question' : 'Finish test'}
           <ArrowRight className="size-5" aria-hidden />
         </Button>
