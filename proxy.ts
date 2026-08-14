@@ -26,6 +26,25 @@ function isProtectedPath(pathname: string) {
 
 /** Refreshes Auth cookies and enforces server-side identity checks before protected pages render. */
 export async function proxy(request: NextRequest) {
+  const isRootConfirmation = request.nextUrl.pathname === '/'
+    && (request.nextUrl.searchParams.has('code') || request.nextUrl.searchParams.has('token_hash'))
+
+  if (isRootConfirmation) {
+    const confirmationUrl = request.nextUrl.clone()
+    const code = request.nextUrl.searchParams.get('code')
+    const tokenHash = request.nextUrl.searchParams.get('token_hash')
+    const next = request.nextUrl.searchParams.get('next')
+    confirmationUrl.pathname = '/auth/confirm'
+    confirmationUrl.search = ''
+    if (code) confirmationUrl.searchParams.set('code', code)
+    if (tokenHash) confirmationUrl.searchParams.set('token_hash', tokenHash)
+    if (request.nextUrl.searchParams.get('type')) {
+      confirmationUrl.searchParams.set('type', request.nextUrl.searchParams.get('type')!)
+    }
+    confirmationUrl.searchParams.set('next', next || '/auth/verified')
+    return NextResponse.redirect(confirmationUrl)
+  }
+
   let response = NextResponse.next({ request })
 
   const supabase = createServerClient<Database>(

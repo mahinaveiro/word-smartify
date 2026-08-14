@@ -7,11 +7,12 @@ import { getSupabaseConfig } from '@/lib/supabase/config'
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  const tokenHash = requestUrl.searchParams.get('token_hash')
   const next = safeNext(requestUrl.searchParams.get('next'))
   const destination = next === '/dashboard' ? '/auth/verified' : next
   const response = NextResponse.redirect(new URL(destination, requestUrl.origin))
 
-  if (!code) {
+  if (!code && !tokenHash) {
     return NextResponse.redirect(new URL('/auth/verified?error=invalid-link', requestUrl.origin))
   }
 
@@ -28,7 +29,12 @@ export async function GET(request: NextRequest) {
     },
   )
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code)
+  const { error } = tokenHash
+    ? await supabase.auth.verifyOtp({
+        type: requestUrl.searchParams.get('type') === 'recovery' ? 'recovery' : 'email',
+        token_hash: tokenHash,
+      })
+    : await supabase.auth.exchangeCodeForSession(code!)
   if (error) {
     const errorDestination = next === '/auth/reset-password' ? '/auth/reset-password?error=invalid-link' : '/auth/verified?error=invalid-link'
     return NextResponse.redirect(new URL(errorDestination, requestUrl.origin))

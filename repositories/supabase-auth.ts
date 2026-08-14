@@ -1,7 +1,8 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
-import type { AuthUser, SignUpInput, SignUpResult } from '@/types/auth'
+import { AuthError, type AuthUser, type SignUpInput, type SignUpResult } from '@/types/auth'
 import type { AuthRepository } from './interfaces'
+import { getPublicSiteUrl } from '@/lib/supabase/config'
 import { toAuthError } from '@/lib/supabase/errors'
 
 function displayNameFrom(user: User) {
@@ -71,11 +72,14 @@ export class SupabaseAuthRepository implements AuthRepository {
       password: input.password,
       options: {
         data: { display_name: input.display_name.trim() },
-        emailRedirectTo: `${window.location.origin}/auth/confirm?next=/auth/verified`,
+        emailRedirectTo: `${getPublicSiteUrl()}/auth/confirm?next=/auth/verified`,
       },
     })
     if (result.error) throw toAuthError(result.error, 'We could not create your account.')
     if (!result.data.user) throw toAuthError(new Error('Missing user after signup.'), 'We could not create your account.')
+    if (result.data.user.identities?.length === 0) {
+      throw new AuthError('email_taken', 'An account with this email already exists.')
+    }
     if (result.data.session) await provisionUserRows(this.client, result.data.user, input.display_name)
     return {
       user: toAuthUser(result.data.user),
@@ -112,7 +116,7 @@ export class SupabaseAuthRepository implements AuthRepository {
 
   async requestPasswordReset(email: string): Promise<{ resetToken?: string }> {
     const result = await this.client.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/auth/confirm?next=/auth/reset-password`,
+      redirectTo: `${getPublicSiteUrl()}/auth/confirm?next=/auth/reset-password`,
     })
     if (result.error) throw toAuthError(result.error, 'We could not send the reset link.')
     return {}
