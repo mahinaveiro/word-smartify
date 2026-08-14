@@ -10,10 +10,9 @@
  */
 
 import type { UserWordProgress, WordStatus } from '@/types/database'
-import { XP, xpForCorrectQuiz, xpForNewWord } from '@/lib/xp'
+import { XP } from '@/lib/xp'
 
-export { XP, xpForCorrectQuiz, xpForNewWord }
-export { xpForQuiz } from '@/lib/xp'
+export { XP }
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -66,13 +65,12 @@ export function applyQuizResult(
   }
 
   // Status derived from demonstrated recall, never from merely opening a word.
-  let status: WordStatus = 'learning'
-  if (recallStreak >= 5 && correctCount >= 5) status = 'mastered'
-  else if (recallStreak >= 2) status = 'familiar'
-  else status = 'learning'
+  let status: WordStatus = prevStatus === 'new' && !correct ? 'new' : 'learning'
+  if (correct && recallStreak >= 5 && correctCount >= 5) status = 'mastered'
+  else if (correct && recallStreak >= 2) status = 'familiar'
   if (prevStatus === 'mastered') status = 'mastered'
 
-  const becameLearned = prevStatus === 'new'
+  const becameLearned = prevStatus === 'new' && correct && status !== 'new'
   const becameMastered = prevStatus !== 'mastered' && status === 'mastered'
 
   return {

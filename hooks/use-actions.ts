@@ -37,6 +37,7 @@ export function useActions() {
         'public-profile',
         'progress',
         'progress-counts',
+        'progress-summary',
         'book-progress',
         'due',
         'daily',
@@ -55,13 +56,12 @@ export function useActions() {
   )
 
   const recordSessionProgress = useCallback(
-    (input: { newWords: number; reviews: number }) =>
-      finalizeSession(getActiveUserId(), input),
+    () => finalizeSession(getActiveUserId()),
     [],
   )
 
   const completeDailyChallenge = useCallback(
-    () => completeChallenge(getActiveUserId()),
+    (answeredWordIds: string[]) => completeChallenge(getActiveUserId(), answeredWordIds),
     [],
   )
 

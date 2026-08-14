@@ -11,7 +11,7 @@ import type {
   UserWordProgress,
   WordStatus,
 } from '@/types/database'
-import { getDataset } from './dataset'
+import { getDataset, getWordsForBook } from './dataset'
 import { makeId, makeRng, NOW } from './seed-utils'
 import {
   CURRENT_USER_ID,
@@ -50,8 +50,8 @@ function dateDaysAgo(days: number): string {
 export function ensureSeeded() {
   const store = readStore()
   const demosSeeded =
-    store.demoLeaderboard.length > 0 &&
-    store.profiles[store.demoLeaderboard[0]?.profile.id ?? ''] != null
+    store.profiles['demo-user-1'] != null &&
+    store.stats['demo-user-1'] != null
   if (store.profiles[CURRENT_USER_ID] && demosSeeded) return
 
   writeStore((draft) => {
@@ -150,7 +150,7 @@ function seedCurrentUser(draft: UserDataShape) {
 function seedLeaderboard(draft: UserDataShape) {
   const rng = makeRng(7)
   const ds = getDataset()
-  const board: UserDataShape['demoLeaderboard'] = DEMO_NAMES.map((name, i) => {
+  DEMO_NAMES.forEach((name, i) => {
     const xp = 400 + Math.floor(rng() * 2600)
     const profile: Profile = {
       id: `demo-user-${i + 1}`,
@@ -172,21 +172,23 @@ function seedLeaderboard(draft: UserDataShape) {
     }
     draft.profiles[profile.id] = profile
     draft.stats[profile.id] = stats
-    draft.demoBookProgress[profile.id] = ds.books.map((book) => {
-      const total = ds.words.filter((word) => {
-        const level = ds.levelById.get(word.level_id)
-        const chapter = level ? ds.chapters.find((item) => item.id === level.chapter_id) : undefined
-        return chapter?.book_id === book.id
-      }).length
-      const learned = Math.min(total, Math.floor(stats.words_learned / Math.max(1, ds.books.length)) + i)
+    let learnedRemaining = stats.words_learned
+    const learnedByBook = ds.books.map((book) => {
+      const total = getWordsForBook(book.id).length
+      const learned = Math.min(total, learnedRemaining)
+      learnedRemaining -= learned
+      return { book_id: book.id, total, learned }
+    })
+    let masteredRemaining = stats.words_mastered
+    draft.demoBookProgress[profile.id] = learnedByBook.map((book) => {
+      const mastered = Math.min(book.learned, masteredRemaining)
+      masteredRemaining -= mastered
       return {
-        book_id: book.id,
-        total,
-        learned,
-        mastered: Math.min(learned, Math.floor(stats.words_mastered / Math.max(1, ds.books.length))),
+        book_id: book.book_id,
+        total: book.total,
+        learned: book.learned,
+        mastered,
       }
     })
-    return { profile, stats }
   })
-  draft.demoLeaderboard = board
 }

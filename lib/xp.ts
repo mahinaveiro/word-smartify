@@ -18,23 +18,43 @@ export const XP = {
 
 export function xpForNewWord(
   previous: UserWordProgress | null,
-  nextStatus: WordStatus = previous?.status === 'new' || previous == null ? 'learning' : previous.status,
+  nextStatus: WordStatus,
 ): number {
   return (previous == null || previous.status === 'new') && nextStatus !== 'new' ? XP.NEW_WORD : 0
 }
 
 export function xpForCorrectQuiz(
   previous: UserWordProgress | null,
+  alreadyCreditedToday: boolean,
   correct: boolean,
 ): number {
-  return correct && previous?.status !== 'mastered' ? XP.CORRECT_QUIZ : 0
+  return correct && !alreadyCreditedToday && previous?.status !== 'mastered' ? XP.CORRECT_QUIZ : 0
 }
+
+export type QuizMode = 'learning' | 'review' | 'challenge'
 
 export function xpForReview(
   previous: UserWordProgress | null,
   alreadyCreditedToday: boolean,
+  mode: QuizMode,
 ): number {
-  return previous?.status !== 'mastered' && !alreadyCreditedToday ? XP.REVIEW_COMPLETED : 0
+  return mode === 'review' && previous?.status !== 'mastered' && !alreadyCreditedToday
+    ? XP.REVIEW_COMPLETED
+    : 0
+}
+
+export function xpForQuizAnswer(input: {
+  previous: UserWordProgress | null
+  nextStatus: WordStatus
+  alreadyCreditedToday: boolean
+  mode: QuizMode
+  correct: boolean
+}): number {
+  return (
+    xpForNewWord(input.previous, input.nextStatus) +
+    xpForCorrectQuiz(input.previous, input.alreadyCreditedToday, input.correct) +
+    xpForReview(input.previous, input.alreadyCreditedToday, input.mode)
+  )
 }
 
 export function xpForDailyGoal(
@@ -49,4 +69,3 @@ export function xpForDailyChallenge(alreadyCompleted: boolean): number {
 }
 
 /** Compatibility aliases for callers that previously imported learning logic. */
-export const xpForQuiz = xpForCorrectQuiz

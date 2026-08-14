@@ -26,8 +26,10 @@ export function computeStreak(
   let longest = 0
   let run = 0
   const dates = [...completed].sort()
-  for (const date of dates) {
-    if (run === 0 || date === addDaysISO(dates[dates.indexOf(date) - 1] ?? date, 1)) {
+  for (let index = 0; index < dates.length; index++) {
+    const date = dates[index]
+    const previous = dates[index - 1]
+    if (run === 0 || date === addDaysISO(previous ?? date, 1)) {
       run++
     } else {
       run = 1

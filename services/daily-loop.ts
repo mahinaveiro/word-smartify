@@ -1,19 +1,24 @@
 import { repositories, getActiveUserId } from '@/repositories'
 import { applyQuizResult } from '@/lib/learning-logic'
 import {
-  xpForCorrectQuiz,
   xpForDailyChallenge,
   xpForDailyGoal,
-  xpForNewWord,
+  xpForQuizAnswer,
   xpForReview,
+  type QuizMode,
 } from '@/lib/xp'
 import { buildDailyPlan, type DailyPlan } from '@/lib/daily-plan'
 import { computeStreak } from '@/lib/streak'
-import { getDueWords } from '@/lib/review-scheduler'
+import {
+  buildChallengeQueue,
+  buildReviewQueue,
+  DAILY_CHALLENGE_LIMIT,
+  DEFAULT_REVIEW_QUEUE_LIMIT,
+} from '@/lib/review-scheduler'
 import { todayISO } from '@/lib/date'
-import type { ISODate } from '@/types/database'
+import type { ISODate, QuizQuestion, Word } from '@/types/database'
 
-export type QuizMode = 'learning' | 'review' | 'challenge'
+export type { QuizMode } from '@/lib/xp'
 
 export interface QuizAnswerResult {
   correct: boolean
@@ -25,8 +30,20 @@ export interface QuizAnswerResult {
 }
 
 export interface SessionFinalizeResult {
-  goalJustCompleted: boolean
-  nowCompleted: boolean
+  dayComplete: boolean
+  today: {
+    newWordsCompleted: number
+    reviewsCompleted: number
+  }
+  streak: {
+    current: number
+    longest: number
+  }
+}
+
+export interface ChallengeCard {
+  word: Word
+  question: QuizQuestion
 }
 
 async function refreshStreak(userId: string, date: ISODate) {
@@ -43,7 +60,7 @@ export async function buildTodayPlan(
     ? await repositories.books.getBook(profile.current_book_id)
     : null
   const allProgress = await repositories.wordProgress.getAllProgress(userId)
-  const dueReviewQueue = getDueWords(allProgress)
+  const dueReviewQueue = buildReviewQueue(allProgress, { limit: DEFAULT_REVIEW_QUEUE_LIMIT })
   const levels = currentBook ? await repositories.levels.getLevelsForBook(currentBook.id) : []
   const levelProgress = currentBook
     ? await repositories.wordProgress.getLevelProgress(userId, currentBook.id)
@@ -54,7 +71,6 @@ export async function buildTodayPlan(
     dailyGoal: profile?.daily_goal ?? 10,
     currentBook,
     today,
-    allProgress,
     dueReviewQueue,
     levels,
     levelProgress,
@@ -73,14 +89,14 @@ export async function recordQuizAnswer(
   const progressUpdate = applyQuizResult(previous, correct, nowMs)
   const alreadyReviewedToday =
     previous?.last_reviewed_at?.slice(0, 10) === date
-  const newWordXp = xpForNewWord(previous, progressUpdate.patch.status)
-  const quizXp =
-    mode === 'review' && alreadyReviewedToday
-      ? 0
-      : xpForCorrectQuiz(previous, correct)
-  const reviewCredited = mode === 'review' && xpForReview(previous, alreadyReviewedToday) > 0
-  const reviewXp = reviewCredited ? xpForReview(previous, alreadyReviewedToday) : 0
-  const answerXp = newWordXp + quizXp + reviewXp
+  const answerXp = xpForQuizAnswer({
+    previous,
+    nextStatus: progressUpdate.patch.status ?? 'new',
+    alreadyCreditedToday: alreadyReviewedToday,
+    mode,
+    correct,
+  })
+  const reviewCredited = xpForReview(previous, alreadyReviewedToday, mode) > 0
 
   await repositories.wordProgress.updateWordProgress(userId, wordId, progressUpdate.patch)
 
@@ -123,7 +139,6 @@ export async function recordQuizAnswer(
 
 export async function finalizeSession(
   userId = getActiveUserId(),
-  _input: { newWords?: number; reviews?: number } = {},
   date = todayISO(),
 ): Promise<SessionFinalizeResult> {
   const today = await repositories.dailyProgress.getDailyProgress(userId, date)
@@ -135,17 +150,52 @@ export async function finalizeSession(
     longest_streak: streak.longest,
   })
   return {
-    goalJustCompleted: false,
-    nowCompleted,
+    dayComplete: nowCompleted,
+    today: {
+      newWordsCompleted: today?.new_words_completed ?? 0,
+      reviewsCompleted: today?.reviews_completed ?? 0,
+    },
+    streak,
   }
+}
+
+export async function buildDailyChallenge(
+  userId = getActiveUserId(),
+): Promise<ChallengeCard[]> {
+  const allProgress = await repositories.wordProgress.getAllProgress(userId)
+  const queue = buildChallengeQueue(allProgress, DAILY_CHALLENGE_LIMIT)
+  const cards = await Promise.all(
+    queue.map(async (progress): Promise<ChallengeCard | null> => {
+      const word = await repositories.words.getWord(progress.word_id)
+      if (!word) return null
+      const questions = await repositories.quizzes.getQuizQuestions(progress.word_id)
+      const question = questions.find((item) => item.question_type === 'meaning') ?? questions[0]
+      return question ? { word, question } : null
+    }),
+  )
+  return cards.filter((card): card is ChallengeCard => card != null)
 }
 
 export async function completeDailyChallenge(
   userId = getActiveUserId(),
+  answeredWordIds: string[] = [],
   date = todayISO(),
 ) {
   const today = await repositories.dailyProgress.getDailyProgress(userId, date)
   if (today?.challenge_completed) return { alreadyDone: true }
+  const uniqueWordIds = [...new Set(answeredWordIds)]
+  if (uniqueWordIds.length === 0) {
+    throw new Error('Complete the challenge quiz before claiming its reward.')
+  }
+  const progressRows = await Promise.all(
+    uniqueWordIds.map((wordId) => repositories.wordProgress.getWordProgress(userId, wordId)),
+  )
+  const completedWords = progressRows.filter(
+    (progress) => progress?.last_reviewed_at?.slice(0, 10) === date,
+  )
+  if (completedWords.length !== uniqueWordIds.length) {
+    throw new Error('Complete every challenge word before claiming its reward.')
+  }
   const profile = await repositories.profiles.getProfile(userId)
   const goal = profile?.daily_goal ?? 10
   const challengeXp = xpForDailyChallenge(false)

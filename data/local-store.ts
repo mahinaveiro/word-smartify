@@ -30,7 +30,6 @@ export interface UserDataShape {
   dailyProgress: Record<string, DailyProgress> // key: `${userId}:${date}`
   mockTests: Record<string, MockTest>
   mockAnswers: Record<string, MockTestAnswer[]> // key: testId
-  demoLeaderboard: Array<{ profile: Profile; stats: UserStats }>
   demoBookProgress: Record<string, BookProgressSummary[]>
 }
 
@@ -46,7 +45,6 @@ function emptyShape(): UserDataShape {
     dailyProgress: {},
     mockTests: {},
     mockAnswers: {},
-    demoLeaderboard: [],
     demoBookProgress: {},
   }
 }

@@ -54,6 +54,7 @@ interface Dataset {
   wordByNumber: Map<number, Word>
   levelById: Map<string, Level>
   levelByNumber: Map<number, Level>
+  wordsByBook: Map<string, Word[]>
 }
 
 let cache: Dataset | null = null
@@ -124,11 +125,13 @@ function build(): Dataset {
   const wordByNumber = new Map<number, Word>()
   const levelById = new Map<string, Level>()
   const levelByNumber = new Map<number, Level>()
+  const wordsByBook = new Map<string, Word[]>()
 
   let globalWordNumber = 0
 
   const makeBook = (
     bookIndex: number,
+    bookId: string,
     chapterId: string,
     levelCount: number,
     wordTarget: number,
@@ -152,6 +155,8 @@ function build(): Dataset {
       levels.push(level)
       levelById.set(level.id, level)
       levelByNumber.set(levelNumber, level)
+      const bookWords = wordsByBook.get(bookId) ?? []
+      wordsByBook.set(bookId, bookWords)
 
       const levelWords: Word[] = []
       for (let w = 0; w < wordsThisLevel; w++) {
@@ -177,6 +182,7 @@ function build(): Dataset {
         }
         words.push(word)
         levelWords.push(word)
+        bookWords.push(word)
         wordById.set(word.id, word)
         wordByNumber.set(globalWordNumber, word)
       }
@@ -184,8 +190,8 @@ function build(): Dataset {
     }
   }
 
-  makeBook(0, chapters[0].id, LEVELS_1, WORD_SMART_1_COUNT, 1)
-  makeBook(1, chapters[1].id, LEVELS_2, WORD_SMART_2_COUNT, LEVELS_1 + 1)
+  makeBook(0, books[0].id, chapters[0].id, LEVELS_1, WORD_SMART_1_COUNT, 1)
+  makeBook(1, books[1].id, chapters[1].id, LEVELS_2, WORD_SMART_2_COUNT, LEVELS_1 + 1)
 
   cache = {
     books,
@@ -197,12 +203,17 @@ function build(): Dataset {
     wordByNumber,
     levelById,
     levelByNumber,
+    wordsByBook,
   }
   return cache
 }
 
 export function getDataset(): Dataset {
   return build()
+}
+
+export function getWordsForBook(bookId: string): Word[] {
+  return getDataset().wordsByBook.get(bookId) ?? []
 }
 
 /** Lazily generate + cache the 5 quiz questions for one word. */

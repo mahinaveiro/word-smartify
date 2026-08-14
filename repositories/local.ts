@@ -41,7 +41,7 @@ import type {
   WordProgressRepository,
   WordRepository,
 } from './interfaces'
-import { getDataset, getQuizForWord } from '@/data/dataset'
+import { getDataset, getQuizForWord, getWordsForBook } from '@/data/dataset'
 import { makeId, makeRng, NOW, shuffle } from '@/data/seed-utils'
 import {
   dailyKey,
@@ -166,7 +166,7 @@ class LocalProfileRepository implements ProfileRepository {
     const profile = store.profiles[userId]
     const stats = store.stats[userId]
     if (!profile || !stats) return delay(null)
-    const bookProgress = await new LocalWordProgressRepository().getBookProgress(userId)
+    const bookProgress = await localWordProgressRepository.getBookProgress(userId)
     return delay(clone({
       id: profile.id,
       display_name: profile.display_name,
@@ -318,11 +318,7 @@ class LocalWordProgressRepository implements WordProgressRepository {
         .map((progress) => [progress.word_id, progress.status]),
     )
     return delay(clone(ds.books.map((book) => {
-      const words = ds.words.filter((word) => {
-        const level = ds.levelById.get(word.level_id)
-        const chapter = level ? ds.chapters.find((item) => item.id === level.chapter_id) : undefined
-        return chapter?.book_id === book.id
-      })
+      const words = getWordsForBook(book.id)
       return {
         book_id: book.id,
         total: words.length,
@@ -363,6 +359,8 @@ class LocalWordProgressRepository implements WordProgressRepository {
     return delay(clone(result))
   }
 }
+
+const localWordProgressRepository = new LocalWordProgressRepository()
 
 class LocalDailyProgressRepository implements DailyProgressRepository {
   async getDailyProgress(userId: UUID, date: ISODate): Promise<DailyProgress | null> {
@@ -482,7 +480,7 @@ export function createLocalRepositories(): Repositories {
     quizzes: new LocalQuizRepository(),
     profiles: new LocalProfileRepository(),
     stats: new LocalStatsRepository(),
-    wordProgress: new LocalWordProgressRepository(),
+    wordProgress: localWordProgressRepository,
     dailyProgress: new LocalDailyProgressRepository(),
     mockTests: new LocalMockTestRepository(),
   }

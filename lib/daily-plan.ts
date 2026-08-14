@@ -13,6 +13,10 @@ export interface DailyPlan {
     level: Level | null
     remaining: number
   }
+  progress: {
+    newWordsCompleted: number
+    reviewsCompleted: number
+  }
   review: {
     due: number
   }
@@ -43,7 +47,6 @@ export function buildDailyPlan(input: {
   dailyGoal: number
   currentBook: Book | null
   today: DailyProgress | null
-  allProgress: UserWordProgress[]
   dueReviewQueue: UserWordProgress[]
   levels: Level[]
   levelProgress: Record<string, LevelProgressRollup>
@@ -55,6 +58,10 @@ export function buildDailyPlan(input: {
     goal: input.dailyGoal,
     currentBook: input.currentBook,
     newLearning: { level: nextLevel, remaining: newWordsRemaining },
+    progress: {
+      newWordsCompleted: input.today?.new_words_completed ?? 0,
+      reviewsCompleted: input.today?.reviews_completed ?? 0,
+    },
     review: { due: input.dueReviewQueue.length },
     challenge: {
       available: !(input.today?.challenge_completed ?? false),

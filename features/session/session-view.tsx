@@ -93,9 +93,7 @@ export function SessionView({ levelId }: { levelId: string }) {
     finishRecorded.current = true
     setFinishing(true)
     try {
-      const learned = results.filter((r) => r.becameLearned).length
-      const reviews = results.length - learned
-      await recordSessionProgress({ newWords: learned, reviews })
+      await recordSessionProgress()
       revalidateUser()
       if (results.some((result) => result.goalJustCompleted)) {
         toast({ title: 'Daily goal complete!', description: '+25 XP bonus earned.', tone: 'success' })
