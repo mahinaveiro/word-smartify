@@ -16,6 +16,7 @@ import { formatDuration } from '@/lib/date'
 import { getActiveUserId } from '@/repositories'
 import { finalizeMockTest, saveMockTestAnswer } from '@/services/mock-test'
 import type { MockTestAnswer } from '@/types/database'
+import type { QuizAnswerEvent } from '@/lib/quiz-engine'
 import { useQuizEngine } from '@/hooks/use-quiz-engine'
 
 export function MockTestRunView({ testId }: { testId: string }) {
@@ -27,6 +28,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
   const [elapsed, setElapsed] = useState(0)
   const [answerSaving, setAnswerSaving] = useState(false)
   const [runError, setRunError] = useState<string | null>(null)
+  const [pendingAnswer, setPendingAnswer] = useState<{ questionId: string; event: QuizAnswerEvent } | null>(null)
   const [submitOpen, setSubmitOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -69,21 +71,41 @@ export function MockTestRunView({ testId }: { testId: string }) {
     : 0
   const quiz = useQuizEngine(current, { allowChange: true, initialSelected: selected })
 
+  async function persistAnswer(questionId: string, event: QuizAnswerEvent) {
+    setRunError(null)
+    setPendingAnswer({ questionId, event })
+    setAnswerSaving(true)
+    try {
+      const saved = await saveMockTestAnswer(testId, event)
+      setAnswerMap((previous) => ({ ...previous, [questionId]: saved }))
+      setLocalSelections((previous) => {
+        const next = { ...previous }
+        delete next[questionId]
+        return next
+      })
+      setPendingAnswer(null)
+    } catch {
+      setLocalSelections((previous) => {
+        const next = { ...previous }
+        delete next[questionId]
+        return next
+      })
+      setRunError('Your answer was not saved. Your previous saved answer is unchanged. Try again.')
+    } finally {
+      setAnswerSaving(false)
+    }
+  }
+
   async function choose(option: string) {
     if (!current || answerSaving) return
     const event = quiz.submit(option)
     if (!event) return
-    setRunError(null)
-    setLocalSelections((previous) => ({ ...previous, [current.id]: option }))
-    setAnswerSaving(true)
-    try {
-      const saved = await saveMockTestAnswer(testId, event)
-      setAnswerMap((previous) => ({ ...previous, [current.id]: saved }))
-    } catch {
-      setRunError('Your answer was not saved. Please select it again.')
-    } finally {
-      setAnswerSaving(false)
-    }
+    await persistAnswer(current.id, event)
+  }
+
+  async function retryAnswer() {
+    if (!pendingAnswer || answerSaving) return
+    await persistAnswer(pendingAnswer.questionId, pendingAnswer.event)
   }
 
   async function submitTest() {
@@ -99,7 +121,15 @@ export function MockTestRunView({ testId }: { testId: string }) {
   }
 
   if (isLoading) return <MockTestRunSkeleton />
-  if (error) return <ErrorState title="Could not load this test" onRetry={() => mutate()} />
+  if (error) {
+    return (
+      <ErrorState
+        title="This mock test couldn't be loaded"
+        description="Your saved answers are safe. Try loading the test again."
+        onRetry={() => mutate()}
+      />
+    )
+  }
   if (!data) {
     return (
       <EmptyState
@@ -110,7 +140,13 @@ export function MockTestRunView({ testId }: { testId: string }) {
     )
   }
   if (!current) {
-    return <ErrorState title="This test has no questions" onRetry={() => mutate()} />
+    return (
+      <ErrorState
+        title="This test has no questions"
+        description="The test data is incomplete. Try loading it again."
+        onRetry={() => mutate()}
+      />
+    )
   }
 
   const progress = Math.round(((index + 1) / data.questions.length) * 100)
@@ -152,7 +188,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
                 className="mt-5 py-6"
                 title="Answer not saved"
                 description={runError}
-                onRetry={() => setRunError(null)}
+                onRetry={retryAnswer}
               />
             ) : null}
           </CardContent>
@@ -185,15 +221,19 @@ export function MockTestRunView({ testId }: { testId: string }) {
         title="Submit test?"
         description={
           unanswered > 0
-            ? `You still have ${unanswered} unanswered questions.`
+            ? `You still have ${unanswered} unanswered question${unanswered === 1 ? '' : 's'}.`
             : 'All questions are answered and ready to submit.'
         }
         footer={
           <>
-            <Button variant="outline" onClick={() => setSubmitOpen(false)} disabled={submitting}>
+            <Button
+              variant={unanswered > 0 ? 'primary' : 'outline'}
+              onClick={() => setSubmitOpen(false)}
+              disabled={submitting}
+            >
               Continue test
             </Button>
-            <Button onClick={submitTest} loading={submitting}>
+            <Button variant={unanswered > 0 ? 'outline' : 'primary'} onClick={submitTest} loading={submitting}>
               Submit test
             </Button>
           </>
@@ -204,7 +244,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
             className="py-6"
             title="Could not submit"
             description={submitError}
-            onRetry={() => setSubmitError(null)}
+            onRetry={submitTest}
           />
         ) : null}
       </Modal>

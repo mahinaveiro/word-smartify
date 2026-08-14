@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
+import { EmptyState } from '@/components/ui/empty-state'
 import { Avatar } from '@/features/shared/avatar'
 import { cn } from '@/lib/utils'
 import { useLeaderboard } from '@/hooks/use-data'
@@ -16,7 +17,24 @@ export function LeaderboardView() {
   const meId = getActiveUserId()
 
   if (isLoading) return <LeaderboardSkeleton />
-  if (error || !data) return <ErrorState onRetry={() => mutate()} />
+  if (error) {
+    return (
+      <ErrorState
+        title="Leaderboard couldn't be loaded"
+        description="Your ranking data is safe. Try loading the leaderboard again."
+        onRetry={() => mutate()}
+      />
+    )
+  }
+  if (!data || data.length === 0) {
+    return (
+      <EmptyState
+        title="No rankings available yet."
+        description="Keep learning to appear in the competition."
+        action={<Link href="/learn" className="font-heading text-sm font-bold underline underline-offset-4">Go to Learn</Link>}
+      />
+    )
+  }
 
   const top3 = data.slice(0, 3)
   const rest = data.slice(3)

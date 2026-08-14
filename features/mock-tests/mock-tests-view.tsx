@@ -92,7 +92,7 @@ export function MockTestsView() {
             <ErrorState
               title="Could not start this test"
               description="Your test was not created. Try again."
-              onRetry={() => setStartError(false)}
+              onRetry={start}
             />
           ) : null}
           <Button size="lg" onClick={start} loading={starting} className="self-start">
@@ -111,7 +111,11 @@ export function MockTestsView() {
             ))}
           </div>
         ) : error ? (
-          <ErrorState onRetry={() => mutate()} />
+          <ErrorState
+            title="Mock test history couldn't be loaded"
+            description="Your completed tests are safe. Try loading the history again."
+            onRetry={() => mutate()}
+          />
         ) : (history?.length ?? 0) === 0 ? (
           <EmptyState
             icon={FileText}

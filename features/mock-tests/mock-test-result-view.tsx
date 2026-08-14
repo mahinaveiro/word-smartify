@@ -17,7 +17,15 @@ export function MockTestResultView({ testId }: { testId: string }) {
   const { data, error, isLoading, mutate } = useMockTest(testId)
 
   if (isLoading) return <MockTestResultSkeleton />
-  if (error) return <ErrorState title="Could not load this result" onRetry={() => mutate()} />
+  if (error) {
+    return (
+      <ErrorState
+        title="This mock test result couldn't be loaded"
+        description="Your submitted test is safe. Try loading the result again."
+        onRetry={() => mutate()}
+      />
+    )
+  }
   if (!data) {
     return (
       <EmptyState
@@ -55,7 +63,9 @@ export function MockTestResultView({ testId }: { testId: string }) {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Score</p>
-              <p className="font-heading text-5xl font-bold">{data.test.score}%</p>
+              <p className="font-heading text-5xl font-bold">
+                {data.correct}/{data.test.total_questions}
+              </p>
             </div>
             <p className="flex items-center gap-1 text-sm text-muted-foreground">
               <Zap className="size-4 text-coral" aria-hidden /> +{data.earnedXp} XP

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Field } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ErrorState } from '@/components/ui/error-state'
 import { SectionHeader } from '@/components/ui/section-header'
 import { Avatar } from '@/features/shared/avatar'
 import { AvatarPicker, DisplayNameField, profileSaveDisabled } from '@/features/profile/profile-form'
@@ -25,8 +26,10 @@ import { isAuthError } from '@/types/auth'
 const GOAL_OPTIONS = [5, 10, 15, 20, 30]
 
 export function SettingsView() {
-  const { data: profile, mutate: mutateProfile } = useProfile()
-  const { data: books } = useBooks()
+  const profileQuery = useProfile()
+  const booksQuery = useBooks()
+  const { data: profile, mutate: mutateProfile } = profileQuery
+  const { data: books } = booksQuery
   const { updateProfile, revalidateUser } = useActions()
   const { toast } = useToast()
   const { user, signOut, changePassword, deleteAccount } = useAuth()
@@ -49,6 +52,7 @@ export function SettingsView() {
   const [dailyGoal, setDailyGoal] = useState(10)
   const [bookId, setBookId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -67,7 +71,19 @@ export function SettingsView() {
     setBookId(profile.current_book_id)
   }, [profile])
 
-  if (!profile) return <SettingsSkeleton />
+  if (profileQuery.isLoading) return <SettingsSkeleton />
+  if (profileQuery.error) {
+    return (
+      <ErrorState
+        title="Settings couldn't be loaded"
+        description="Your saved preferences are safe. Try loading Settings again."
+        onRetry={() => profileQuery.mutate()}
+      />
+    )
+  }
+  if (!profile) {
+    return <ErrorState title="Settings are unavailable" description="We couldn't find your profile settings. Try again." onRetry={() => profileQuery.mutate()} />
+  }
 
   const dirty =
     name.trim() !== profile.display_name ||
@@ -78,6 +94,7 @@ export function SettingsView() {
   async function onSave() {
     if (profileSaveDisabled(name, saving)) return
     setSaving(true)
+    setSaveError(false)
     try {
       const updated = await updateProfile({
         display_name: name.trim(),
@@ -88,6 +105,8 @@ export function SettingsView() {
       await mutateProfile(updated, false)
       await revalidateUser()
       toast({ title: 'Settings saved', description: 'Your preferences have been updated.', tone: 'success' })
+    } catch {
+      setSaveError(true)
     } finally {
       setSaving(false)
     }
@@ -205,6 +224,14 @@ export function SettingsView() {
             <p className="mb-1 text-sm text-muted-foreground">
               Choose which book powers your dashboard and levels.
             </p>
+            {booksQuery.error ? (
+              <ErrorState
+                className="py-6"
+                title="Books couldn't be loaded"
+                description="Your current book is unchanged. Try loading the choices again."
+                onRetry={() => booksQuery.mutate()}
+              />
+            ) : null}
             {(books ?? []).map((book) => {
               const active = book.id === bookId
               return (
@@ -290,6 +317,14 @@ export function SettingsView() {
 
       {/* Sticky save */}
       <div className="sticky bottom-20 z-10 sm:bottom-6">
+        {saveError ? (
+          <ErrorState
+            className="mb-3 py-6"
+            title="Your settings couldn't be saved"
+            description="Your previous preferences are unchanged. Try saving again."
+            onRetry={onSave}
+          />
+        ) : null}
         <Button size="lg" className="w-full" onClick={onSave} disabled={!dirty || profileSaveDisabled(name, saving)} loading={saving}>
           <Save className="size-5" aria-hidden />
           {dirty ? 'Save changes' : 'All changes saved'}

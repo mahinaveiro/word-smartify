@@ -8,6 +8,7 @@ interface AuthContextValue {
   user: AuthUser | null
   /** True until the initial session lookup resolves. Guards must wait for this. */
   loading: boolean
+  error: boolean
   signIn: (email: string, password: string) => Promise<AuthUser>
   signUp: (input: SignUpInput) => Promise<SignUpResult>
   signOut: () => Promise<void>
@@ -27,10 +28,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const auth = repositories.auth
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   const refresh = useCallback(async () => {
-    const session = await auth.getSession()
-    setUser(session)
+    setError(false)
+    try {
+      const session = await auth.getSession()
+      setUser(session)
+    } catch (reason) {
+      setError(true)
+      throw reason
+    }
   }, [auth])
 
   useEffect(() => {
@@ -39,6 +47,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .getSession()
       .then((session) => {
         if (active) setUser(session)
+      })
+      .catch(() => {
+        if (active) setError(true)
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -77,6 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       user,
       loading,
+      error,
       signIn,
       signUp,
       signOut,
@@ -92,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       refresh,
     }),
-    [user, loading, signIn, signUp, signOut, confirmEmail, auth, refresh],
+    [user, loading, error, signIn, signUp, signOut, confirmEmail, auth, refresh],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
