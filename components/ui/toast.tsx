@@ -5,6 +5,10 @@ import { createPortal } from 'react-dom'
 import { CheckCircle2, Info, X, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+const subscribe = () => () => {}
+const getClientSnapshot = () => true
+const getServerSnapshot = () => false
+
 type ToastTone = 'default' | 'success' | 'error'
 
 interface ToastItem {
@@ -28,10 +32,8 @@ export function useToast() {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = React.useState<ToastItem[]>([])
-  const [mounted, setMounted] = React.useState(false)
+  const mounted = React.useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot)
   const idRef = React.useRef(0)
-
-  React.useEffect(() => setMounted(true), [])
 
   const remove = React.useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id))

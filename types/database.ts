@@ -81,6 +81,7 @@ export interface QuizQuestion {
   word_id: UUID
   question_type: QuestionType
   question: string
+  /** Normalized from the live quiz_questions.options JSONB column. */
   options: string[] | null
   correct_answer: string
   explanation: string | null
@@ -92,15 +93,19 @@ export interface QuizQuestion {
 // User tables (owner-scoped)
 // ---------------------------------------------------------------------------
 
+export type DailyGoal = 5 | 10 | 15 | 20 | 30
+
 export interface Profile {
   id: UUID // -> auth.users.id
   display_name: string
   avatar_id: string
-  daily_goal: number
+  daily_goal: DailyGoal
   current_book_id: UUID | null
   created_at: ISOTimestamp
   updated_at: ISOTimestamp
 }
+
+export type LeaderboardProfile = Pick<Profile, 'id' | 'display_name' | 'avatar_id'>
 
 export interface UserStats {
   user_id: UUID
@@ -112,7 +117,12 @@ export interface UserStats {
   last_activity_at: ISOTimestamp | null
 }
 
-export type WordStatus = 'new' | 'learning' | 'familiar' | 'mastered'
+export type WordStatus = 'new' | 'learning' | 'strong' | 'mastered'
+
+export type LeaderboardStats = Pick<
+  UserStats,
+  'user_id' | 'total_xp' | 'current_streak' | 'longest_streak' | 'words_learned' | 'words_mastered'
+>
 
 export interface UserWordProgress {
   id: UUID

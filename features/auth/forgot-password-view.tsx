@@ -17,7 +17,6 @@ export function ForgotPasswordView() {
   const [error, setError] = useState<string>()
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
-  const [resetToken, setResetToken] = useState<string>()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -28,9 +27,7 @@ export function ForgotPasswordView() {
     setError(undefined)
     setLoading(true)
     try {
-      // Never reveals whether the email exists — always resolves to "sent".
-      const res = await requestPasswordReset(email.trim())
-      setResetToken(res.resetToken)
+      await requestPasswordReset(email.trim())
       setSent(true)
     } catch {
       setError("We couldn't send the reset link. Your email is unchanged. Try again.")
@@ -54,24 +51,9 @@ export function ForgotPasswordView() {
           </button>
         }
       >
-        {resetToken ? (
-          <div className="rounded-md border-2 border-dashed border-foreground/40 bg-muted/50 p-3 text-center">
-            <p className="text-xs text-muted-foreground">
-              Local mode: open the reset link directly.
-            </p>
-            <Button
-              type="button"
-              variant="accent"
-              size="block"
-              className="mt-3"
-              onClick={() => router.push(`/auth/reset-password?token=${resetToken}`)}
-            >
-              Open reset link
-            </Button>
-          </div>
-        ) : (
-          <div className="h-2" />
-        )}
+        <p className="text-center text-sm text-muted-foreground">
+          The link will open Word Smartify and securely start a password-reset session.
+        </p>
       </AuthShell>
     )
   }

@@ -24,10 +24,10 @@ import { statusLabel } from '@/lib/learning-logic'
 import { useBooks, useProgressCounts, useProgressSummary } from '@/hooks/use-data'
 import type { WordStatus } from '@/types/database'
 
-const STATUS_ORDER: WordStatus[] = ['mastered', 'familiar', 'learning', 'new']
+const STATUS_ORDER: WordStatus[] = ['mastered', 'strong', 'learning', 'new']
 const STATUS_COLOR: Record<WordStatus, string> = {
   mastered: 'var(--mint)',
-  familiar: 'var(--coral)',
+  strong: 'var(--coral)',
   learning: 'var(--muted-foreground)',
   new: 'var(--border)',
 }

@@ -1,22 +1,17 @@
 'use client'
 
-/**
- * SWR-based read hooks over the repository layer. Components never touch
- * repositories directly for reads — they use these, which gives caching and
- * cross-component sync for free.
- *
- * User-scoped hooks resolve the ACTIVE user id (from the auth session) at call
- * time and include it in the SWR key, so switching accounts naturally
- * refetches the right data.
- */
-
 import useSWR from 'swr'
-import { repositories, getActiveUserId } from '@/repositories'
+import { repositories } from '@/repositories'
+import { useAuth } from '@/features/auth/auth-provider'
 import { buildTodayPlan } from '@/services/daily-loop'
 import { buildProgressSummary } from '@/services/progress'
 import { getMockTestData } from '@/services/mock-test'
 
 const repo = repositories
+
+function useOptionalUserId() {
+  return useAuth().user?.id ?? null
+}
 
 export function useBooks() {
   return useSWR('books', () => repo.books.getBooks())
@@ -58,13 +53,13 @@ export function useQuizForWord(wordId: string | null) {
 }
 
 export function useProfile() {
-  const uid = getActiveUserId()
-  return useSWR(['profile', uid], () => repo.profiles.getProfile(uid))
+  const uid = useOptionalUserId()
+  return useSWR(uid ? ['profile', uid] : null, () => repo.profiles.getProfile(uid as string))
 }
 
 export function useStats() {
-  const uid = getActiveUserId()
-  return useSWR(['stats', uid], () => repo.stats.getStats(uid))
+  const uid = useOptionalUserId()
+  return useSWR(uid ? ['stats', uid] : null, () => repo.stats.getStats(uid as string))
 }
 
 export function usePublicProfile(userId: string | null) {
@@ -78,70 +73,70 @@ export function useLeaderboard(limit = 10) {
 }
 
 export function useAllProgress() {
-  const uid = getActiveUserId()
-  return useSWR(['progress', uid], () => repo.wordProgress.getAllProgress(uid))
+  const uid = useOptionalUserId()
+  return useSWR(uid ? ['progress', uid] : null, () => repo.wordProgress.getAllProgress(uid as string))
 }
 
 export function useWordProgress(wordId: string | null) {
-  const uid = getActiveUserId()
-  return useSWR(wordId ? ['word-progress', uid, wordId] : null, () =>
-    repo.wordProgress.getWordProgress(uid, wordId as string),
+  const uid = useOptionalUserId()
+  return useSWR(uid && wordId ? ['word-progress', uid, wordId] : null, () =>
+    repo.wordProgress.getWordProgress(uid as string, wordId as string),
   )
 }
 
 export function useProgressCounts() {
-  const uid = getActiveUserId()
-  return useSWR(['progress-counts', uid], () => repo.wordProgress.countByStatus(uid))
+  const uid = useOptionalUserId()
+  return useSWR(uid ? ['progress-counts', uid] : null, () => repo.wordProgress.countByStatus(uid as string))
 }
 
 export function useDueForReview() {
-  const uid = getActiveUserId()
-  return useSWR(['due', uid], () => repo.wordProgress.getDueForReview(uid))
+  const uid = useOptionalUserId()
+  return useSWR(uid ? ['due', uid] : null, () => repo.wordProgress.getDueForReview(uid as string))
 }
 
 export function useLevelProgress(bookId: string | null) {
-  const uid = getActiveUserId()
-  return useSWR(bookId ? ['level-progress', uid, bookId] : null, () =>
-    repo.wordProgress.getLevelProgress(uid, bookId as string),
+  const uid = useOptionalUserId()
+  return useSWR(uid && bookId ? ['level-progress', uid, bookId] : null, () =>
+    repo.wordProgress.getLevelProgress(uid as string, bookId as string),
   )
 }
 
 export function useBookProgress() {
-  const uid = getActiveUserId()
-  return useSWR(['book-progress', uid], () => repositories.wordProgress.getBookProgress(uid))
+  const uid = useOptionalUserId()
+  return useSWR(uid ? ['book-progress', uid] : null, () => repositories.wordProgress.getBookProgress(uid as string))
 }
 
 export function useDailyProgress(date: string) {
-  const uid = getActiveUserId()
-  return useSWR(['daily', uid, date], () => repo.dailyProgress.getDailyProgress(uid, date))
+  const uid = useOptionalUserId()
+  return useSWR(uid ? ['daily', uid, date] : null, () => repo.dailyProgress.getDailyProgress(uid as string, date))
 }
 
 export function useDailyRange(fromDate: string, toDate: string) {
-  const uid = getActiveUserId()
-  return useSWR(['daily-range', uid, fromDate, toDate], () =>
-    repo.dailyProgress.getRange(uid, fromDate, toDate),
+  const uid = useOptionalUserId()
+  return useSWR(uid ? ['daily-range', uid, fromDate, toDate] : null, () =>
+    repo.dailyProgress.getRange(uid as string, fromDate, toDate),
   )
 }
 
 export function useDailyPlan() {
-  const uid = getActiveUserId()
-  return useSWR(['daily-plan', uid], () => buildTodayPlan(uid))
+  const uid = useOptionalUserId()
+  return useSWR(uid ? ['daily-plan', uid] : null, () => buildTodayPlan(uid as string))
 }
 
 export function useProgressSummary() {
-  const uid = getActiveUserId()
-  return useSWR(['progress-summary', uid], () => buildProgressSummary(uid))
+  const uid = useOptionalUserId()
+  return useSWR(uid ? ['progress-summary', uid] : null, () => buildProgressSummary(uid as string))
 }
 
 export function useMockTests() {
-  const uid = getActiveUserId()
-  return useSWR(['mock-tests', uid], () => repo.mockTests.getMockTestsForUser(uid))
+  const uid = useOptionalUserId()
+  return useSWR(uid ? ['mock-tests', uid] : null, () => repo.mockTests.getMockTestsForUser(uid as string))
 }
 
 export function useMockTest(testId: string | null) {
-  const uid = getActiveUserId()
+  const uid = useOptionalUserId()
   return useSWR(
-    testId ? ['mock-test', uid, testId] : null,
-    () => getMockTestData(testId as string, uid),
+    uid && testId ? ['mock-test', uid, testId] : null,
+    () => getMockTestData(testId as string, uid as string),
   )
 }

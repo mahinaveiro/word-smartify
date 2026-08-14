@@ -1,4 +1,4 @@
-import { repositories, getActiveUserId } from '@/repositories'
+import { repositories } from '@/repositories'
 import { applyQuizResult } from '@/lib/learning-logic'
 import {
   xpForDailyChallenge,
@@ -52,7 +52,7 @@ async function refreshStreak(userId: string, date: ISODate) {
 }
 
 export async function buildTodayPlan(
-  userId = getActiveUserId(),
+  userId: string,
   date = todayISO(),
 ): Promise<DailyPlan> {
   const profile = await repositories.profiles.getProfile(userId)
@@ -138,7 +138,7 @@ export async function recordQuizAnswer(
 }
 
 export async function finalizeSession(
-  userId = getActiveUserId(),
+  userId: string,
   date = todayISO(),
 ): Promise<SessionFinalizeResult> {
   const today = await repositories.dailyProgress.getDailyProgress(userId, date)
@@ -160,7 +160,7 @@ export async function finalizeSession(
 }
 
 export async function buildDailyChallenge(
-  userId = getActiveUserId(),
+  userId: string,
 ): Promise<ChallengeCard[]> {
   const allProgress = await repositories.wordProgress.getAllProgress(userId)
   const queue = buildChallengeQueue(allProgress, DAILY_CHALLENGE_LIMIT)
@@ -177,7 +177,7 @@ export async function buildDailyChallenge(
 }
 
 export async function completeDailyChallenge(
-  userId = getActiveUserId(),
+  userId: string,
   answeredWordIds: string[] = [],
   date = todayISO(),
 ) {

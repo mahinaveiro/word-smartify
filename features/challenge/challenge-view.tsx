@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Sparkles, Trophy, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -27,7 +27,8 @@ export function ChallengeView() {
   const dailyQuery = useDailyProgress(todayISO())
   const { data: daily } = dailyQuery
   const { recordQuizAnswer, completeDailyChallenge, revalidateUser } = useActions()
-  const [phase, setPhase] = useState<Phase>(daily?.challenge_completed ? 'summary' : 'quiz')
+  const [localPhase, setLocalPhase] = useState<Phase>('quiz')
+  const phase: Phase = daily?.challenge_completed ? 'summary' : localPhase
   const [index, setIndex] = useState(0)
   const [busy, setBusy] = useState(false)
   const [finishing, setFinishing] = useState(false)
@@ -37,9 +38,6 @@ export function ChallengeView() {
   const [pendingAnswer, setPendingAnswer] = useState<{ wordId: string; event: QuizAnswerEvent } | null>(null)
   const [finishError, setFinishError] = useState(false)
 
-  useEffect(() => {
-    if (daily?.challenge_completed) setPhase('summary')
-  }, [daily?.challenge_completed])
 
   const total = cards?.length ?? 0
   const card = cards?.[index]
@@ -120,7 +118,7 @@ export function ChallengeView() {
       await completeDailyChallenge([...new Set(answeredIds.current)])
       revalidateUser()
       toast({ title: 'Challenge complete!', description: '+15 XP earned.', tone: 'success' })
-      setPhase('summary')
+      setLocalPhase('summary')
     } catch {
       setFinishError(true)
     } finally {

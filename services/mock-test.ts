@@ -1,6 +1,6 @@
 import type { QuizAnswerEvent } from '@/lib/quiz-engine'
 import { XP } from '@/lib/xp'
-import { repositories, getActiveUserId } from '@/repositories'
+import { repositories } from '@/repositories'
 import type { MockTest, MockTestAnswer, QuizQuestion, UUID } from '@/types/database'
 
 export const MOCK_TEST_QUESTION_SECONDS = 45
@@ -38,15 +38,12 @@ export async function startMockTest(userId: UUID, totalQuestions: number): Promi
 
 export async function getMockTestData(
   testId: UUID,
-  userId = getActiveUserId(),
+  userId: UUID,
 ): Promise<MockTestData | null> {
   const stored = await repositories.mockTests.getMockTest(testId)
   if (!stored || stored.test.user_id !== userId) return null
 
-  const questions = await repositories.quizzes.getRandomQuestions(
-    stored.test.total_questions,
-    mockTestSeed(stored.test.id),
-  )
+  const questions = await repositories.quizzes.getRandomQuestions(stored.test.total_questions)
   const answerMap = latestAnswerMap(stored.answers)
   const answers = Object.values(answerMap)
   const correct = stored.test.time_taken_seconds == null
@@ -88,7 +85,7 @@ export async function saveMockTestAnswer(
 export async function finalizeMockTest(
   testId: UUID,
   timeTakenSeconds: number,
-  userId = getActiveUserId(),
+  userId: UUID,
 ): Promise<{ test: MockTest; earnedXp: number }> {
   const stored = await repositories.mockTests.getMockTest(testId)
   if (!stored || stored.test.user_id !== userId) {

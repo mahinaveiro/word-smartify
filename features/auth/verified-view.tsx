@@ -11,27 +11,33 @@ import { safeNext } from '@/lib/safe-redirect'
 export function VerifiedView() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { confirmEmail } = useAuth()
-
-  const token = searchParams.get('token') ?? ''
+  const { user, loading, refresh } = useAuth()
   const next = safeNext(searchParams.get('next'))
-  const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying')
+  const invalidLink = searchParams.get('error') === 'invalid-link'
+  const [refreshComplete, setRefreshComplete] = useState(false)
+  const [refreshFailed, setRefreshFailed] = useState(false)
   const ran = useRef(false)
 
   useEffect(() => {
-    if (ran.current) return
+    if (ran.current || loading || invalidLink || user?.email_confirmed) return
     ran.current = true
-    if (!token) {
-      setStatus('error')
-      return
-    }
-    confirmEmail(token)
-      .then(() => setStatus('success'))
-      .catch(() => setStatus('error'))
-  }, [token, confirmEmail])
+    refresh()
+      .then(() => setRefreshComplete(true))
+      .catch(() => setRefreshFailed(true))
+  }, [invalidLink, loading, refresh, user?.email_confirmed])
+
+  const status = invalidLink || refreshFailed
+    ? 'error'
+    : user?.email_confirmed || refreshComplete
+      ? 'success'
+      : 'verifying'
 
   if (status === 'verifying') {
-    return <AuthShell title="Confirming your email…" subtitle="One moment." children={<div className="h-2" />} />
+    return (
+      <AuthShell title="Confirming your email…" subtitle="One moment.">
+        <div className="h-2" />
+      </AuthShell>
+    )
   }
 
   if (status === 'error') {
@@ -59,10 +65,7 @@ export function VerifiedView() {
   }
 
   return (
-    <AuthShell
-      title="Email confirmed!"
-      subtitle="Your account is ready. Let's build your first streak."
-    >
+    <AuthShell title="Email confirmed!" subtitle="Your account is ready. Let's build your first streak.">
       <div className="flex flex-col gap-4">
         <div className="flex justify-center">
           <span className="flex size-14 items-center justify-center rounded-full border-2 border-foreground bg-mint text-mint-foreground shadow-brutal-sm">

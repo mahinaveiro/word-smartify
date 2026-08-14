@@ -20,11 +20,11 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const REVIEW_INTERVALS = [1, 2, 4, 7, 14, 30, 60]
 
 export function statusRank(status: WordStatus): number {
-  return { new: 0, learning: 1, familiar: 2, mastered: 3 }[status]
+  return { new: 0, learning: 1, strong: 2, mastered: 3 }[status]
 }
 
 export function statusLabel(status: WordStatus): string {
-  return { new: 'New', learning: 'Learning', familiar: 'Familiar', mastered: 'Mastered' }[status]
+  return { new: 'New', learning: 'Learning', strong: 'Familiar', mastered: 'Mastered' }[status]
 }
 
 function nextReviewFrom(recallStreak: number, now: number): string {
@@ -67,7 +67,7 @@ export function applyQuizResult(
   // Status derived from demonstrated recall, never from merely opening a word.
   let status: WordStatus = prevStatus === 'new' && !correct ? 'new' : 'learning'
   if (correct && recallStreak >= 5 && correctCount >= 5) status = 'mastered'
-  else if (correct && recallStreak >= 2) status = 'familiar'
+  else if (correct && recallStreak >= 2) status = 'strong'
   if (prevStatus === 'mastered') status = 'mastered'
 
   const becameLearned = prevStatus === 'new' && correct && status !== 'new'

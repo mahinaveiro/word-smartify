@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 const STATUS_STYLES: Record<WordStatus, { label: string; className: string }> = {
   new: { label: 'New', className: 'bg-card text-foreground' },
   learning: { label: 'Learning', className: 'bg-muted text-foreground' },
-  familiar: { label: 'Familiar', className: 'bg-coral text-coral-foreground' },
+  strong: { label: 'Familiar', className: 'bg-coral text-coral-foreground' },
   mastered: { label: 'Mastered', className: 'bg-mint text-mint-foreground' },
 }
 

@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { QuizCard } from '@/features/session/quiz-card'
 import { useMockTest } from '@/hooks/use-data'
 import { formatDuration } from '@/lib/date'
-import { getActiveUserId } from '@/repositories'
+import { useAuth } from '@/features/auth/auth-provider'
 import { finalizeMockTest, saveMockTestAnswer } from '@/services/mock-test'
 import type { MockTestAnswer } from '@/types/database'
 import type { QuizAnswerEvent } from '@/lib/quiz-engine'
@@ -22,8 +22,9 @@ import { useQuizEngine } from '@/hooks/use-quiz-engine'
 export function MockTestRunView({ testId }: { testId: string }) {
   const router = useRouter()
   const { data, error, isLoading, mutate } = useMockTest(testId)
+  const userId = useAuth().user?.id
   const [index, setIndex] = useState(0)
-  const [answerMap, setAnswerMap] = useState<Record<string, MockTestAnswer>>({})
+  const [savedAnswerMap, setSavedAnswerMap] = useState<Record<string, MockTestAnswer>>({})
   const [localSelections, setLocalSelections] = useState<Record<string, string>>({})
   const [elapsed, setElapsed] = useState(0)
   const [answerSaving, setAnswerSaving] = useState(false)
@@ -34,27 +35,28 @@ export function MockTestRunView({ testId }: { testId: string }) {
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!data) return
-    setAnswerMap(data.answerMap)
-  }, [data?.test.id])
-
-  useEffect(() => {
     if (data?.test.time_taken_seconds != null) {
       router.replace(`/mock-tests/${testId}/result`)
     }
   }, [data?.test.time_taken_seconds, router, testId])
 
+  const createdAt = data?.test.created_at
+
   useEffect(() => {
-    if (!data) return
+    if (!createdAt) return
     const updateElapsed = () => {
-      const createdAt = Date.parse(data.test.created_at)
-      setElapsed(Math.max(0, Math.floor((Date.now() - createdAt) / 1000)))
+      const createdAtMs = Date.parse(createdAt)
+      setElapsed(Math.max(0, Math.floor((Date.now() - createdAtMs) / 1000)))
     }
     updateElapsed()
     const timer = window.setInterval(updateElapsed, 1000)
     return () => window.clearInterval(timer)
-  }, [data?.test.created_at])
+  }, [createdAt])
 
+  const answerMap = useMemo(
+    () => ({ ...(data?.answerMap ?? {}), ...savedAnswerMap }),
+    [data?.answerMap, savedAnswerMap],
+  )
   const current = data?.questions[index] ?? null
   const selectedAnswers = useMemo(
     () => ({
@@ -77,7 +79,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
     setAnswerSaving(true)
     try {
       const saved = await saveMockTestAnswer(testId, event)
-      setAnswerMap((previous) => ({ ...previous, [questionId]: saved }))
+      setSavedAnswerMap((previous) => ({ ...previous, [questionId]: saved }))
       setLocalSelections((previous) => {
         const next = { ...previous }
         delete next[questionId]
@@ -112,7 +114,8 @@ export function MockTestRunView({ testId }: { testId: string }) {
     setSubmitting(true)
     setSubmitError(null)
     try {
-      await finalizeMockTest(testId, elapsed, getActiveUserId())
+      if (!userId) throw new Error('Please sign in to submit a mock test.')
+      await finalizeMockTest(testId, elapsed, userId)
       router.replace(`/mock-tests/${testId}/result`)
     } catch {
       setSubmitError('The test could not be submitted. Please try again.')

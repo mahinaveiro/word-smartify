@@ -129,18 +129,21 @@ function LevelGrid({
   progress: Record<string, LevelProgressSummary> | undefined
 }) {
   // A level unlocks when the previous one is fully learned (first is always open).
-  let prevComplete = true
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-      {levels.map((level) => {
+      {levels.map((level, index) => {
         const p = progress?.[level.id]
         const learned = p?.learned ?? 0
         const total = p?.total ?? level.word_count
         const mastered = p?.mastered ?? 0
         const complete = total > 0 && learned >= total
+        const previousLevel = levels[index - 1]
+        const previousProgress = previousLevel ? progress?.[previousLevel.id] : undefined
+        const previousLearned = previousProgress?.learned ?? 0
+        const previousTotal = previousProgress?.total ?? previousLevel?.word_count ?? 0
+        const prevComplete = index === 0 || (previousTotal > 0 && previousLearned >= previousTotal)
         const locked = !prevComplete && learned === 0
         const unlocked = !locked
-        prevComplete = complete
         const pct = total > 0 ? Math.round((learned / total) * 100) : 0
 
         return (

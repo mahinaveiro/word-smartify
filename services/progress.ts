@@ -1,6 +1,6 @@
 import { addDaysISO, todayISO, shortDay } from '@/lib/date'
 import { xpToLevel } from '@/lib/learning-logic'
-import { repositories, getActiveUserId } from '@/repositories'
+import { repositories } from '@/repositories'
 import type { BookProgressSummary, DailyProgress, UserStats } from '@/types/database'
 
 export interface ProgressSummary {
@@ -28,7 +28,7 @@ export interface ProgressSummary {
 }
 
 export async function buildProgressSummary(
-  userId = getActiveUserId(),
+  userId: string,
   today = todayISO(),
   windowDays = 14,
 ): Promise<ProgressSummary> {

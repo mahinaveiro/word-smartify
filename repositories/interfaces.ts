@@ -15,6 +15,8 @@ import type {
   MockTest,
   MockTestAnswer,
   Profile,
+  LeaderboardProfile,
+  LeaderboardStats,
   QuizQuestion,
   UserStats,
   UserWordProgress,
@@ -77,7 +79,7 @@ export interface StatsRepository {
   /** Adds XP and updates last_activity; returns the new stats. */
   addXp(userId: UUID, amount: number): Promise<UserStats>
   /** Leaderboard is DERIVED from user_stats.total_xp (no separate table). */
-  getLeaderboard(limit?: number): Promise<Array<{ rank: number; profile: Profile; stats: UserStats }>>
+  getLeaderboard(limit?: number): Promise<Array<{ rank: number; profile: LeaderboardProfile; stats: LeaderboardStats }>>
 }
 
 export interface LevelProgressSummary {
@@ -141,6 +143,8 @@ export interface MockTestRepository {
 export interface AuthRepository {
   /** Current session user, or null if signed out. */
   getSession(): Promise<AuthUser | null>
+  /** Optional live session listener used by Supabase Auth. */
+  onAuthStateChange?: (callback: (user: AuthUser | null) => void) => () => void
   /** Creates the account + its profile/stats; requires email confirmation. */
   signUp(input: SignUpInput): Promise<SignUpResult>
   /** Verifies credentials and opens a session. */

@@ -6,7 +6,6 @@ import type { AuthUser, SignUpInput, SignUpResult } from '@/types/auth'
 
 interface AuthContextValue {
   user: AuthUser | null
-  /** True until the initial session lookup resolves. Guards must wait for this. */
   loading: boolean
   error: boolean
   signIn: (email: string, password: string) => Promise<AuthUser>
@@ -18,7 +17,6 @@ interface AuthContextValue {
   resetPassword: (token: string, newPassword: string) => Promise<void>
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>
   deleteAccount: () => Promise<void>
-  /** Re-reads the session (used after out-of-band confirmation/reset). */
   refresh: () => Promise<void>
 }
 
@@ -43,6 +41,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let active = true
+    const unsubscribe = auth.onAuthStateChange?.((session) => {
+      if (active) {
+        setUser(session)
+        setLoading(false)
+      }
+    })
+
     auth
       .getSession()
       .then((session) => {
@@ -54,16 +59,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => {
         if (active) setLoading(false)
       })
+
     return () => {
       active = false
+      unsubscribe?.()
     }
   }, [auth])
 
   const signIn = useCallback(
     async (email: string, password: string) => {
-      const u = await auth.signIn(email, password)
-      setUser(u)
-      return u
+      const signedInUser = await auth.signIn(email, password)
+      setUser(signedInUser)
+      return signedInUser
     },
     [auth],
   )
@@ -77,9 +84,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const confirmEmail = useCallback(
     async (token: string) => {
-      const u = await auth.confirmEmail(token)
-      setUser(u)
-      return u
+      const confirmedUser = await auth.confirmEmail(token)
+      setUser(confirmedUser)
+      return confirmedUser
     },
     [auth],
   )
@@ -96,8 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       confirmEmail,
       requestPasswordReset: (email: string) => auth.requestPasswordReset(email),
       resetPassword: (token: string, newPassword: string) => auth.resetPassword(token, newPassword),
-      changePassword: (currentPassword: string, newPassword: string) =>
-        auth.changePassword(currentPassword, newPassword),
+      changePassword: (currentPassword: string, newPassword: string) => auth.changePassword(currentPassword, newPassword),
       deleteAccount: async () => {
         await auth.deleteAccount()
         setUser(null)

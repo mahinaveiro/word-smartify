@@ -16,7 +16,7 @@ import { useToast } from '@/components/ui/toast'
 import { useMockTests } from '@/hooks/use-data'
 import { formatDuration, shortDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
-import { getActiveUserId } from '@/repositories'
+import { useAuth } from '@/features/auth/auth-provider'
 import {
   MOCK_TEST_LENGTHS,
   MOCK_TEST_QUESTION_SECONDS,
@@ -27,6 +27,7 @@ export function MockTestsView() {
   const { data: history, error, isLoading, mutate } = useMockTests()
   const router = useRouter()
   const { toast } = useToast()
+  const userId = useAuth().user?.id
   const [selectedCount, setSelectedCount] = useState<number>(MOCK_TEST_LENGTHS[0])
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState(false)
@@ -35,7 +36,8 @@ export function MockTestsView() {
     setStarting(true)
     setStartError(false)
     try {
-      const test = await startMockTest(getActiveUserId(), selectedCount)
+      if (!userId) throw new Error('Please sign in to start a mock test.')
+      const test = await startMockTest(userId, selectedCount)
       router.push(`/mock-tests/${test.id}`)
     } catch {
       setStartError(true)

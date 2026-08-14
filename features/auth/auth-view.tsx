@@ -13,7 +13,6 @@ import { useAuth } from './auth-provider'
 import { checkPassword } from '@/lib/password'
 import { safeNext } from '@/lib/safe-redirect'
 import { isAuthError } from '@/types/auth'
-import { DEMO_EMAIL, DEMO_PASSWORD } from '@/features/auth/demo-account'
 
 type Mode = 'signin' | 'signup'
 
@@ -41,11 +40,6 @@ export function AuthView() {
     setPassword('')
   }
 
-  function useDemo() {
-    setEmail(DEMO_EMAIL)
-    setPassword(DEMO_PASSWORD)
-    setErrors({})
-  }
 
   function validate() {
     const errs: typeof errors = {}
@@ -70,10 +64,8 @@ export function AuthView() {
         toast({ title: 'Welcome back!', tone: 'success' })
         router.replace(next)
       } else {
-        const res = await signUp({ display_name: name.trim(), email: email.trim(), password })
+        await signUp({ display_name: name.trim(), email: email.trim(), password })
         const params = new URLSearchParams({ email: email.trim() })
-        // Local mode surfaces the token so the flow is testable without email.
-        if (res.confirmationToken) params.set('token', res.confirmationToken)
         if (next !== '/dashboard') params.set('next', next)
         router.push(`/auth/check-email?${params.toString()}`)
       }
@@ -200,21 +192,6 @@ export function AuthView() {
           <ArrowRight className="size-4" strokeWidth={2.25} />
         </Button>
       </form>
-
-      {mode === 'signin' ? (
-        <div className="mt-4 rounded-md border-2 border-dashed border-foreground/40 bg-muted/50 p-3 text-center">
-          <p className="text-xs text-muted-foreground">
-            Want to look around first?{' '}
-            <button
-              type="button"
-              onClick={useDemo}
-              className="font-semibold text-foreground underline underline-offset-4"
-            >
-              Use the demo account
-            </button>
-          </p>
-        </div>
-      ) : null}
-    </AuthShell>
+      </AuthShell>
   )
 }

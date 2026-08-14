@@ -6,6 +6,10 @@ import { X } from 'lucide-react'
 import { IconButton } from '@/components/ui/icon-button'
 import { cn } from '@/lib/utils'
 
+const subscribe = () => () => {}
+const getClientSnapshot = () => true
+const getServerSnapshot = () => false
+
 export interface DrawerProps {
   open: boolean
   onClose: () => void
@@ -23,8 +27,7 @@ export function Drawer({
   children,
   className,
 }: DrawerProps) {
-  const [mounted, setMounted] = React.useState(false)
-  React.useEffect(() => setMounted(true), [])
+  const mounted = React.useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot)
 
   React.useEffect(() => {
     if (!open) return

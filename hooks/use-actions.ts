@@ -1,13 +1,9 @@
 'use client'
 
-/**
- * Thin mutation hooks. Business rules live in services/daily-loop.ts; this
- * layer only supplies the active user and refreshes affected SWR resources.
- */
-
 import { useCallback } from 'react'
 import { useSWRConfig } from 'swr'
-import { repositories, getActiveUserId } from '@/repositories'
+import { repositories } from '@/repositories'
+import { useAuth } from '@/features/auth/auth-provider'
 import {
   completeDailyChallenge as completeChallenge,
   finalizeSession,
@@ -26,6 +22,13 @@ export interface QuizAnswerResult {
 
 export function useActions() {
   const { mutate } = useSWRConfig()
+  const { user } = useAuth()
+  const userId = user?.id
+
+  const requireUserId = useCallback(() => {
+    if (!userId) throw new Error('Please sign in to continue.')
+    return userId
+  }, [userId])
 
   const revalidateUser = useCallback(() => {
     return mutate((key) =>
@@ -45,31 +48,27 @@ export function useActions() {
         'daily-plan',
         'leaderboard',
         'level-progress',
+        'mock-tests',
+        'mock-test',
       ].includes(key[0]),
     )
   }, [mutate])
 
   const recordQuizAnswer = useCallback(
     (wordId: string, correct: boolean, mode: QuizMode = 'learning') =>
-      recordAnswer(getActiveUserId(), wordId, correct, mode),
-    [],
+      recordAnswer(requireUserId(), wordId, correct, mode),
+    [requireUserId],
   )
 
-  const recordSessionProgress = useCallback(
-    () => finalizeSession(getActiveUserId()),
-    [],
-  )
+  const recordSessionProgress = useCallback(() => finalizeSession(requireUserId()), [requireUserId])
 
   const completeDailyChallenge = useCallback(
-    (answeredWordIds: string[]) => completeChallenge(getActiveUserId(), answeredWordIds),
-    [],
+    (answeredWordIds: string[]) => completeChallenge(requireUserId(), answeredWordIds),
+    [requireUserId],
   )
 
-  const updateProfile = useCallback(
-    (patch: Parameters<typeof repositories.profiles.updateProfile>[1]) =>
-      repositories.profiles.updateProfile(getActiveUserId(), patch),
-    [],
-  )
+  const updateProfile = (patch: Parameters<typeof repositories.profiles.updateProfile>[1]) =>
+    repositories.profiles.updateProfile(requireUserId(), patch)
 
   return {
     recordQuizAnswer,

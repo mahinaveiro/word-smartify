@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/toast'
 import { AuthShell } from './auth-shell'
 import { PasswordField } from './password-field'
 import { PasswordChecklist } from './password-checklist'
+import { AuthLoading } from './auth-loading'
 import { useAuth } from './auth-provider'
 import { checkPassword } from '@/lib/password'
 import { isAuthError } from '@/types/auth'
@@ -15,15 +16,14 @@ export function ResetPasswordView() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
-  const { resetPassword } = useAuth()
+  const { resetPassword, user, loading: authLoading } = useAuth()
 
-  const token = searchParams.get('token') ?? ''
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [errors, setErrors] = useState<{ password?: string; confirm?: string }>({})
   const [loading, setLoading] = useState(false)
 
-  const missingToken = token.length === 0
+  const invalidLink = searchParams.get('error') === 'invalid-link' || (!authLoading && !user)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -35,7 +35,7 @@ export function ResetPasswordView() {
 
     setLoading(true)
     try {
-      await resetPassword(token, password)
+      await resetPassword('', password)
       toast({ title: 'Password updated', description: 'Sign in with your new password.', tone: 'success' })
       router.replace('/auth')
     } catch (err) {
@@ -49,11 +49,13 @@ export function ResetPasswordView() {
     }
   }
 
-  if (missingToken) {
+  if (authLoading) return <AuthLoading />
+
+  if (invalidLink) {
     return (
       <AuthShell
         title="Invalid reset link"
-        subtitle="This link is missing or malformed. Request a new one to continue."
+        subtitle="This link is missing, expired, or malformed. Request a new one to continue."
         footer={
           <button
             type="button"

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Award,
   BookOpen,
@@ -62,13 +62,12 @@ export function ProfileView() {
   const { data: tests } = testsQuery
   const { updateProfile, revalidateUser } = useActions()
   const [editing, setEditing] = useState(false)
-  const [name, setName] = useState('')
+  const [nameDraft, setNameDraft] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(false)
 
-  useEffect(() => {
-    if (profile && !editing) setName(profile.display_name)
-  }, [profile, editing])
+
+  const name = nameDraft ?? profile?.display_name ?? ''
 
   const achievements = useMemo<Achievement[]>(() => {
     if (!stats) return []
@@ -140,12 +139,12 @@ export function ProfileView() {
           <div className="min-w-0 flex-1">
             {editing ? (
               <div className="flex flex-col gap-3">
-                <DisplayNameField value={name} onChange={setName} disabled={saving} id="profile-display-name" />
+                <DisplayNameField value={name} onChange={(value) => setNameDraft(value)} disabled={saving} id="profile-display-name" />
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" onClick={saveName} disabled={profileSaveDisabled(name, saving)} loading={saving}>
                     <Save className="size-4" aria-hidden /> Save name
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setName(profile.display_name); setEditing(false) }} disabled={saving}>
+                  <Button size="sm" variant="ghost" onClick={() => { setNameDraft(null); setEditing(false) }} disabled={saving}>
                     <X className="size-4" aria-hidden /> Cancel
                   </Button>
                 </div>

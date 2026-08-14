@@ -11,11 +11,11 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Avatar } from '@/features/shared/avatar'
 import { cn } from '@/lib/utils'
 import { useLeaderboard } from '@/hooks/use-data'
-import { getActiveUserId } from '@/repositories'
+import { useAuth } from '@/features/auth/auth-provider'
 
 export function LeaderboardView() {
   const { data, error, isLoading, mutate } = useLeaderboard(20)
-  const meId = getActiveUserId()
+  const meId = useAuth().user?.id ?? null
 
   if (isLoading) return <LeaderboardSkeleton />
   if (error) {

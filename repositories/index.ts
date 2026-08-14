@@ -1,16 +1,8 @@
-/**
- * Repository entry point.
- *
- * The rest of the app imports `repositories` (and `CURRENT_USER_ID`) from here.
- * To move to Supabase later, swap `createLocalRepositories()` for
- * `createSupabaseRepositories()` — no UI or business-logic changes required.
- */
+/** Supabase is the sole production repository implementation. */
 
 import type { Repositories } from './interfaces'
-import { createLocalRepositories } from './local'
-import { withDevelopmentFaults } from '@/lib/dev-faults'
+import { createClient } from '@/lib/supabase/client'
+import { createSupabaseRepositories } from './supabase'
 
-export const repositories: Repositories = withDevelopmentFaults(createLocalRepositories())
-
-export { CURRENT_USER_ID, getActiveUserId } from '@/data/local-store'
+export const repositories: Repositories = createSupabaseRepositories(createClient())
 export type * from './interfaces'

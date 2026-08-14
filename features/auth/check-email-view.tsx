@@ -17,22 +17,13 @@ export function CheckEmailView() {
 
   const email = searchParams.get('email') ?? ''
   const next = safeNext(searchParams.get('next'))
-  const [token, setToken] = useState(searchParams.get('token') ?? '')
   const [resending, setResending] = useState(false)
-
-  function openConfirmationLink() {
-    // Simulates clicking the link inside the confirmation email.
-    const params = new URLSearchParams({ token })
-    if (next !== '/dashboard') params.set('next', next)
-    router.push(`/auth/verified?${params.toString()}`)
-  }
 
   async function resend() {
     if (!email) return
     setResending(true)
     try {
-      const res = await resendConfirmation(email)
-      if (res.confirmationToken) setToken(res.confirmationToken)
+      await resendConfirmation(email)
       toast({ title: 'Confirmation email resent', tone: 'success' })
     } catch {
       toast({ title: 'Could not resend right now.', tone: 'error' })
@@ -52,7 +43,7 @@ export function CheckEmailView() {
       footer={
         <button
           type="button"
-          onClick={() => router.push('/auth')}
+          onClick={() => router.push(`/auth?next=${encodeURIComponent(next)}`)}
           className="font-semibold underline underline-offset-4"
         >
           Back to sign in
@@ -65,25 +56,9 @@ export function CheckEmailView() {
             <MailCheck className="size-6" aria-hidden />
           </span>
         </div>
-
-        {token ? (
-          <div className="rounded-md border-2 border-dashed border-foreground/40 bg-muted/50 p-3 text-center">
-            <p className="text-xs text-muted-foreground">
-              Local mode: no real email is sent. Use the button below to open the
-              confirmation link.
-            </p>
-            <Button
-              type="button"
-              variant="accent"
-              size="block"
-              className="mt-3"
-              onClick={openConfirmationLink}
-            >
-              Open confirmation link
-            </Button>
-          </div>
-        ) : null}
-
+        <p className="text-center text-sm text-muted-foreground">
+          The link will open Word Smartify and finish activating your account securely.
+        </p>
         <Button type="button" variant="outline" size="block" loading={resending} onClick={resend}>
           Resend email
         </Button>

@@ -1,10 +1,10 @@
 'use client'
 
 import useSWR from 'swr'
-import { getActiveUserId } from '@/repositories'
+import { useAuth } from '@/features/auth/auth-provider'
 import { buildDailyChallenge, type ChallengeCard } from '@/services/daily-loop'
 
 export function useChallengeSession() {
-  const uid = getActiveUserId()
-  return useSWR(['challenge-session', uid], () => buildDailyChallenge(uid))
+  const uid = useAuth().user?.id ?? null
+  return useSWR(uid ? ['challenge-session', uid] : null, () => buildDailyChallenge(uid as string))
 }

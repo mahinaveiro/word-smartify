@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, KeyRound, Save, BookOpen, LogOut, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
@@ -22,8 +22,9 @@ import { useActions } from '@/hooks/use-actions'
 import { useAuth } from '@/features/auth/auth-provider'
 import { checkPassword } from '@/lib/password'
 import { isAuthError } from '@/types/auth'
+import type { DailyGoal } from '@/types/database'
 
-const GOAL_OPTIONS = [5, 10, 15, 20, 30]
+const GOAL_OPTIONS: readonly DailyGoal[] = [5, 10, 15, 20, 30]
 
 export function SettingsView() {
   const profileQuery = useProfile()
@@ -47,10 +48,10 @@ export function SettingsView() {
     }
   }
 
-  const [name, setName] = useState('')
-  const [avatarId, setAvatarId] = useState('mint')
-  const [dailyGoal, setDailyGoal] = useState(10)
-  const [bookId, setBookId] = useState<string | null>(null)
+  const [nameDraft, setNameDraft] = useState<string | null>(null)
+  const [avatarDraft, setAvatarDraft] = useState<string | null>(null)
+  const [dailyGoalDraft, setDailyGoalDraft] = useState<DailyGoal | null>(null)
+  const [bookIdDraft, setBookIdDraft] = useState<string | null | undefined>(undefined)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -62,14 +63,10 @@ export function SettingsView() {
   const [deletePhrase, setDeletePhrase] = useState('')
   const [deleting, setDeleting] = useState(false)
 
-  // Hydrate local form state once the profile loads.
-  useEffect(() => {
-    if (!profile) return
-    setName(profile.display_name)
-    setAvatarId(profile.avatar_id)
-    setDailyGoal(profile.daily_goal)
-    setBookId(profile.current_book_id)
-  }, [profile])
+  const name = nameDraft ?? profile?.display_name ?? ''
+  const avatarId = avatarDraft ?? profile?.avatar_id ?? 'mint'
+  const dailyGoal = dailyGoalDraft ?? profile?.daily_goal ?? 10
+  const bookId = bookIdDraft === undefined ? profile?.current_book_id ?? null : bookIdDraft
 
   if (profileQuery.isLoading) return <SettingsSkeleton />
   if (profileQuery.error) {
@@ -179,8 +176,8 @@ export function SettingsView() {
               </div>
             </div>
 
-            <AvatarPicker name={name || profile.display_name} value={avatarId} onChange={setAvatarId} disabled={saving} />
-            <DisplayNameField value={name} onChange={setName} disabled={saving} />
+            <AvatarPicker name={name || profile.display_name} value={avatarId} onChange={(value) => setAvatarDraft(value)} disabled={saving} />
+            <DisplayNameField value={name} onChange={(value) => setNameDraft(value)} disabled={saving} />
           </CardContent>
         </Card>
       </section>
@@ -200,7 +197,7 @@ export function SettingsView() {
                   <button
                     key={g}
                     type="button"
-                    onClick={() => setDailyGoal(g)}
+                    onClick={() => setDailyGoalDraft(g)}
                     aria-pressed={active}
                     className={cn(
                       'press grid h-12 w-12 place-items-center rounded-md border-2 border-foreground font-heading font-bold shadow-brutal-sm transition-colors',
@@ -239,7 +236,7 @@ export function SettingsView() {
                   key={book.id}
                   type="button"
                   disabled={book.is_locked}
-                  onClick={() => setBookId(book.id)}
+                  onClick={() => setBookIdDraft(book.id)}
                   aria-pressed={active}
                   className={cn(
                     'press flex items-center gap-3 rounded-md border-2 border-foreground p-3.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50',

@@ -68,11 +68,11 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${dmSans.variable} ${notoSansBengali.variable} bg-background`}
     >
       <body className="min-h-dvh antialiased">
-        <RepositoryProvider>
-          <AuthProvider>
+        <AuthProvider>
+          <RepositoryProvider>
             <ToastProvider>{children}</ToastProvider>
-          </AuthProvider>
-        </RepositoryProvider>
+          </RepositoryProvider>
+        </AuthProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
