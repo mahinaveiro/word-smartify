@@ -94,7 +94,7 @@ export function ProgressView() {
         <MetricCard label="Review consistency" value={`${summary.reviewConsistency.percent}%`} detail={`${summary.reviewConsistency.completedDays} of ${summary.reviewConsistency.windowDays} days · ${summary.reviewConsistency.totalReviews} reviews`} />
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <Card>
           <CardContent className="p-5">
             <h2 className="font-heading text-base font-bold">Current level</h2>
@@ -135,7 +135,7 @@ export function ProgressView() {
         </Card>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <Card>
           <CardContent className="p-5">
             <div className="mb-1 flex items-baseline justify-between">

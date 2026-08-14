@@ -164,9 +164,25 @@
     transition: transform var(--duration-micro) var(--ease-brutal),
       box-shadow var(--duration-micro) var(--ease-brutal);
   }
-  .press:active {
+  .press:active:not(:disabled) {
     transform: translate(2px, 2px);
+  }
+  .press.shadow-brutal:active:not(:disabled) {
     box-shadow: 2px 2px 0 0 var(--foreground);
+  }
+  .press.shadow-brutal-sm:active:not(:disabled) {
+    box-shadow: 1px 1px 0 0 var(--foreground);
+    transform: translate(1px, 1px);
+  }
+  .press.shadow-brutal-lg:active:not(:disabled) {
+    box-shadow: 3px 3px 0 0 var(--foreground);
+    transform: translate(3px, 3px);
+  }
+  .press.shadow-brutal-mint:active:not(:disabled) {
+    box-shadow: 2px 2px 0 0 var(--mint);
+  }
+  .press.shadow-brutal-coral:active:not(:disabled) {
+    box-shadow: 2px 2px 0 0 var(--coral);
   }
 
   .no-scrollbar::-webkit-scrollbar {
@@ -176,15 +192,43 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Utility for motion-safe decorative effects */
+  @media (prefers-reduced-motion: no-preference) {
+    .motion-safe-animate {
+      animation: inherit;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .motion-safe-animate {
+      animation: none !important;
+    }
+  }
+
+  /* Mobile touch target - ensure 44x44px minimum */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.001ms !important;
+    animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
+    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Preserve essential feedback that communicates state */
+  .press:active:not(:disabled) {
+    transition-duration: 0.01ms !important;
+  }
+
+  /* Remove decorative entrance animations */
+  .animate-in {
+    animation: none !important;
   }
 }

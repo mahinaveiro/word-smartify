@@ -109,7 +109,7 @@ export function LearnView() {
           {levels ? (
             <LevelGrid levels={levels} progress={progress} />
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
               {Array.from({ length: 9 }).map((_, i) => (
                 <Skeleton key={i} className="h-24 w-full" />
               ))}
@@ -131,7 +131,7 @@ function LevelGrid({
   // A level unlocks when the previous one is fully learned (first is always open).
   let prevComplete = true
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
       {levels.map((level) => {
         const p = progress?.[level.id]
         const learned = p?.learned ?? 0

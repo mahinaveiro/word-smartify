@@ -68,8 +68,8 @@ export function DashboardView() {
 
       <Card className={plan.dayComplete ? 'overflow-hidden border-mint bg-mint/15' : 'overflow-hidden bg-coral/10'}>
         <CardContent className="p-5 sm:p-7">
-          <div className="flex flex-col gap-6 2xl:flex-row 2xl:items-center">
-            <div className="flex items-center gap-5">
+          <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+            <div className="flex items-center gap-5 xl:flex-col xl:items-start xl:gap-3">
               <GoalRing value={plan.progress.newWordsCompleted} max={plan.goal} sublabel="today" />
               <div>
                 <p className="font-heading text-sm font-semibold uppercase tracking-wide text-muted-foreground">Today&apos;s plan</p>
@@ -83,7 +83,7 @@ export function DashboardView() {
                 </p>
               </div>
             </div>
-            <div className="grid flex-1 gap-3 sm:grid-cols-3">
+            <div className="grid w-full gap-3 grid-cols-1 min-[480px]:grid-cols-3 xl:w-auto xl:min-w-[500px]">
               <PlanItem
                 icon={BookOpen}
                 title="New learning"
@@ -116,7 +116,7 @@ export function DashboardView() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         <StatTile icon={Zap} value={stats.total_xp.toLocaleString()} label="Total XP" accent="ink" />
         <StatTile icon={BookOpen} value={stats.words_learned.toLocaleString()} label="Words learned" />
         <StatTile icon={Trophy} value={stats.words_mastered.toLocaleString()} label="Mastered" accent="mint" />

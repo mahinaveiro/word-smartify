@@ -8,7 +8,10 @@ import { useStats } from '@/hooks/use-data'
 export function MobileTopBar() {
   const { data: stats } = useStats()
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between border-b-2 border-foreground bg-card px-4 py-3 md:hidden">
+    <header 
+      className="sticky top-0 z-30 flex items-center justify-between border-b-2 border-foreground bg-card px-4 py-3 md:hidden"
+      style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}
+    >
       <Link href="/dashboard" aria-label="Word Smartify home">
         <Wordmark />
       </Link>

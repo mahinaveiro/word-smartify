@@ -133,11 +133,11 @@ export function ChallengeView() {
   const done = phase === 'summary' || daily?.challenge_completed
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-lg flex-col px-4 pb-8 pt-4">
+    <div className="mx-auto flex min-h-dvh max-w-lg md:max-w-2xl flex-col px-4 pb-8 pt-4 md:px-6" style={{ paddingBottom: 'max(2rem, calc(2rem + env(safe-area-inset-bottom)))' }}>
       <div className="flex items-center gap-3">
         <IconButton label="Close challenge" variant="ghost" onClick={() => router.push('/dashboard')}><X /></IconButton>
         <div className="h-3 flex-1 overflow-hidden rounded-full border-2 border-foreground bg-card">
-          <div className="h-full bg-mint transition-[width]" style={{ width: `${done ? 100 : Math.round((index / total) * 100)}%` }} />
+          <div className="h-full bg-mint transition-[width] duration-normal ease-brutal" style={{ width: `${done ? 100 : Math.round((index / total) * 100)}%` }} />
         </div>
         <span className="w-14 shrink-0 text-right font-heading text-sm font-bold tabular-nums">{done ? total : index + 1}/{total}</span>
       </div>

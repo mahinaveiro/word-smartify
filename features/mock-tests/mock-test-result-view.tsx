@@ -77,7 +77,7 @@ export function MockTestResultView({ testId }: { testId: string }) {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
         <StatTile icon={Target} value={`${data.test.score}%`} label="Percentage" accent="ink" />
         <StatTile icon={Check} value={data.correct} label="Correct" accent="mint" />
         <StatTile icon={X} value={data.incorrect} label="Incorrect" accent="coral" />
@@ -143,7 +143,7 @@ function MockTestResultSkeleton() {
     <div className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6">
       <Skeleton className="h-12 w-64" />
       <Skeleton className="h-36 w-full" />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
         {Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="h-24 w-full" />)}
       </div>
       <Skeleton className="h-48 w-full" />

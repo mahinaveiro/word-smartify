@@ -79,7 +79,7 @@ function ToastCard({ item, onClose }: { item: ToastItem; onClose: () => void }) 
 
   return (
     <div
-      className="pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-md border-2 border-foreground bg-card p-3 shadow-brutal duration-normal animate-in slide-in-from-bottom-3"
+      className="pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-md border-2 border-foreground bg-card p-3 shadow-brutal animate-in slide-in-from-bottom-3 duration-normal ease-brutal"
       role="status"
     >
       <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-md', accent)}>

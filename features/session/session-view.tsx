@@ -140,7 +140,7 @@ export function SessionView({ levelId }: { levelId: string }) {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-lg flex-col px-4 pb-8 pt-4">
+    <div className="mx-auto flex min-h-dvh max-w-lg md:max-w-2xl flex-col px-4 pb-8 pt-4 md:px-6" style={{ paddingBottom: 'max(2rem, calc(2rem + env(safe-area-inset-bottom)))' }}>
       {/* Top bar */}
       <div className="flex items-center gap-3">
         <IconButton label="Close session" variant="ghost" onClick={close}>

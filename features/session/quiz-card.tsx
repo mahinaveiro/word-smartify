@@ -43,7 +43,7 @@ export function QuizCard({
               onClick={() => onSelect(option)}
               aria-pressed={isSelected}
               className={cn(
-                'press flex items-center justify-between gap-3 rounded-md border-2 border-foreground px-4 py-3.5 text-left font-medium transition-colors',
+                'press flex items-center justify-between gap-3 rounded-md border-2 border-foreground px-4 py-3.5 text-left font-medium transition-all duration-normal ease-brutal',
                 state === 'idle' && 'bg-card hover:bg-muted',
                 state === 'selected' && 'bg-foreground text-primary-foreground shadow-brutal-sm',
                 state === 'correct' && 'bg-mint text-mint-foreground shadow-brutal-sm',
@@ -53,9 +53,9 @@ export function QuizCard({
             >
               <span className="text-pretty">{option}</span>
               {revealed && isCorrect ? (
-                <Check className="size-5 shrink-0" strokeWidth={3} aria-hidden />
+                <Check className="size-5 shrink-0 animate-in zoom-in-75 duration-micro" strokeWidth={3} aria-hidden />
               ) : revealed && isSelected && !isCorrect ? (
-                <X className="size-5 shrink-0" strokeWidth={3} aria-hidden />
+                <X className="size-5 shrink-0 animate-in zoom-in-75 duration-micro" strokeWidth={3} aria-hidden />
               ) : null}
             </button>
           )
@@ -63,7 +63,7 @@ export function QuizCard({
       </div>
 
       {revealed && question.explanation ? (
-        <div className="rounded-md border-2 border-foreground bg-muted/60 p-4 text-sm leading-relaxed">
+        <div className="animate-in fade-in slide-in-from-top-2 duration-normal rounded-md border-2 border-foreground bg-muted/60 p-4 text-sm leading-relaxed">
           {question.explanation}
         </div>
       ) : null}

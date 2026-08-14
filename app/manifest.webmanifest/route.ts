@@ -10,10 +10,13 @@ export function GET(_req: NextRequest) {
     start_url: '/dashboard',
     scope: '/',
     display: 'standalone',
-    orientation: 'portrait',
+    orientation: 'portrait-primary',
     background_color: '#f4f1e9',
     theme_color: '#f4f1e9',
     categories: ['education', 'productivity'],
+    lang: 'en',
+    dir: 'ltr',
+    prefer_related_applications: false,
     icons: [
       {
         src: '/icon.svg',
@@ -22,10 +25,50 @@ export function GET(_req: NextRequest) {
         purpose: 'any',
       },
       {
+        src: '/icon-192.png',
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/icon-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/icon-maskable-192.png',
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
+      {
+        src: '/icon-maskable-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
+      {
         src: '/apple-icon.png',
         sizes: '180x180',
         type: 'image/png',
-        purpose: 'maskable',
+        purpose: 'apple-touch-icon',
+      },
+    ],
+    screenshots: [
+      {
+        src: '/screenshot-mobile.png',
+        sizes: '390x844',
+        type: 'image/png',
+        form_factor: 'narrow',
+        label: 'Word Smartify dashboard on mobile',
+      },
+      {
+        src: '/screenshot-desktop.png',
+        sizes: '1280x800',
+        type: 'image/png',
+        form_factor: 'wide',
+        label: 'Word Smartify dashboard on desktop',
       },
     ],
   }

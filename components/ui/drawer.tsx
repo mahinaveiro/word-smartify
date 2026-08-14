@@ -41,15 +41,15 @@ export function Drawer({
 
   const position =
     side === 'left'
-      ? 'inset-y-0 left-0 h-full w-[86%] max-w-sm border-r-2 slide-in-from-left'
+      ? 'inset-y-0 left-0 h-full w-[86%] max-w-sm md:max-w-md border-r-2 animate-in slide-in-from-left duration-normal ease-brutal'
       : side === 'right'
-        ? 'inset-y-0 right-0 h-full w-[86%] max-w-sm border-l-2 slide-in-from-right'
-        : 'inset-x-0 bottom-0 max-h-[85dvh] w-full rounded-t-xl border-t-2 slide-in-from-bottom'
+        ? 'inset-y-0 right-0 h-full w-[86%] max-w-sm md:max-w-md border-l-2 animate-in slide-in-from-right duration-normal ease-brutal'
+        : 'inset-x-0 bottom-0 max-h-[85dvh] w-full rounded-t-xl border-t-2 animate-in slide-in-from-bottom duration-normal ease-brutal'
 
   return createPortal(
     <div className="fixed inset-0 z-[90]">
       <div
-        className="absolute inset-0 bg-foreground/40 duration-micro animate-in fade-in"
+        className="absolute inset-0 bg-foreground/40 animate-in fade-in duration-micro"
         onClick={onClose}
         aria-hidden
       />
@@ -58,7 +58,7 @@ export function Drawer({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          'absolute border-foreground bg-card shadow-brutal-lg duration-normal animate-in',
+          'absolute border-foreground bg-card shadow-brutal-lg',
           position,
           className,
         )}

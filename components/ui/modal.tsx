@@ -46,7 +46,7 @@ export function Modal({
   return createPortal(
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-foreground/40 duration-micro animate-in fade-in"
+        className="absolute inset-0 bg-foreground/40 animate-in fade-in duration-micro"
         onClick={onClose}
         aria-hidden
       />
@@ -55,7 +55,7 @@ export function Modal({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          'relative z-10 w-full max-w-md rounded-lg border-2 border-foreground bg-card shadow-brutal-lg duration-normal animate-in fade-in zoom-in-95',
+          'relative z-10 w-full max-w-md md:max-w-lg rounded-lg border-2 border-foreground bg-card shadow-brutal-lg animate-in fade-in zoom-in-95 duration-normal ease-brutal',
           className,
         )}
       >
