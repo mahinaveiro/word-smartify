@@ -6,17 +6,33 @@ import { ArrowLeft, Eye, EyeOff, Lightbulb, Quote } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ErrorState } from '@/components/ui/error-state'
+import { EmptyState } from '@/components/ui/empty-state'
 import { WordStatusBadge } from '@/features/shared/word-status'
 import { useWord, useWordProgress } from '@/hooks/use-data'
 
 export function WordDetail({ wordId }: { wordId: string }) {
   const router = useRouter()
-  const { data: word } = useWord(wordId)
-  const { data: progress } = useWordProgress(wordId)
+  const wordQuery = useWord(wordId)
+  const progressQuery = useWordProgress(wordId)
+  const { data: word } = wordQuery
+  const { data: progress } = progressQuery
   // Bangla is a deliberate reveal — English stays primary until the learner asks.
   const [showBangla, setShowBangla] = useState(false)
 
-  if (!word) return <WordDetailSkeleton />
+  if (wordQuery.isLoading || progressQuery.isLoading) return <WordDetailSkeleton />
+  if (wordQuery.error || progressQuery.error) {
+    return (
+      <ErrorState
+        title="This word couldn't be loaded"
+        description="The word details are unavailable right now. Try again."
+        onRetry={() => Promise.all([wordQuery.mutate(), progressQuery.mutate()])}
+      />
+    )
+  }
+  if (!word) {
+    return <EmptyState title="Word not found" description="This word is no longer available." action={<button type="button" onClick={() => router.back()} className="font-heading text-sm font-bold underline underline-offset-4">Go back</button>} />
+  }
 
   const status = progress?.status ?? 'new'
 

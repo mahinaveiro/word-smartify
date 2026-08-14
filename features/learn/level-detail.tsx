@@ -6,17 +6,34 @@ import { ArrowLeft, Play, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ErrorState } from '@/components/ui/error-state'
+import { EmptyState } from '@/components/ui/empty-state'
 import { WordStatusBadge } from '@/features/shared/word-status'
 import { useLevel, useWordsForLevel, useAllProgress } from '@/hooks/use-data'
 import type { WordStatus } from '@/types/database'
 
 export function LevelDetail({ levelId }: { levelId: string }) {
   const router = useRouter()
-  const { data: level } = useLevel(levelId)
-  const { data: words } = useWordsForLevel(levelId)
-  const { data: progress } = useAllProgress()
+  const levelQuery = useLevel(levelId)
+  const wordsQuery = useWordsForLevel(levelId)
+  const progressQuery = useAllProgress()
+  const { data: level } = levelQuery
+  const { data: words } = wordsQuery
+  const { data: progress } = progressQuery
 
-  if (!level || !words) return <LevelDetailSkeleton />
+  if ([levelQuery, wordsQuery, progressQuery].some((query) => query.isLoading)) return <LevelDetailSkeleton />
+  if ([levelQuery, wordsQuery, progressQuery].some((query) => query.error)) {
+    return (
+      <ErrorState
+        title="This level couldn't be loaded"
+        description="Your learning progress is safe. Try loading this level again."
+        onRetry={() => Promise.all([levelQuery.mutate(), wordsQuery.mutate(), progressQuery.mutate()])}
+      />
+    )
+  }
+  if (!level || !words) {
+    return <EmptyState title="Level not found" description="This level is no longer available." action={<Link href="/learn">Back to Learn</Link>} />
+  }
 
   const statusByWord = new Map<string, WordStatus>()
   for (const p of progress ?? []) statusByWord.set(p.word_id, p.status)

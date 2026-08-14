@@ -7,12 +7,14 @@ import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { StatTile } from '@/features/shared/stat-tile'
 import { QuizCard } from '@/features/session/quiz-card'
 import { useToast } from '@/components/ui/toast'
 import { useChallengeSession } from './use-challenge-session'
 import { useQuizEngine } from '@/hooks/use-quiz-engine'
 import { useActions, type QuizAnswerResult } from '@/hooks/use-actions'
+import type { QuizAnswerEvent } from '@/lib/quiz-engine'
 import { useDailyProgress } from '@/hooks/use-data'
 import { todayISO } from '@/lib/date'
 
@@ -22,7 +24,8 @@ export function ChallengeView() {
   const router = useRouter()
   const { toast } = useToast()
   const { data: cards, isLoading, error, mutate } = useChallengeSession()
-  const { data: daily } = useDailyProgress(todayISO())
+  const dailyQuery = useDailyProgress(todayISO())
+  const { data: daily } = dailyQuery
   const { recordQuizAnswer, completeDailyChallenge, revalidateUser } = useActions()
   const [phase, setPhase] = useState<Phase>(daily?.challenge_completed ? 'summary' : 'quiz')
   const [index, setIndex] = useState(0)
@@ -30,6 +33,9 @@ export function ChallengeView() {
   const [finishing, setFinishing] = useState(false)
   const [results, setResults] = useState<QuizAnswerResult[]>([])
   const answeredIds = useRef<string[]>([])
+  const [answerError, setAnswerError] = useState(false)
+  const [pendingAnswer, setPendingAnswer] = useState<{ wordId: string; event: QuizAnswerEvent } | null>(null)
+  const [finishError, setFinishError] = useState(false)
 
   useEffect(() => {
     if (daily?.challenge_completed) setPhase('summary')
@@ -40,6 +46,15 @@ export function ChallengeView() {
   const quiz = useQuizEngine(phase === 'quiz' ? card?.question ?? null : null)
 
   if (isLoading) return <ChallengeSkeleton />
+  if (dailyQuery.error) {
+    return (
+      <ErrorState
+        title="Daily challenge status couldn't be loaded"
+        description="Your challenge progress is safe. Try loading it again."
+        onRetry={() => dailyQuery.mutate()}
+      />
+    )
+  }
   if (error) {
     return (
       <div className="mx-auto flex min-h-dvh max-w-lg items-center px-4">
@@ -65,18 +80,32 @@ export function ChallengeView() {
     )
   }
 
+  async function persistAnswer(wordId: string, event: QuizAnswerEvent) {
+    setAnswerError(false)
+    setPendingAnswer({ wordId, event })
+    setBusy(true)
+    try {
+      const result = await recordQuizAnswer(wordId, event.isCorrect, 'challenge')
+      answeredIds.current = [...answeredIds.current, wordId]
+      setResults((previous) => [...previous, result])
+      setPendingAnswer(null)
+    } catch {
+      setAnswerError(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function chooseAnswer(option: string) {
     if (!card) return
     const event = quiz.submit(option)
     if (!event) return
-    setBusy(true)
-    try {
-      const result = await recordQuizAnswer(card.word.id, event.isCorrect, 'challenge')
-      answeredIds.current = [...answeredIds.current, card.word.id]
-      setResults((previous) => [...previous, result])
-    } finally {
-      setBusy(false)
-    }
+    await persistAnswer(card.word.id, event)
+  }
+
+  async function retryAnswer() {
+    if (!pendingAnswer || busy) return
+    await persistAnswer(pendingAnswer.wordId, pendingAnswer.event)
   }
 
   async function next() {
@@ -86,13 +115,14 @@ export function ChallengeView() {
     }
     if (finishing) return
     setFinishing(true)
+    setFinishError(false)
     try {
       await completeDailyChallenge([...new Set(answeredIds.current)])
       revalidateUser()
       toast({ title: 'Challenge complete!', description: '+15 XP earned.', tone: 'success' })
       setPhase('summary')
     } catch {
-      toast({ title: 'Finish every question first', description: 'Answer all challenge words before collecting the reward.', tone: 'default' })
+      setFinishError(true)
     } finally {
       setFinishing(false)
     }
@@ -116,7 +146,25 @@ export function ChallengeView() {
       </p>
       <div className="flex flex-1 flex-col justify-center py-6">
         {!done && card ? (
-          <QuizCard question={card.question} selected={quiz.selected} onSelect={chooseAnswer} revealed={quiz.revealed} />
+          <>
+            <QuizCard question={card.question} selected={quiz.selected} onSelect={chooseAnswer} revealed={quiz.revealed} />
+            {answerError ? (
+              <ErrorState
+                className="mt-5 py-6"
+                title="Your challenge answer couldn't be saved"
+                description="Your previous progress is unchanged. Retry before moving on."
+                onRetry={retryAnswer}
+              />
+            ) : null}
+            {finishError ? (
+              <ErrorState
+                className="mt-5 py-6"
+                title="Your challenge couldn't be completed"
+                description="Your answers are still here. Try finishing the challenge again."
+                onRetry={next}
+              />
+            ) : null}
+          </>
         ) : (
           <div className="flex flex-col items-center gap-6 text-center">
             <span className="grid size-20 place-items-center rounded-full border-2 border-foreground bg-mint text-mint-foreground shadow-brutal"><Trophy className="size-9" aria-hidden /></span>
@@ -134,7 +182,7 @@ export function ChallengeView() {
       </div>
       <div className="mt-auto">
         {!done ? (
-          <Button size="lg" className="w-full" onClick={next} disabled={!quiz.revealed || busy || finishing} loading={busy || finishing}>
+          <Button size="lg" className="w-full" onClick={next} disabled={!quiz.revealed || busy || finishing || answerError} loading={busy || finishing}>
             {index < total - 1 ? 'Next word' : 'Finish challenge'} <ArrowRight className="size-5" aria-hidden />
           </Button>
         ) : <Button size="lg" className="w-full" onClick={() => router.push('/dashboard')}>Back to dashboard</Button>}

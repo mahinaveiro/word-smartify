@@ -6,6 +6,8 @@ import { Lock, Search, Check } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ErrorState } from '@/components/ui/error-state'
+import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { useBooks, useLevelsForBook, useLevelProgress } from '@/hooks/use-data'
@@ -14,13 +16,38 @@ import type { LevelProgressSummary } from '@/repositories/interfaces'
 import { WordSearchResults } from './word-search'
 
 export function LearnView() {
-  const { data: books } = useBooks()
+  const booksQuery = useBooks()
+  const { data: books } = booksQuery
   const [activeBook, setActiveBook] = useState<string | null>(null)
   const [query, setQuery] = useState('')
 
   const bookId = activeBook ?? books?.[0]?.id ?? null
-  const { data: levels } = useLevelsForBook(bookId)
-  const { data: progress } = useLevelProgress(bookId)
+  const levelsQuery = useLevelsForBook(bookId)
+  const progressQuery = useLevelProgress(bookId)
+  const { data: levels } = levelsQuery
+  const { data: progress } = progressQuery
+
+  if (booksQuery.error) {
+    return (
+      <ErrorState
+        title="Your library couldn't be loaded"
+        description="The vocabulary library is still available to you. Try again."
+        onRetry={() => booksQuery.mutate()}
+      />
+    )
+  }
+  if (!booksQuery.isLoading && books && books.length === 0) {
+    return <EmptyState title="No vocabulary books available" description="There are no books to learn on this device yet." />
+  }
+  if (levelsQuery.error || progressQuery.error) {
+    return (
+      <ErrorState
+        title="This learning path couldn't be loaded"
+        description="Your progress is safe. Try loading the selected book again."
+        onRetry={() => Promise.all([levelsQuery.mutate(), progressQuery.mutate()])}
+      />
+    )
+  }
 
   return (
     <div className="flex flex-col gap-6">

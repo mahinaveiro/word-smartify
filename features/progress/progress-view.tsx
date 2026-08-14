@@ -11,10 +11,14 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts'
+import Link from 'next/link'
 import { BookOpen, CheckCircle2, Flame, Target, Trophy, Zap } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ErrorState } from '@/components/ui/error-state'
+import { EmptyState } from '@/components/ui/empty-state'
 import { StatTile } from '@/features/shared/stat-tile'
 import { statusLabel } from '@/lib/learning-logic'
 import { useBooks, useProgressCounts, useProgressSummary } from '@/hooks/use-data'
@@ -29,11 +33,33 @@ const STATUS_COLOR: Record<WordStatus, string> = {
 }
 
 export function ProgressView() {
-  const { data: summary } = useProgressSummary()
-  const { data: counts } = useProgressCounts()
-  const { data: books } = useBooks()
+  const summaryQuery = useProgressSummary()
+  const countsQuery = useProgressCounts()
+  const booksQuery = useBooks()
+  const { data: summary } = summaryQuery
+  const { data: counts } = countsQuery
+  const { data: books } = booksQuery
 
-  if (!summary || !counts) return <ProgressSkeleton />
+  const queries = [summaryQuery, countsQuery, booksQuery]
+  if (queries.some((query) => query.isLoading)) return <ProgressSkeleton />
+  if (queries.some((query) => query.error)) {
+    return (
+      <ErrorState
+        title="Progress data couldn't be loaded"
+        description="Your learning history is safe. Try loading Progress again."
+        onRetry={() => Promise.all(queries.map((query) => query.mutate()))}
+      />
+    )
+  }
+  if (!summary || !counts) {
+    return (
+      <ErrorState
+        title="Progress data is unavailable"
+        description="We couldn't find the data needed for this page. Try again."
+        onRetry={() => Promise.all(queries.map((query) => query.mutate()))}
+      />
+    )
+  }
 
   const totalTracked = STATUS_ORDER.reduce((sum, status) => sum + counts[status], 0)
   const last7Words = summary.weeklyActivity.slice(-7).reduce((sum, day) => sum + day.words, 0)
@@ -42,6 +68,18 @@ export function ProgressView() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader eyebrow="Insights" title="Progress" description="Track your streak, mastery, and daily momentum." />
+      {totalTracked === 0 ? (
+        <EmptyState
+          icon={BookOpen}
+          title="You haven't started learning yet."
+          description="Open Learn to study your first level and your progress will appear here."
+          action={
+            <Button asChild size="sm">
+              <Link href="/learn">Go to Learn</Link>
+            </Button>
+          }
+        />
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatTile icon={Zap} value={summary.stats.total_xp.toLocaleString()} label="Total XP" accent="ink" />

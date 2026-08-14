@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
+import { EmptyState } from '@/components/ui/empty-state'
 import { StatTile } from '@/features/shared/stat-tile'
 import { useToast } from '@/components/ui/toast'
 import { useSessionData, type SessionCard } from './use-session-data'
@@ -15,6 +16,7 @@ import { useActions, type QuizAnswerResult } from '@/hooks/use-actions'
 import { Flashcard } from './flashcard'
 import { QuizCard } from './quiz-card'
 import { useQuizEngine } from '@/hooks/use-quiz-engine'
+import type { QuizAnswerEvent } from '@/lib/quiz-engine'
 
 type Phase = 'flashcards' | 'quiz' | 'summary'
 
@@ -22,7 +24,8 @@ export function SessionView({ levelId }: { levelId: string }) {
   const router = useRouter()
   const { toast } = useToast()
   const { data: cards, isLoading, error, mutate } = useSessionData(levelId)
-  const { data: level } = useLevel(levelId)
+  const levelQuery = useLevel(levelId)
+  const { data: level } = levelQuery
   const { recordQuizAnswer, recordSessionProgress, revalidateUser } = useActions()
 
   const [phase, setPhase] = useState<Phase>('flashcards')
@@ -31,6 +34,9 @@ export function SessionView({ levelId }: { levelId: string }) {
   const [busy, setBusy] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [results, setResults] = useState<QuizAnswerResult[]>([])
+  const [answerError, setAnswerError] = useState(false)
+  const [pendingAnswer, setPendingAnswer] = useState<{ wordId: string; event: QuizAnswerEvent } | null>(null)
+  const [finishError, setFinishError] = useState(false)
   const finishRecorded = useRef(false)
 
   const total = cards?.length ?? 0
@@ -46,10 +52,21 @@ export function SessionView({ levelId }: { levelId: string }) {
   }, [results])
 
   if (isLoading) return <SessionSkeleton />
-  if (error || !cards || total === 0) {
+  if (error || levelQuery.error) {
     return (
       <div className="mx-auto flex min-h-dvh max-w-lg items-center px-4">
-        <ErrorState title="Couldn't start session" description="This level has no words to study." onRetry={() => mutate()} />
+        <ErrorState
+          title="Couldn't load this session"
+          description="Your learning progress is safe. Try loading this session again."
+          onRetry={() => Promise.all([mutate(), levelQuery.mutate()])}
+        />
+      </div>
+    )
+  }
+  if (!cards || total === 0) {
+    return (
+      <div className="mx-auto flex min-h-dvh max-w-lg items-center px-4">
+        <EmptyState title="No words to study" description="This level does not have any words available yet." action={<Button onClick={close}>Back to level</Button>} />
       </div>
     )
   }
@@ -71,17 +88,31 @@ export function SessionView({ levelId }: { levelId: string }) {
     }
   }
 
+  async function persistAnswer(wordId: string, event: QuizAnswerEvent) {
+    setAnswerError(false)
+    setPendingAnswer({ wordId, event })
+    setBusy(true)
+    try {
+      const res = await recordQuizAnswer(wordId, event.isCorrect, 'learning')
+      setResults((prev) => [...prev, res])
+      setPendingAnswer(null)
+    } catch {
+      setAnswerError(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function chooseAnswer(option: string) {
     if (!card) return
     const event = quiz.submit(option)
     if (!event) return
-    setBusy(true)
-    try {
-      const res = await recordQuizAnswer(card.word.id, event.isCorrect, 'learning')
-      setResults((prev) => [...prev, res])
-    } finally {
-      setBusy(false)
-    }
+    await persistAnswer(card.word.id, event)
+  }
+
+  async function retryAnswer() {
+    if (!pendingAnswer || busy) return
+    await persistAnswer(pendingAnswer.wordId, pendingAnswer.event)
   }
 
   async function nextQuiz() {
@@ -92,6 +123,7 @@ export function SessionView({ levelId }: { levelId: string }) {
     if (finishRecorded.current || finishing) return
     finishRecorded.current = true
     setFinishing(true)
+    setFinishError(false)
     try {
       await recordSessionProgress()
       revalidateUser()
@@ -101,6 +133,7 @@ export function SessionView({ levelId }: { levelId: string }) {
       setPhase('summary')
     } catch {
       finishRecorded.current = false
+      setFinishError(true)
     } finally {
       setFinishing(false)
     }
@@ -132,12 +165,30 @@ export function SessionView({ levelId }: { levelId: string }) {
         {phase === 'flashcards' && card ? (
           <Flashcard word={card.word} flipped={flipped} onFlip={() => setFlipped((f) => !f)} />
         ) : phase === 'quiz' && card ? (
-          <QuizCard
-            question={card.question}
-            selected={quiz.selected}
-            onSelect={chooseAnswer}
-            revealed={quiz.revealed}
-          />
+          <>
+            <QuizCard
+              question={card.question}
+              selected={quiz.selected}
+              onSelect={chooseAnswer}
+              revealed={quiz.revealed}
+            />
+            {answerError ? (
+              <ErrorState
+                className="mt-5 py-6"
+                title="Your progress couldn't be saved"
+                description="This answer was not recorded. Your session is paused until you retry."
+                onRetry={retryAnswer}
+              />
+            ) : null}
+            {finishError ? (
+              <ErrorState
+                className="mt-5 py-6"
+                title="Your session couldn't be finalized"
+                description="Your answers are still here. Try finishing the session again."
+                onRetry={nextQuiz}
+              />
+            ) : null}
+          </>
         ) : (
           <SessionSummary summary={summary} total={total} />
         )}
@@ -155,7 +206,7 @@ export function SessionView({ levelId }: { levelId: string }) {
             size="lg"
             className="w-full"
             onClick={nextQuiz}
-            disabled={!quiz.revealed || busy || finishing}
+            disabled={!quiz.revealed || busy || finishing || answerError}
             loading={busy || finishing}
           >
             {index < total - 1 ? 'Next question' : 'Finish'}

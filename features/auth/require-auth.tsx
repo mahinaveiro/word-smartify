@@ -4,6 +4,7 @@ import { Suspense, useEffect } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from './auth-provider'
 import { AuthLoading } from './auth-loading'
+import { ErrorState } from '@/components/ui/error-state'
 
 /**
  * Reads the current path + query to build the `next` redirect target.
@@ -33,9 +34,22 @@ function RedirectToAuth() {
  * /auth carrying a safe `next` param so the user returns where they were.
  */
 export function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+  const { user, loading, error, refresh } = useAuth()
 
   if (loading) return <AuthLoading />
+  if (error) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-background px-4">
+        <ErrorState
+          title="Your session couldn't be checked"
+          description="We couldn't verify your sign-in. Try again or return to sign in."
+          onRetry={() => {
+            void refresh().catch(() => undefined)
+          }}
+        />
+      </div>
+    )
+  }
 
   if (!user) {
     return (

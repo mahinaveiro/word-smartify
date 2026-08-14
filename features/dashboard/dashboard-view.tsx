@@ -6,17 +6,41 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ErrorState } from '@/components/ui/error-state'
 import { GoalRing } from '@/features/shared/goal-ring'
 import { StatTile } from '@/features/shared/stat-tile'
 import { useBookProgress, useDailyPlan, useProfile, useStats } from '@/hooks/use-data'
 
 export function DashboardView() {
-  const { data: profile } = useProfile()
-  const { data: stats } = useStats()
-  const { data: plan } = useDailyPlan()
-  const { data: bookProgress } = useBookProgress()
+  const profileQuery = useProfile()
+  const statsQuery = useStats()
+  const planQuery = useDailyPlan()
+  const bookProgressQuery = useBookProgress()
+  const { data: profile } = profileQuery
+  const { data: stats } = statsQuery
+  const { data: plan } = planQuery
+  const { data: bookProgress } = bookProgressQuery
 
-  if (!profile || !stats || !plan) return <DashboardSkeleton />
+  const queries = [profileQuery, statsQuery, planQuery, bookProgressQuery]
+  if (queries.some((query) => query.isLoading)) return <DashboardSkeleton />
+  if (queries.some((query) => query.error)) {
+    return (
+      <ErrorState
+        title="Dashboard data couldn't be loaded"
+        description="Your plan and progress are still safe. Try loading the dashboard again."
+        onRetry={() => Promise.all(queries.map((query) => query.mutate()))}
+      />
+    )
+  }
+  if (!profile || !stats || !plan) {
+    return (
+      <ErrorState
+        title="Dashboard data is unavailable"
+        description="We couldn't find the data needed to build your dashboard. Try again."
+        onRetry={() => Promise.all(queries.map((query) => query.mutate()))}
+      />
+    )
+  }
 
   const firstName = profile.display_name.split(' ')[0]
   const bookSummary = plan.currentBook
@@ -44,7 +68,7 @@ export function DashboardView() {
 
       <Card className={plan.dayComplete ? 'overflow-hidden border-mint bg-mint/15' : 'overflow-hidden bg-coral/10'}>
         <CardContent className="p-5 sm:p-7">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
+          <div className="flex flex-col gap-6 2xl:flex-row 2xl:items-center">
             <div className="flex items-center gap-5">
               <GoalRing value={plan.progress.newWordsCompleted} max={plan.goal} sublabel="today" />
               <div>

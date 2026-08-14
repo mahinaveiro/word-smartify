@@ -32,6 +32,8 @@ export function ForgotPasswordView() {
       const res = await requestPasswordReset(email.trim())
       setResetToken(res.resetToken)
       setSent(true)
+    } catch {
+      setError("We couldn't send the reset link. Your email is unchanged. Try again.")
     } finally {
       setLoading(false)
     }

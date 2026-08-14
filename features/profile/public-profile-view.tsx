@@ -5,6 +5,7 @@ import { ArrowLeft, BookOpen, Flame, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { PageHeader } from '@/components/ui/page-header'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/features/shared/stat-tile'
@@ -12,17 +13,26 @@ import { Avatar } from '@/features/shared/avatar'
 import { useBooks, usePublicProfile } from '@/hooks/use-data'
 
 export function PublicProfileView({ userId }: { userId: string }) {
-  const { data: profile, error, isLoading } = usePublicProfile(userId)
+  const { data: profile, error, isLoading, mutate } = usePublicProfile(userId)
   const { data: books } = useBooks()
 
   if (isLoading) return <PublicProfileSkeleton />
-  if (error || !profile) {
+  if (error) {
+    return (
+      <ErrorState
+        title="Public profile couldn't be loaded"
+        description="This learner profile could not be loaded. Try again."
+        onRetry={() => mutate()}
+      />
+    )
+  }
+  if (!profile) {
     return (
       <div className="flex flex-col gap-4">
         <Button asChild variant="ghost" className="self-start px-0">
           <Link href="/leaderboard"><ArrowLeft className="size-4" aria-hidden /> Back to leaderboard</Link>
         </Button>
-        <EmptyState title="Profile not found" description="This learner profile is no longer available." />
+        <EmptyState title="Profile not found" description="This learner profile is no longer available." action={<Button asChild><Link href="/leaderboard">Back to leaderboard</Link></Button>} />
       </div>
     )
   }

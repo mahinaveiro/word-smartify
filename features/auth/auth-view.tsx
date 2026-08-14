@@ -106,7 +106,7 @@ export function AuthView() {
           return
       }
     }
-    toast({ title: 'Something went wrong. Please try again.', tone: 'error' })
+    toast({ title: 'Sign in could not be completed. Please try again.', tone: 'error' })
   }
 
   return (

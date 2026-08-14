@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { SectionHeader } from '@/components/ui/section-header'
 import { Avatar } from '@/features/shared/avatar'
 import { StatTile } from '@/features/shared/stat-tile'
@@ -47,16 +48,23 @@ interface Achievement {
 }
 
 export function ProfileView() {
-  const { data: profile, mutate: mutateProfile } = useProfile()
-  const { data: stats } = useStats()
-  const { data: progressSummary } = useProgressSummary()
-  const { data: bookProgress } = useBookProgress()
-  const { data: books } = useBooks()
-  const { data: tests } = useMockTests()
+  const profileQuery = useProfile()
+  const statsQuery = useStats()
+  const progressQuery = useProgressSummary()
+  const bookProgressQuery = useBookProgress()
+  const booksQuery = useBooks()
+  const testsQuery = useMockTests()
+  const { data: profile, mutate: mutateProfile } = profileQuery
+  const { data: stats } = statsQuery
+  const { data: progressSummary } = progressQuery
+  const { data: bookProgress } = bookProgressQuery
+  const { data: books } = booksQuery
+  const { data: tests } = testsQuery
   const { updateProfile, revalidateUser } = useActions()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(false)
 
   useEffect(() => {
     if (profile && !editing) setName(profile.display_name)
@@ -74,7 +82,26 @@ export function ProfileView() {
     ]
   }, [stats])
 
-  if (!profile || !stats || !progressSummary) return <ProfileSkeleton />
+  const queries = [profileQuery, statsQuery, progressQuery, bookProgressQuery, booksQuery, testsQuery]
+  if (queries.some((query) => query.isLoading)) return <ProfileSkeleton />
+  if (queries.some((query) => query.error)) {
+    return (
+      <ErrorState
+        title="Profile data couldn't be loaded"
+        description="Your profile is safe. Try loading it again."
+        onRetry={() => Promise.all(queries.map((query) => query.mutate()))}
+      />
+    )
+  }
+  if (!profile || !stats || !progressSummary) {
+    return (
+      <ErrorState
+        title="Profile data is unavailable"
+        description="We couldn't find the data needed for your profile. Try again."
+        onRetry={() => Promise.all(queries.map((query) => query.mutate()))}
+      />
+    )
+  }
 
   const recentTests = (tests ?? []).slice(0, 3)
   const earnedCount = achievements.filter((achievement) => achievement.earned).length
@@ -82,11 +109,14 @@ export function ProfileView() {
   async function saveName() {
     if (profileSaveDisabled(name, saving)) return
     setSaving(true)
+    setSaveError(false)
     try {
       const updated = await updateProfile({ display_name: name.trim() })
       await mutateProfile(updated, false)
       await revalidateUser()
       setEditing(false)
+    } catch {
+      setSaveError(true)
     } finally {
       setSaving(false)
     }
@@ -119,6 +149,14 @@ export function ProfileView() {
                     <X className="size-4" aria-hidden /> Cancel
                   </Button>
                 </div>
+                {saveError ? (
+                  <ErrorState
+                    className="py-6"
+                    title="Your profile couldn't be saved"
+                    description="Your previous display name is unchanged. Try saving again."
+                    onRetry={saveName}
+                  />
+                ) : null}
               </div>
             ) : (
               <div className="flex items-center gap-2">

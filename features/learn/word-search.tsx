@@ -6,10 +6,11 @@ import { useWordSearch } from '@/hooks/use-data'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { Badge } from '@/components/ui/badge'
 
 export function WordSearchResults({ query }: { query: string }) {
-  const { data, isLoading } = useWordSearch(query, 30)
+  const { data, error, isLoading, mutate } = useWordSearch(query, 30)
 
   if (isLoading) {
     return (
@@ -18,6 +19,16 @@ export function WordSearchResults({ query }: { query: string }) {
           <Skeleton key={i} className="h-16 w-full" />
         ))}
       </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <ErrorState
+        title="Word search couldn't be completed"
+        description="Your search is still available. Try it again."
+        onRetry={() => mutate()}
+      />
     )
   }
 
