@@ -11,8 +11,10 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts'
+import Link from 'next/link'
 import { BookOpen, CheckCircle2, Flame, Target, Trophy, Zap } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
@@ -71,7 +73,11 @@ export function ProgressView() {
           icon={BookOpen}
           title="You haven't started learning yet."
           description="Open Learn to study your first level and your progress will appear here."
-          action={<a href="/learn" className="font-heading text-sm font-bold underline underline-offset-4">Go to Learn</a>}
+          action={
+            <Button asChild size="sm">
+              <Link href="/learn">Go to Learn</Link>
+            </Button>
+          }
         />
       ) : null}
 

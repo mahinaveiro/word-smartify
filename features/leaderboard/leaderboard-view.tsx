@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Flame, Trophy } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -31,7 +32,11 @@ export function LeaderboardView() {
       <EmptyState
         title="No rankings available yet."
         description="Keep learning to appear in the competition."
-        action={<Link href="/learn" className="font-heading text-sm font-bold underline underline-offset-4">Go to Learn</Link>}
+        action={
+          <Button asChild size="sm">
+            <Link href="/learn">Go to Learn</Link>
+          </Button>
+        }
       />
     )
   }
