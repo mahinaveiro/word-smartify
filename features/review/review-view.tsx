@@ -15,6 +15,7 @@ import { useQuizEngine } from '@/hooks/use-quiz-engine'
 import { useActions, type QuizAnswerResult } from '@/hooks/use-actions'
 import { QuizCard } from '@/features/session/quiz-card'
 import type { QuizAnswerEvent } from '@/lib/quiz-engine'
+import { XP } from '@/lib/xp'
 
 type Phase = 'quiz' | 'summary'
 
@@ -130,7 +131,7 @@ export function ReviewView() {
       await recordSessionProgress()
       revalidateUser()
       if (results.some((result) => result.goalJustCompleted)) {
-        toast({ title: 'Daily goal complete!', description: '+25 XP bonus earned.', tone: 'success' })
+        toast({ title: 'Daily goal complete!', description: `+${XP.DAILY_GOAL} XP bonus earned.`, tone: 'success' })
       }
       setPhase('summary')
     } catch {
