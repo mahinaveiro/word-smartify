@@ -2,12 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from '@/types/supabase'
 import { safeNext } from '@/lib/safe-redirect'
-
-function requiredEnv(name: 'NEXT_PUBLIC_SUPABASE_URL' | 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY') {
-  const value = process.env[name]
-  if (!value) throw new Error(`Missing required Supabase environment variable: ${name}`)
-  return value
-}
+import { getSupabaseConfig } from '@/lib/supabase/config'
 
 const PROTECTED_PREFIXES = [
   '/dashboard',
@@ -34,8 +29,8 @@ export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
 
   const supabase = createServerClient<Database>(
-    requiredEnv('NEXT_PUBLIC_SUPABASE_URL'),
-    requiredEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'),
+    getSupabaseConfig().url,
+    getSupabaseConfig().publishableKey,
     {
       cookies: {
         getAll() {

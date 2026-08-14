@@ -2,12 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { safeNext } from '@/lib/safe-redirect'
 import type { Database } from '@/types/supabase'
-
-function requiredEnv(name: 'NEXT_PUBLIC_SUPABASE_URL' | 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY') {
-  const value = process.env[name]
-  if (!value) throw new Error(`Missing required Supabase environment variable: ${name}`)
-  return value
-}
+import { getSupabaseConfig } from '@/lib/supabase/config'
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
@@ -21,8 +16,8 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createServerClient<Database>(
-    requiredEnv('NEXT_PUBLIC_SUPABASE_URL'),
-    requiredEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'),
+    getSupabaseConfig().url,
+    getSupabaseConfig().publishableKey,
     {
       cookies: {
         getAll: () => request.cookies.getAll(),

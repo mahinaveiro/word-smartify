@@ -2,20 +2,15 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
-
-function requiredEnv(name: 'NEXT_PUBLIC_SUPABASE_URL' | 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY') {
-  const value = process.env[name]
-  if (!value) throw new Error(`Missing required Supabase environment variable: ${name}`)
-  return value
-}
+import { getSupabaseConfig } from './config'
 
 /** Creates a request-scoped client that reads/writes the Next.js cookie store. */
 export async function createClient(): Promise<SupabaseClient<Database>> {
   const cookieStore = await cookies()
 
   return createServerClient<Database>(
-    requiredEnv('NEXT_PUBLIC_SUPABASE_URL'),
-    requiredEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'),
+    getSupabaseConfig().url,
+    getSupabaseConfig().publishableKey,
     {
       cookies: {
         getAll() {
