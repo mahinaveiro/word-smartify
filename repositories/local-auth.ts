@@ -16,6 +16,7 @@ import { checkPassword, isValidEmail } from '@/lib/password'
 import { DEMO_EMAIL, makeToken, readAuth, writeAuth } from '@/data/auth-store'
 import {
   clearActiveUserId,
+  deleteUserData,
   readStore,
   setActiveUserId,
   writeStore,
@@ -201,6 +202,45 @@ export class LocalAuthRepository implements AuthRepository {
       draft.accounts[email].password = newPassword
       delete draft.resetTokens[token]
     })
+    return delay(undefined)
+  }
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    const auth = readAuth()
+    const session = auth.session
+    const accountEmail = session?.email
+    const account = accountEmail ? auth.accounts[accountEmail] : undefined
+    if (!account || !accountEmail || account.password !== currentPassword) {
+      throw new AuthError('invalid_credentials', 'Your current password is incorrect.')
+    }
+    if (!checkPassword(newPassword).valid) {
+      throw new AuthError('weak_password', 'Your new password does not meet the requirements.')
+    }
+    writeAuth((draft) => {
+      draft.accounts[accountEmail].password = newPassword
+    })
+    return delay(undefined)
+  }
+
+  async deleteAccount(): Promise<void> {
+    const auth = readAuth()
+    const session = auth.session
+    const accountEmail = session?.email
+    const account = accountEmail ? auth.accounts[accountEmail] : undefined
+    if (!account || !accountEmail) throw new AuthError('not_found', 'No signed-in account was found.')
+
+    deleteUserData(account.user.id)
+    writeAuth((draft) => {
+      delete draft.accounts[accountEmail]
+      for (const [token, email] of Object.entries(draft.confirmTokens)) {
+        if (email === accountEmail) delete draft.confirmTokens[token]
+      }
+      for (const [token, email] of Object.entries(draft.resetTokens)) {
+        if (email === accountEmail) delete draft.resetTokens[token]
+      }
+      draft.session = null
+    })
+    clearActiveUserId()
     return delay(undefined)
   }
 }

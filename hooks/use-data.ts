@@ -12,6 +12,8 @@
 
 import useSWR from 'swr'
 import { repositories, getActiveUserId } from '@/repositories'
+import { buildTodayPlan } from '@/services/daily-loop'
+import { buildProgressSummary } from '@/services/progress'
 
 const repo = repositories
 
@@ -64,6 +66,12 @@ export function useStats() {
   return useSWR(['stats', uid], () => repo.stats.getStats(uid))
 }
 
+export function usePublicProfile(userId: string | null) {
+  return useSWR(userId ? ['public-profile', userId] : null, () =>
+    repositories.profiles.getPublicProfile(userId as string),
+  )
+}
+
 export function useLeaderboard(limit = 10) {
   return useSWR(['leaderboard', limit], () => repo.stats.getLeaderboard(limit))
 }
@@ -97,6 +105,11 @@ export function useLevelProgress(bookId: string | null) {
   )
 }
 
+export function useBookProgress() {
+  const uid = getActiveUserId()
+  return useSWR(['book-progress', uid], () => repositories.wordProgress.getBookProgress(uid))
+}
+
 export function useDailyProgress(date: string) {
   const uid = getActiveUserId()
   return useSWR(['daily', uid, date], () => repo.dailyProgress.getDailyProgress(uid, date))
@@ -107,6 +120,16 @@ export function useDailyRange(fromDate: string, toDate: string) {
   return useSWR(['daily-range', uid, fromDate, toDate], () =>
     repo.dailyProgress.getRange(uid, fromDate, toDate),
   )
+}
+
+export function useDailyPlan() {
+  const uid = getActiveUserId()
+  return useSWR(['daily-plan', uid], () => buildTodayPlan(uid))
+}
+
+export function useProgressSummary() {
+  const uid = getActiveUserId()
+  return useSWR(['progress-summary', uid], () => buildProgressSummary(uid))
 }
 
 export function useMockTests() {

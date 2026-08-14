@@ -141,6 +141,26 @@ export interface DailyProgress {
   created_at: ISOTimestamp
 }
 
+export interface BookProgressSummary {
+  book_id: UUID
+  total: number
+  learned: number
+  mastered: number
+}
+
+/** Public fields safe to show on profiles, leaderboards, and social surfaces. */
+export interface PublicProfile {
+  id: UUID
+  display_name: string
+  avatar_id: string
+  current_streak: number
+  longest_streak: number
+  total_xp: number
+  words_learned: number
+  words_mastered: number
+  book_progress: BookProgressSummary[]
+}
+
 // ---------------------------------------------------------------------------
 // Mock tests
 // ---------------------------------------------------------------------------
@@ -163,18 +183,6 @@ export interface MockTestAnswer {
   is_correct: boolean
   created_at: ISOTimestamp
 }
-
-// ---------------------------------------------------------------------------
-// XP economy (from the product rules)
-// ---------------------------------------------------------------------------
-
-export const XP = {
-  NEW_WORD: 5,
-  CORRECT_QUIZ: 3,
-  REVIEW_COMPLETED: 2,
-  DAILY_GOAL: 25,
-  DAILY_CHALLENGE: 15,
-} as const
 
 export const QUIZZES_PER_WORD = 5
 

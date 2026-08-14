@@ -91,7 +91,7 @@ export function ReviewView() {
     if (!event) return
     setBusy(true)
     try {
-      const res = await recordQuizAnswer(card.word.id, event.isCorrect)
+      const res = await recordQuizAnswer(card.word.id, event.isCorrect, 'review')
       setResults((prev) => [...prev, res])
     } finally {
       setBusy(false)
@@ -107,11 +107,9 @@ export function ReviewView() {
     finishRecorded.current = true
     setFinishing(true)
     try {
-      const learned = results.filter((r) => r.becameLearned).length
-      const reviews = results.length - learned
-      const res = await recordSessionProgress({ newWords: learned, reviews })
+      await recordSessionProgress()
       revalidateUser()
-      if (res.goalJustCompleted) {
+      if (results.some((result) => result.goalJustCompleted)) {
         toast({ title: 'Daily goal complete!', description: '+25 XP bonus earned.', tone: 'success' })
       }
       setPhase('summary')

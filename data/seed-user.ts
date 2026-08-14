@@ -11,7 +11,7 @@ import type {
   UserWordProgress,
   WordStatus,
 } from '@/types/database'
-import { getDataset } from './dataset'
+import { getDataset, getWordsForBook } from './dataset'
 import { makeId, makeRng, NOW } from './seed-utils'
 import {
   CURRENT_USER_ID,
@@ -49,11 +49,14 @@ function dateDaysAgo(days: number): string {
 
 export function ensureSeeded() {
   const store = readStore()
-  if (store.profiles[CURRENT_USER_ID]) return
+  const demosSeeded =
+    store.profiles['demo-user-1'] != null &&
+    store.stats['demo-user-1'] != null
+  if (store.profiles[CURRENT_USER_ID] && demosSeeded) return
 
   writeStore((draft) => {
-    seedCurrentUser(draft)
-    seedLeaderboard(draft)
+    if (!draft.profiles[CURRENT_USER_ID]) seedCurrentUser(draft)
+    if (!demosSeeded) seedLeaderboard(draft)
   })
 }
 
@@ -146,7 +149,8 @@ function seedCurrentUser(draft: UserDataShape) {
 
 function seedLeaderboard(draft: UserDataShape) {
   const rng = makeRng(7)
-  const board: UserDataShape['demoLeaderboard'] = DEMO_NAMES.map((name, i) => {
+  const ds = getDataset()
+  DEMO_NAMES.forEach((name, i) => {
     const xp = 400 + Math.floor(rng() * 2600)
     const profile: Profile = {
       id: `demo-user-${i + 1}`,
@@ -166,7 +170,25 @@ function seedLeaderboard(draft: UserDataShape) {
       words_mastered: Math.floor(xp / 20),
       last_activity_at: isoDaysAgo(Math.floor(rng() * 3)),
     }
-    return { profile, stats }
+    draft.profiles[profile.id] = profile
+    draft.stats[profile.id] = stats
+    let learnedRemaining = stats.words_learned
+    const learnedByBook = ds.books.map((book) => {
+      const total = getWordsForBook(book.id).length
+      const learned = Math.min(total, learnedRemaining)
+      learnedRemaining -= learned
+      return { book_id: book.id, total, learned }
+    })
+    let masteredRemaining = stats.words_mastered
+    draft.demoBookProgress[profile.id] = learnedByBook.map((book) => {
+      const mastered = Math.min(book.learned, masteredRemaining)
+      masteredRemaining -= mastered
+      return {
+        book_id: book.book_id,
+        total: book.total,
+        learned: book.learned,
+        mastered,
+      }
+    })
   })
-  draft.demoLeaderboard = board
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Flame, Trophy } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card } from '@/components/ui/card'
@@ -19,7 +20,7 @@ export function LeaderboardView() {
 
   const top3 = data.slice(0, 3)
   const rest = data.slice(3)
-  // Podium display order: 2nd, 1st, 3rd
+  // Podium display order: 2nd, 1st, 3rd.
   const podium = [top3[1], top3[0], top3[2]].filter(Boolean)
 
   return (
@@ -32,12 +33,12 @@ export function LeaderboardView() {
 
       <div className="grid grid-cols-3 items-end gap-2 sm:gap-3">
         {podium.map((entry) => {
-          const rank = data.indexOf(entry) + 1
+          const rank = entry.rank
           const isMe = entry.profile.id === meId
           const height = rank === 1 ? 'h-28' : rank === 2 ? 'h-20' : 'h-16'
           const medal = rank === 1 ? 'bg-mint text-mint-foreground' : rank === 2 ? 'bg-muted text-foreground' : 'bg-coral text-coral-foreground'
           return (
-            <div key={entry.profile.id} className="flex flex-col items-center gap-2">
+            <Link key={entry.profile.id} href={`/profile/${entry.profile.id}`} className="flex flex-col items-center gap-2 rounded-md p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <Avatar
                 name={entry.profile.display_name}
                 avatarId={entry.profile.avatar_id}
@@ -60,21 +61,19 @@ export function LeaderboardView() {
               >
                 {rank}
               </div>
-            </div>
+            </Link>
           )
         })}
       </div>
 
       <div className="flex flex-col gap-2">
-        {rest.map((entry, i) => {
-          const rank = i + 4
+        {rest.map((entry) => {
+          const rank = entry.rank
           const isMe = entry.profile.id === meId
           return (
-            <Card
-              key={entry.profile.id}
-              className={cn(isMe && 'border-mint bg-mint/20')}
-            >
-              <div className="flex items-center gap-3 p-3">
+            <Link key={entry.profile.id} href={`/profile/${entry.profile.id}`} className="block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <Card className={cn(isMe && 'border-mint bg-mint/20')}>
+                <div className="flex items-center gap-3 p-3">
                 <span className="w-6 text-center font-heading text-sm font-bold tabular-nums text-muted-foreground">
                   {rank}
                 </span>
@@ -92,8 +91,9 @@ export function LeaderboardView() {
                   <Trophy className="size-3.5 text-mint-foreground" aria-hidden />
                   {entry.stats.total_xp.toLocaleString()}
                 </span>
-              </div>
-            </Card>
+                </div>
+              </Card>
+            </Link>
           )
         })}
       </div>

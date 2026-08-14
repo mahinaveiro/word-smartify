@@ -1,18 +1,21 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
-  Settings,
-  Flame,
-  Zap,
-  BookOpen,
-  Trophy,
-  Target,
   Award,
-  Lock,
+  BookOpen,
   CalendarDays,
   FileText,
+  Flame,
+  Lock,
+  Pencil,
+  Save,
+  Settings,
+  Target,
+  Trophy,
+  X,
+  Zap,
 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardContent } from '@/components/ui/card'
@@ -23,10 +26,18 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { SectionHeader } from '@/components/ui/section-header'
 import { Avatar } from '@/features/shared/avatar'
 import { StatTile } from '@/features/shared/stat-tile'
-import { xpToLevel } from '@/lib/learning-logic'
+import { DisplayNameField, profileSaveDisabled } from '@/features/profile/profile-form'
+import { useActions } from '@/hooks/use-actions'
+import {
+  useBookProgress,
+  useBooks,
+  useMockTests,
+  useProfile,
+  useProgressSummary,
+  useStats,
+} from '@/hooks/use-data'
 import { shortDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
-import { useProfile, useStats, useMockTests } from '@/hooks/use-data'
 
 interface Achievement {
   id: string
@@ -36,57 +47,50 @@ interface Achievement {
 }
 
 export function ProfileView() {
-  const { data: profile } = useProfile()
+  const { data: profile, mutate: mutateProfile } = useProfile()
   const { data: stats } = useStats()
+  const { data: progressSummary } = useProgressSummary()
+  const { data: bookProgress } = useBookProgress()
+  const { data: books } = useBooks()
   const { data: tests } = useMockTests()
+  const { updateProfile, revalidateUser } = useActions()
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (profile && !editing) setName(profile.display_name)
+  }, [profile, editing])
 
   const achievements = useMemo<Achievement[]>(() => {
     if (!stats) return []
     return [
-      {
-        id: 'first-word',
-        label: 'First Steps',
-        description: 'Learn your first word',
-        earned: stats.words_learned >= 1,
-      },
-      {
-        id: 'streak-7',
-        label: 'On Fire',
-        description: 'Reach a 7-day streak',
-        earned: stats.longest_streak >= 7,
-      },
-      {
-        id: 'words-100',
-        label: 'Century',
-        description: 'Learn 100 words',
-        earned: stats.words_learned >= 100,
-      },
-      {
-        id: 'master-50',
-        label: 'Word Master',
-        description: 'Master 50 words',
-        earned: stats.words_mastered >= 50,
-      },
-      {
-        id: 'xp-1000',
-        label: 'Grinder',
-        description: 'Earn 1,000 XP',
-        earned: stats.total_xp >= 1000,
-      },
-      {
-        id: 'xp-5000',
-        label: 'Vocab Titan',
-        description: 'Earn 5,000 XP',
-        earned: stats.total_xp >= 5000,
-      },
+      { id: 'first-word', label: 'First Steps', description: 'Learn your first word', earned: stats.words_learned >= 1 },
+      { id: 'streak-7', label: 'On Fire', description: 'Reach a 7-day streak', earned: stats.longest_streak >= 7 },
+      { id: 'words-100', label: 'Century', description: 'Learn 100 words', earned: stats.words_learned >= 100 },
+      { id: 'master-50', label: 'Word Master', description: 'Master 50 words', earned: stats.words_mastered >= 50 },
+      { id: 'xp-1000', label: 'Grinder', description: 'Earn 1,000 XP', earned: stats.total_xp >= 1000 },
+      { id: 'xp-5000', label: 'Vocab Titan', description: 'Earn 5,000 XP', earned: stats.total_xp >= 5000 },
     ]
   }, [stats])
 
-  if (!profile || !stats) return <ProfileSkeleton />
+  if (!profile || !stats || !progressSummary) return <ProfileSkeleton />
 
-  const level = xpToLevel(stats.total_xp)
-  const earnedCount = achievements.filter((a) => a.earned).length
   const recentTests = (tests ?? []).slice(0, 3)
+  const earnedCount = achievements.filter((achievement) => achievement.earned).length
+
+  async function saveName() {
+    if (profileSaveDisabled(name, saving)) return
+    setSaving(true)
+    try {
+      const updated = await updateProfile({ display_name: name.trim() })
+      await mutateProfile(updated, false)
+      await revalidateUser()
+      setEditing(false)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -95,137 +99,118 @@ export function ProfileView() {
         title="Profile"
         actions={
           <Button asChild variant="outline" size="sm">
-            <Link href="/settings">
-              <Settings className="size-4" aria-hidden />
-              Settings
-            </Link>
+            <Link href="/settings"><Settings className="size-4" aria-hidden /> Settings</Link>
           </Button>
         }
       />
 
-      {/* Identity card */}
       <Card>
         <CardContent className="flex flex-col items-center gap-4 p-6 text-center sm:flex-row sm:text-left">
           <Avatar name={profile.display_name} avatarId={profile.avatar_id} size="xl" />
           <div className="min-w-0 flex-1">
-            <h2 className="truncate font-heading text-2xl font-bold">{profile.display_name}</h2>
+            {editing ? (
+              <div className="flex flex-col gap-3">
+                <DisplayNameField value={name} onChange={setName} disabled={saving} id="profile-display-name" />
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={saveName} disabled={profileSaveDisabled(name, saving)} loading={saving}>
+                    <Save className="size-4" aria-hidden /> Save name
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setName(profile.display_name); setEditing(false) }} disabled={saving}>
+                    <X className="size-4" aria-hidden /> Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <h2 className="truncate font-heading text-2xl font-bold">{profile.display_name}</h2>
+                <Button variant="ghost" size="sm" onClick={() => setEditing(true)} aria-label="Edit display name">
+                  <Pencil className="size-4" aria-hidden />
+                </Button>
+              </div>
+            )}
             <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-              <Badge variant="mint" className="gap-1 px-2.5 py-1 text-sm">
-                <Trophy className="size-3.5" aria-hidden />
-                Level {level.level}
-              </Badge>
-              <Badge variant="coral" className="gap-1 px-2.5 py-1 text-sm">
-                <Flame className="size-3.5" aria-hidden />
-                {stats.current_streak} day streak
-              </Badge>
+              <Badge variant="mint" className="gap-1 px-2.5 py-1 text-sm"><Trophy className="size-3.5" aria-hidden /> Level {progressSummary.level.level}</Badge>
+              <Badge variant="coral" className="gap-1 px-2.5 py-1 text-sm"><Flame className="size-3.5" aria-hidden /> {stats.current_streak} day streak</Badge>
             </div>
-            {/* Level progress */}
             <div className="mt-4">
               <div className="mb-1 flex items-baseline justify-between text-xs text-muted-foreground">
-                <span className="font-heading font-semibold">
-                  {level.into}/{level.span} XP to level {level.level + 1}
-                </span>
-                <span className="tabular-nums">{level.pct}%</span>
+                <span className="font-heading font-semibold">{progressSummary.level.into}/{progressSummary.level.span} XP to level {progressSummary.level.level + 1}</span>
+                <span className="tabular-nums">{progressSummary.level.pct}%</span>
               </div>
               <div className="h-2.5 overflow-hidden rounded-full border-2 border-foreground bg-card">
-                <div
-                  className="h-full bg-mint transition-[width] duration-[--duration-major]"
-                  style={{ width: `${level.pct}%` }}
-                />
+                <div className="h-full bg-mint" style={{ width: `${progressSummary.level.pct}%` }} />
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <StatTile icon={Zap} value={stats.total_xp.toLocaleString()} label="Total XP" accent="ink" />
         <StatTile icon={BookOpen} value={stats.words_learned.toLocaleString()} label="Words learned" />
         <StatTile icon={Trophy} value={stats.words_mastered.toLocaleString()} label="Mastered" accent="mint" />
-        <StatTile icon={Flame} value={stats.longest_streak} label="Best streak" accent="coral" />
+        <StatTile icon={Flame} value={stats.current_streak} label="Streak" accent="coral" />
+        <StatTile icon={Flame} value={stats.longest_streak} label="Best streak" accent="coral" className="col-span-2 sm:col-span-1" />
       </div>
 
-      {/* Achievements */}
       <section>
-        <SectionHeader
-          title="Achievements"
-          action={
-            <span className="font-heading text-sm font-bold tabular-nums text-muted-foreground">
-              {earnedCount}/{achievements.length}
-            </span>
-          }
-        />
+        <SectionHeader title="Book progress" />
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(bookProgress ?? []).map((progress) => {
+            const book = books?.find((item) => item.id === progress.book_id)
+            const percent = progress.total > 0 ? Math.round((progress.learned / progress.total) * 100) : 0
+            return (
+              <Card key={progress.book_id}>
+                <CardContent className="flex flex-col gap-3 p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="truncate font-heading font-bold">{book?.name ?? progress.book_id}</h3>
+                    <BookOpen className="size-5 text-mint" aria-hidden />
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>{progress.learned.toLocaleString()} / {progress.total.toLocaleString()} learned</span>
+                    <span className="font-heading font-bold">{percent}%</span>
+                  </div>
+                  <div className="h-3 overflow-hidden rounded-full border-2 border-foreground bg-card">
+                    <div className="h-full bg-mint" style={{ width: `${percent}%` }} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">{progress.mastered.toLocaleString()} mastered</p>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      </section>
+
+      <section>
+        <SectionHeader title="Achievements" action={<span className="font-heading text-sm font-bold tabular-nums text-muted-foreground">{earnedCount}/{achievements.length}</span>} />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {achievements.map((a) => (
-            <Card key={a.id} flat className={cn(!a.earned && 'opacity-60')}>
+          {achievements.map((achievement) => (
+            <Card key={achievement.id} flat className={cn(!achievement.earned && 'opacity-60')}>
               <CardContent className="flex flex-col items-center gap-2 p-4 text-center">
-                <span
-                  className={cn(
-                    'grid size-12 place-items-center rounded-full border-2 border-foreground shadow-brutal-sm',
-                    a.earned ? 'bg-mint text-mint-foreground' : 'bg-muted text-muted-foreground',
-                  )}
-                >
-                  {a.earned ? (
-                    <Award className="size-6" aria-hidden />
-                  ) : (
-                    <Lock className="size-5" aria-hidden />
-                  )}
+                <span className={cn('grid size-12 place-items-center rounded-full border-2 border-foreground shadow-brutal-sm', achievement.earned ? 'bg-mint text-mint-foreground' : 'bg-muted text-muted-foreground')}>
+                  {achievement.earned ? <Award className="size-6" aria-hidden /> : <Lock className="size-5" aria-hidden />}
                 </span>
-                <p className="font-heading text-sm font-bold leading-tight">{a.label}</p>
-                <p className="text-pretty text-xs text-muted-foreground">{a.description}</p>
+                <p className="font-heading text-sm font-bold leading-tight">{achievement.label}</p>
+                <p className="text-pretty text-xs text-muted-foreground">{achievement.description}</p>
               </CardContent>
             </Card>
           ))}
         </div>
       </section>
 
-      {/* Recent mock tests */}
       <section>
-        <SectionHeader
-          title="Recent mock tests"
-          action={
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/mock-tests">View all</Link>
-            </Button>
-          }
-        />
+        <SectionHeader title="Recent mock tests" action={<Button asChild variant="ghost" size="sm"><Link href="/mock-tests">View all</Link></Button>} />
         {recentTests.length === 0 ? (
-          <EmptyState
-            icon={FileText}
-            title="No mock tests yet"
-            description="Take a timed mock test to gauge how much you've retained."
-            action={
-              <Button asChild size="sm">
-                <Link href="/mock-tests">Start a mock test</Link>
-              </Button>
-            }
-          />
+          <EmptyState icon={FileText} title="No mock tests yet" description="Take a timed mock test to gauge how much you&apos;ve retained." action={<Button asChild size="sm"><Link href="/mock-tests">Start a mock test</Link></Button>} />
         ) : (
           <div className="flex flex-col gap-2">
-            {recentTests.map((t) => (
-              <Card key={t.id} flat className="border-foreground/15">
+            {recentTests.map((test) => (
+              <Card key={test.id} flat className="border-foreground/15">
                 <CardContent className="flex items-center gap-3 p-3.5">
-                  <span
-                    className={cn(
-                      'grid size-11 shrink-0 place-items-center rounded-md border-2 border-foreground font-heading text-sm font-bold shadow-brutal-sm',
-                      t.score >= 80
-                        ? 'bg-mint text-mint-foreground'
-                        : t.score >= 50
-                          ? 'bg-muted text-foreground'
-                          : 'bg-coral text-coral-foreground',
-                    )}
-                  >
-                    {t.score}%
-                  </span>
+                  <span className={cn('grid size-11 shrink-0 place-items-center rounded-md border-2 border-foreground font-heading text-sm font-bold shadow-brutal-sm', test.score >= 80 ? 'bg-mint text-mint-foreground' : test.score >= 50 ? 'bg-muted text-foreground' : 'bg-coral text-coral-foreground')}>{test.score}%</span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium">
-                      {t.correct_answers}/{t.total_questions} correct
-                    </p>
-                    <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <CalendarDays className="size-3" aria-hidden />
-                      {shortDate(t.created_at.slice(0, 10))}
-                    </p>
+                    <p className="font-medium">{test.correct_answers}/{test.total_questions} correct</p>
+                    <p className="flex items-center gap-1 text-xs text-muted-foreground"><CalendarDays className="size-3" aria-hidden /> {shortDate(test.created_at.slice(0, 10))}</p>
                   </div>
                   <Target className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                 </CardContent>
@@ -243,11 +228,7 @@ function ProfileSkeleton() {
     <div className="flex flex-col gap-6">
       <Skeleton className="h-12 w-40" />
       <Skeleton className="h-40 w-full" />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 w-full" />
-        ))}
-      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-24 w-full" />)}</div>
       <Skeleton className="h-48 w-full" />
     </div>
   )

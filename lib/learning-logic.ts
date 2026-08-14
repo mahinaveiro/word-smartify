@@ -10,7 +10,7 @@
  */
 
 import type { UserWordProgress, WordStatus } from '@/types/database'
-import { XP } from '@/types/database'
+import { XP } from '@/lib/xp'
 
 export { XP }
 
@@ -65,12 +65,12 @@ export function applyQuizResult(
   }
 
   // Status derived from demonstrated recall, never from merely opening a word.
-  let status: WordStatus = 'learning'
-  if (recallStreak >= 5 && correctCount >= 5) status = 'mastered'
-  else if (recallStreak >= 2) status = 'familiar'
-  else status = 'learning'
+  let status: WordStatus = prevStatus === 'new' && !correct ? 'new' : 'learning'
+  if (correct && recallStreak >= 5 && correctCount >= 5) status = 'mastered'
+  else if (correct && recallStreak >= 2) status = 'familiar'
+  if (prevStatus === 'mastered') status = 'mastered'
 
-  const becameLearned = prevStatus === 'new'
+  const becameLearned = prevStatus === 'new' && correct && status !== 'new'
   const becameMastered = prevStatus !== 'mastered' && status === 'mastered'
 
   return {
@@ -92,17 +92,6 @@ export function applyQuizResult(
  * that improves recall grants the correct-quiz XP; repeats on an already
  * mastered word grant nothing.
  */
-export function xpForQuiz(prev: UserWordProgress | null, correct: boolean): number {
-  if (!correct) return 0
-  if (prev?.status === 'mastered') return 0
-  return XP.CORRECT_QUIZ
-}
-
-export function xpForNewWord(prev: UserWordProgress | null): number {
-  // Awarded once, when a word first leaves 'new'.
-  return prev == null || prev.status === 'new' ? XP.NEW_WORD : 0
-}
-
 export interface DailyGoalState {
   goal: number
   newWordsCompleted: number
@@ -113,29 +102,6 @@ export interface DailyGoalState {
 
 export function isDailyGoalMet(state: Pick<DailyGoalState, 'goal' | 'newWordsCompleted'>): boolean {
   return state.newWordsCompleted >= state.goal
-}
-
-/** Streak logic: continues if yesterday (or today) completed; else resets to today. */
-export function computeStreak(completedDatesDesc: string[], todayCompleted: boolean): number {
-  // completedDatesDesc: ISO dates (YYYY-MM-DD) of completed days, newest first.
-  const set = new Set(completedDatesDesc)
-  let streak = 0
-  const cursor = new Date()
-  if (!todayCompleted) {
-    // start counting from yesterday
-    cursor.setDate(cursor.getDate() - 1)
-  }
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const key = cursor.toISOString().slice(0, 10)
-    if (set.has(key)) {
-      streak += 1
-      cursor.setDate(cursor.getDate() - 1)
-    } else {
-      break
-    }
-  }
-  return todayCompleted ? streak : streak
 }
 
 export function xpToLevel(totalXp: number): { level: number; into: number; span: number; pct: number } {

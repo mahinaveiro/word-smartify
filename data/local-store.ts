@@ -17,6 +17,7 @@ import type {
   Profile,
   UserStats,
   UserWordProgress,
+  BookProgressSummary,
 } from '@/types/database'
 
 /** The single local dev user. Real auth (Supabase) will supply this later. */
@@ -29,7 +30,7 @@ export interface UserDataShape {
   dailyProgress: Record<string, DailyProgress> // key: `${userId}:${date}`
   mockTests: Record<string, MockTest>
   mockAnswers: Record<string, MockTestAnswer[]> // key: testId
-  demoLeaderboard: Array<{ profile: Profile; stats: UserStats }>
+  demoBookProgress: Record<string, BookProgressSummary[]>
 }
 
 const STORAGE_KEY = 'word-smartify:v1'
@@ -44,7 +45,7 @@ function emptyShape(): UserDataShape {
     dailyProgress: {},
     mockTests: {},
     mockAnswers: {},
-    demoLeaderboard: [],
+    demoBookProgress: {},
   }
 }
 
@@ -58,7 +59,12 @@ function load(): UserDataShape {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY)
       if (raw) {
-        memory = JSON.parse(raw) as UserDataShape
+        const parsed = JSON.parse(raw) as Partial<UserDataShape>
+        memory = {
+          ...emptyShape(),
+          ...parsed,
+          demoBookProgress: parsed.demoBookProgress ?? {},
+        }
         return memory
       }
     } catch {
@@ -136,6 +142,27 @@ export function clearActiveUserId() {
       // ignore
     }
   }
+}
+
+export function deleteUserData(userId: string) {
+  writeStore((draft) => {
+    delete draft.profiles[userId]
+    delete draft.stats[userId]
+    delete draft.demoBookProgress[userId]
+    for (const [key, row] of Object.entries(draft.wordProgress)) {
+      if (row.user_id === userId) delete draft.wordProgress[key]
+    }
+    for (const [key, row] of Object.entries(draft.dailyProgress)) {
+      if (row.user_id === userId) delete draft.dailyProgress[key]
+    }
+    const testIds = Object.values(draft.mockTests)
+      .filter((test) => test.user_id === userId)
+      .map((test) => test.id)
+    for (const testId of testIds) {
+      delete draft.mockTests[testId]
+      delete draft.mockAnswers[testId]
+    }
+  })
 }
 
 export function progressKey(userId: string, wordId: string) {

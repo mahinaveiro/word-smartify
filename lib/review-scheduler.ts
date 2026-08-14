@@ -16,6 +16,7 @@
 import type { UserWordProgress } from '@/types/database'
 
 export const DEFAULT_REVIEW_QUEUE_LIMIT = 20
+export const DAILY_CHALLENGE_LIMIT = 5
 
 /** Due = scheduled for review and not yet mastered. */
 export function isDue(progress: UserWordProgress, nowIso = new Date().toISOString()): boolean {
@@ -67,4 +68,20 @@ export function buildReviewQueue(
   const weak = getWeakWords(allProgress).filter((p) => !dueIds.has(p.word_id))
 
   return [...due, ...weak].slice(0, limit)
+}
+
+/**
+ * Challenge practice favors weak learned words, then fills with other learned
+ * words. Keeping this selection beside review scheduling makes both surfaces
+ * use the same weakness signals.
+ */
+export function buildChallengeQueue(
+  allProgress: UserWordProgress[],
+  limit = DAILY_CHALLENGE_LIMIT,
+): UserWordProgress[] {
+  const learned = allProgress.filter((progress) => progress.status !== 'new')
+  const weak = getWeakWords(learned)
+  const weakIds = new Set(weak.map((progress) => progress.word_id))
+  const rest = learned.filter((progress) => !weakIds.has(progress.word_id))
+  return [...weak, ...rest].slice(0, limit)
 }
