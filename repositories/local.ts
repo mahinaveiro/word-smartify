@@ -439,7 +439,14 @@ class LocalMockTestRepository implements MockTestRepository {
       created_at: new Date().toISOString(),
     }
     writeStore((draft) => {
-      draft.mockAnswers[testId] = [...(draft.mockAnswers[testId] ?? []), row]
+      const answers = draft.mockAnswers[testId] ?? []
+      const existingIndex = answers.findIndex((item) => item.question_id === answer.question_id)
+      if (existingIndex >= 0) {
+        answers[existingIndex] = row
+        draft.mockAnswers[testId] = answers
+      } else {
+        draft.mockAnswers[testId] = [...answers, row]
+      }
     })
     return delay(clone(row))
   }
@@ -448,7 +455,14 @@ class LocalMockTestRepository implements MockTestRepository {
       const test = draft.mockTests[testId]
       if (!test) return
       const answers = draft.mockAnswers[testId] ?? []
-      const correct = answers.filter((a) => a.is_correct).length
+      const latestAnswers = new Map<string, MockTestAnswer>()
+      for (const answer of answers) {
+        const previous = latestAnswers.get(answer.question_id)
+        if (!previous || answer.created_at >= previous.created_at) {
+          latestAnswers.set(answer.question_id, answer)
+        }
+      }
+      const correct = [...latestAnswers.values()].filter((a) => a.is_correct).length
       test.correct_answers = correct
       test.score = test.total_questions > 0 ? Math.round((correct / test.total_questions) * 100) : 0
       test.time_taken_seconds = input.time_taken_seconds

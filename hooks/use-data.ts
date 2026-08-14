@@ -14,6 +14,7 @@ import useSWR from 'swr'
 import { repositories, getActiveUserId } from '@/repositories'
 import { buildTodayPlan } from '@/services/daily-loop'
 import { buildProgressSummary } from '@/services/progress'
+import { getMockTestData } from '@/services/mock-test'
 
 const repo = repositories
 
@@ -135,4 +136,12 @@ export function useProgressSummary() {
 export function useMockTests() {
   const uid = getActiveUserId()
   return useSWR(['mock-tests', uid], () => repo.mockTests.getMockTestsForUser(uid))
+}
+
+export function useMockTest(testId: string | null) {
+  const uid = getActiveUserId()
+  return useSWR(
+    testId ? ['mock-test', uid, testId] : null,
+    () => getMockTestData(testId as string, uid),
+  )
 }

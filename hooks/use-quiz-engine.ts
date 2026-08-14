@@ -10,16 +10,21 @@ import { evaluateAnswer, type QuizAnswerEvent, type QuizPhase } from '@/lib/quiz
  * Owns exactly one concern: turning a tap into a single, guarded
  * QuizAnswerEvent per question. It enforces:
  *  - no double submission (submit() is a no-op once locked)
- *  - no changing the answer after submit (selected is frozen on lock)
- *  - no duplicate events for the same question, even if submit() is
- *    somehow called again before the next question loads
+ *  - no changing the answer after submit in the default locked mode
+ *  - no duplicate events for the same question in locked mode
+ *  - editable mode emits a fresh event when the answer changes
  *
  * It does NOT talk to repositories, XP, mastery, or stats — callers receive
  * the QuizAnswerEvent and decide what to do with it. This is what makes it
  * reusable across learning sessions, spaced review, and mock tests without
  * any of them re-implementing the lock/guard logic themselves.
  */
-export function useQuizEngine(question: QuizQuestion | null) {
+export function useQuizEngine(
+  question: QuizQuestion | null,
+  options: { allowChange?: boolean; initialSelected?: string | null } = {},
+) {
+  const allowChange = options.allowChange ?? false
+  const initialSelected = options.initialSelected ?? null
   const [selected, setSelected] = useState<string | null>(null)
   const [phase, setPhase] = useState<QuizPhase>('answering')
   const answeredQuestionId = useRef<string | null>(null)
@@ -30,10 +35,10 @@ export function useQuizEngine(question: QuizQuestion | null) {
     const id = question?.id ?? null
     if (id === activeQuestionId.current) return
     activeQuestionId.current = id
-    setSelected(null)
+    setSelected(initialSelected)
     setPhase('answering')
     answeredQuestionId.current = null
-  }, [question?.id])
+  }, [question?.id, initialSelected])
 
   const submit = useCallback(
     (option: string): QuizAnswerEvent | null => {
@@ -42,11 +47,11 @@ export function useQuizEngine(question: QuizQuestion | null) {
 
       const event = evaluateAnswer(question, option)
       setSelected(option)
-      setPhase('locked')
-      answeredQuestionId.current = question.id
+      if (!allowChange) setPhase('locked')
+      if (!allowChange) answeredQuestionId.current = question.id
       return event
     },
-    [question, phase],
+    [allowChange, phase, question],
   )
 
   const reset = useCallback(() => {

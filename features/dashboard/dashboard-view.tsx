@@ -44,7 +44,7 @@ export function DashboardView() {
 
       <Card className={plan.dayComplete ? 'overflow-hidden border-mint bg-mint/15' : 'overflow-hidden bg-coral/10'}>
         <CardContent className="p-5 sm:p-7">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
+          <div className="flex flex-col gap-6 2xl:flex-row 2xl:items-center">
             <div className="flex items-center gap-5">
               <GoalRing value={plan.progress.newWordsCompleted} max={plan.goal} sublabel="today" />
               <div>
