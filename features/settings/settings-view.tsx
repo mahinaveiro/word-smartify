@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, KeyRound, Save, BookOpen, LogOut, Trash2 } from 'lucide-react'
+import { ArrowLeft, Check, KeyRound, Save, BookOpen, LogOut, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -167,7 +167,17 @@ export function SettingsView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Preferences" title="Settings" description="Manage your profile and learning preferences." />
+      <PageHeader
+        eyebrow="Preferences"
+        title="Settings"
+        description="Manage your profile and learning preferences."
+        actions={(
+          <Button type="button" variant="ghost" size="sm" onClick={() => router.back()}>
+            <ArrowLeft className="size-4" aria-hidden />
+            Back
+          </Button>
+        )}
+      />
 
       {/* Profile */}
       <section>
@@ -335,8 +345,13 @@ export function SettingsView() {
         </Card>
       </section>
 
-      {/* Sticky save */}
-      <div className="sticky bottom-20 z-10 sm:bottom-6">
+      {/* Save action */}
+      <div
+        className={cn(
+          'z-10 translate-y-1 transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none',
+          dirty ? 'sticky bottom-20 translate-y-0 sm:bottom-6' : 'relative',
+        )}
+      >
         {saveError ? (
           <ErrorState
             className="mb-3 py-6"
