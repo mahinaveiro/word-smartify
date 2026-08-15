@@ -34,13 +34,62 @@ export function prepareQuizQuestion(
   question: QuizQuestion,
   random: () => number = Math.random,
 ): QuizQuestion {
-  if (!question.options || question.options.length <= 1) return question
+  const options = question.options && question.options.length > 1
+    ? shuffleArray([...new Set([...question.options, question.correct_answer])], random)
+    : question.options
 
-  const options = [...new Set([...question.options, question.correct_answer])]
   return {
     ...question,
-    options: shuffleArray(options, random),
+    question: formatQuestionForDisplay(question),
+    options,
   }
+}
+
+/**
+ * Creates a repeatable pseudo-random source for persisted test payloads. A
+ * mock test may be re-fetched by SWR, so using Math.random here would make the
+ * same saved question appear with a different option order after a refresh.
+ */
+export function createSeededRandom(seed: string): () => number {
+  let state = 2166136261
+  for (let index = 0; index < seed.length; index += 1) {
+    state ^= seed.charCodeAt(index)
+    state = Math.imul(state, 16777619)
+  }
+
+  return () => {
+    state += 0x6d2b79f5
+    let value = state
+    value = Math.imul(value ^ (value >>> 15), value | 1)
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61)
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function formatQuestionForDisplay(question: QuizQuestion): string {
+  if (!['context', 'context_mcq'].includes(question.question_type) || question.question.includes('_______')) {
+    return question.question
+  }
+
+  const sentenceMatch = question.question.match(/[“\"]([^”\"]+)[”\"]/)
+  const target = sentenceMatch?.[1] ?? question.question
+  const answer = question.correct_answer.trim()
+  if (!answer) return question.question
+
+  const exactPattern = new RegExp(`\\b${escapeRegExp(answer)}\\b`, 'i')
+  const answerRoot = answer.replace(/[^a-zA-Z]+/g, '')
+  const rootPattern = new RegExp(`\\b${escapeRegExp(answerRoot)}[a-zA-Z]*\\b`, 'i')
+  const replacementPattern = exactPattern.test(target) ? exactPattern : rootPattern
+  if (!replacementPattern.test(target)) return question.question
+
+  const masked = target.replace(replacementPattern, '_______')
+  return sentenceMatch
+    ? question.question.replace(sentenceMatch[1], masked)
+    : question.question.replace(target, masked)
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 export function selectPreparedQuestion(

@@ -9,16 +9,24 @@ export function QuizCard({
   selected,
   onSelect,
   revealed,
+  secure = false,
 }: {
   question: QuizQuestion
   selected: string | null
   onSelect: (option: string) => void
   revealed: boolean
+  secure?: boolean
 }) {
   const options = question.options ?? []
 
   return (
-    <div className="flex flex-col gap-5">
+    <div
+      className={cn('flex flex-col gap-5', secure && 'select-none')}
+      onCopy={secure ? (event) => event.preventDefault() : undefined}
+      onCut={secure ? (event) => event.preventDefault() : undefined}
+      onContextMenu={secure ? (event) => event.preventDefault() : undefined}
+      onDragStart={secure ? (event) => event.preventDefault() : undefined}
+    >
       <h2 className="text-balance font-heading text-xl font-bold leading-snug">{question.question}</h2>
 
       <div className="flex flex-col gap-3" role="group" aria-label="Answer options">

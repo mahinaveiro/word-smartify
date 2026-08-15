@@ -1,13 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, BookOpen, Check, Clock, Target, X, Zap } from 'lucide-react'
+import { ArrowLeft, BookOpen, Check, Clock, ListChecks, Target, X, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { PageHeader } from '@/components/ui/page-header'
-import { SectionHeader } from '@/components/ui/section-header'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/features/shared/stat-tile'
 import { useMockTest } from '@/hooks/use-data'
@@ -89,46 +88,24 @@ export function MockTestResultView({ testId }: { testId: string }) {
         <StatTile icon={Clock} value={formatDuration(data.test.time_taken_seconds)} label="Time" />
       </div>
 
-      <section id="mistakes">
-        <SectionHeader title="Review mistakes" />
-        {data.mistakes.length === 0 ? (
-          <EmptyState
-            icon={Check}
-            title="Nothing to review"
-            description={data.incorrect === 0 ? 'No incorrect answers were recorded.' : 'Your answered mistakes are listed below.'}
-          />
-        ) : (
-          <div className="flex flex-col gap-3">
-            {data.mistakes.map(({ question, answer }, index) => (
-              <Card key={question.id}>
-                <CardContent className="flex flex-col gap-3 p-5">
-                  <div className="flex items-start gap-3">
-                    <span className="grid size-7 shrink-0 place-items-center rounded-full border-2 border-foreground bg-coral font-heading text-xs font-bold text-coral-foreground">
-                      {index + 1}
-                    </span>
-                    <h3 className="font-heading font-bold leading-snug">{question.question}</h3>
-                  </div>
-                  <div className="grid gap-2 text-sm sm:grid-cols-2">
-                    <p className="rounded-md border-2 border-foreground/15 bg-muted/50 p-3">
-                      <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Your answer</span>
-                      <span className="mt-1 block font-medium">{answer?.user_answer ?? 'Not answered'}</span>
-                    </p>
-                    <p className="rounded-md border-2 border-foreground/15 bg-mint/20 p-3">
-                      <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Correct answer</span>
-                      <span className="mt-1 block font-medium">{question.correct_answer}</span>
-                    </p>
-                  </div>
-                  {question.explanation ? (
-                    <p className="border-t-2 border-foreground/10 pt-3 text-sm leading-relaxed text-muted-foreground">
-                      {question.explanation}
-                    </p>
-                  ) : null}
-                </CardContent>
-              </Card>
-            ))}
+      <Card>
+        <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-full border-2 border-foreground bg-mint">
+              <ListChecks className="size-5" aria-hidden />
+            </span>
+            <div>
+              <h2 className="font-heading text-lg font-bold">Review your answers</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                See every question, your response, the correct answer, and whether you skipped it.
+              </p>
+            </div>
           </div>
-        )}
-      </section>
+          <Button asChild className="shrink-0">
+            <Link href={`/mock-tests/${testId}/review`}>Review mistakes</Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button asChild variant="outline" className="flex-1">

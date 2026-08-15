@@ -648,6 +648,14 @@ class SupabaseMockTestRepository implements MockTestRepository {
     throw new Error('Mock test could not be finalized.')
   }
 
+  async cancelMockTest(testId: UUID): Promise<void> {
+    const answers = await this.client.from('mock_test_answers').delete().eq('test_id', testId)
+    if (answers.error) throw new Error(answers.error.message)
+
+    const test = await this.client.from('mock_tests').delete().eq('id', testId).is('time_taken_seconds', null)
+    if (test.error) throw new Error(test.error.message)
+  }
+
   async getMockTest(testId: UUID): Promise<{ test: MockTest; answers: MockTestAnswer[] } | null> {
     const [testResult, answersResult] = await Promise.all([
       this.client.from('mock_tests').select('*').eq('id', testId).maybeSingle(),

@@ -32,13 +32,16 @@ export function SessionView({ levelId }: { levelId: string }) {
   const [phase, setPhase] = useState<Phase>('flashcards')
   const [index, setIndex] = useState(0)
   const [flipped, setFlipped] = useState(false)
-  const [busy, setBusy] = useState(false)
+  const [pendingSaves, setPendingSaves] = useState(0)
   const [finishing, setFinishing] = useState(false)
   const [results, setResults] = useState<QuizAnswerResult[]>([])
   const [answerError, setAnswerError] = useState(false)
   const [pendingAnswer, setPendingAnswer] = useState<{ wordId: string; event: QuizAnswerEvent } | null>(null)
   const [finishError, setFinishError] = useState(false)
   const finishRecorded = useRef(false)
+  const pendingSavesRef = useRef(new Set<Promise<QuizAnswerResult>>())
+  const failedSavesRef = useRef(new Set<string>())
+  const resultsRef = useRef<QuizAnswerResult[]>([])
 
   const total = cards?.length ?? 0
   const card = cards?.[index]
@@ -89,31 +92,48 @@ export function SessionView({ levelId }: { levelId: string }) {
     }
   }
 
-  async function persistAnswer(wordId: string, event: QuizAnswerEvent) {
+  function persistAnswer(wordId: string, event: QuizAnswerEvent) {
     setAnswerError(false)
     setPendingAnswer({ wordId, event })
-    setBusy(true)
-    try {
-      const res = await recordQuizAnswer(wordId, event.isCorrect, 'learning')
-      setResults((prev) => [...prev, res])
-      setPendingAnswer(null)
-    } catch {
-      setAnswerError(true)
-    } finally {
-      setBusy(false)
-    }
+    failedSavesRef.current.delete(wordId)
+
+    const request = recordQuizAnswer(wordId, event.isCorrect, 'learning')
+    pendingSavesRef.current.add(request)
+    setPendingSaves((value) => value + 1)
+
+    void request
+      .then((res) => {
+        resultsRef.current = [...resultsRef.current, res]
+        setResults(resultsRef.current)
+        setPendingAnswer((previous) => previous?.wordId === wordId ? null : previous)
+      })
+      .catch(() => {
+        failedSavesRef.current.add(wordId)
+        setAnswerError(true)
+      })
+      .finally(() => {
+        pendingSavesRef.current.delete(request)
+        setPendingSaves((value) => Math.max(0, value - 1))
+      })
   }
 
-  async function chooseAnswer(option: string) {
+  function chooseAnswer(option: string) {
     if (!card) return
     const event = quiz.submit(option)
     if (!event) return
-    await persistAnswer(card.word.id, event)
+    persistAnswer(card.word.id, event)
   }
 
-  async function retryAnswer() {
-    if (!pendingAnswer || busy) return
-    await persistAnswer(pendingAnswer.wordId, pendingAnswer.event)
+  function retryAnswer() {
+    if (!pendingAnswer) return
+    persistAnswer(pendingAnswer.wordId, pendingAnswer.event)
+  }
+
+  async function waitForPendingSaves() {
+    await Promise.allSettled(Array.from(pendingSavesRef.current))
+    if (failedSavesRef.current.size > 0) {
+      throw new Error('Some answers could not be saved. Retry them before finishing this session.')
+    }
   }
 
   async function nextQuiz() {
@@ -126,9 +146,11 @@ export function SessionView({ levelId }: { levelId: string }) {
     setFinishing(true)
     setFinishError(false)
     try {
+      await waitForPendingSaves()
+      setResults(resultsRef.current)
       await recordSessionProgress()
       revalidateUser()
-      if (results.some((result) => result.goalJustCompleted)) {
+      if (resultsRef.current.some((result) => result.goalJustCompleted)) {
         toast({ title: 'Daily goal complete!', description: `+${XP.DAILY_GOAL} XP bonus earned.`, tone: 'success' })
       }
       setPhase('summary')
@@ -197,6 +219,9 @@ export function SessionView({ levelId }: { levelId: string }) {
 
       {/* Footer actions */}
       <div className="mt-auto">
+        {phase === 'quiz' && pendingSaves > 0 ? (
+          <p className="mb-2 text-center text-xs text-muted-foreground">Saving answer in background…</p>
+        ) : null}
         {phase === 'flashcards' ? (
           <Button size="lg" className="w-full" onClick={nextFlashcard}>
             {index < total - 1 ? 'Next word' : 'Start quiz'}
@@ -207,8 +232,8 @@ export function SessionView({ levelId }: { levelId: string }) {
             size="lg"
             className="w-full"
             onClick={nextQuiz}
-            disabled={!quiz.revealed || busy || finishing || answerError}
-            loading={busy || finishing}
+            disabled={!quiz.revealed || finishing}
+            loading={finishing}
           >
             {index < total - 1 ? 'Next question' : 'Finish'}
             <ArrowRight className="size-5" aria-hidden />

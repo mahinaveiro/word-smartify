@@ -1,6 +1,6 @@
 import type { QuizAnswerEvent } from '@/lib/quiz-engine'
 import { calculateMockTestScore } from '@/lib/mock-test-scoring'
-import { prepareQuizQuestion, shuffleArray } from '@/lib/quiz-randomizer'
+import { createSeededRandom, prepareQuizQuestion, shuffleArray } from '@/lib/quiz-randomizer'
 import { XP } from '@/lib/xp'
 import { repositories } from '@/repositories'
 import type { MockTest, MockTestAnswer, QuizQuestion, UUID } from '@/types/database'
@@ -64,10 +64,13 @@ export async function getMockTestData(
     throw new Error('This saved mock test does not contain a complete question set. Start a new test.')
   }
 
-  const questions = (await repositories.quizzes.getQuizQuestionsByIds(questionIds)).map((question) => prepareQuizQuestion(question))
-  if (questions.length !== questionIds.length) {
-    throw new Error('One or more saved mock-test questions are no longer available.')
-  }
+  const loadedQuestions = await repositories.quizzes.getQuizQuestionsByIds(questionIds)
+  const questionById = new Map(loadedQuestions.map((question) => [question.id, question]))
+  const questions = questionIds.map((questionId) => {
+    const question = questionById.get(questionId)
+    if (!question) throw new Error('One or more saved mock-test questions are no longer available.')
+    return prepareQuizQuestion(question, createSeededRandom(`${testId}:${questionId}`))
+  })
 
   const answers = questionIds
     .map((questionId) => latestAnswers[questionId])
@@ -103,6 +106,12 @@ export async function saveMockTestAnswer(
     user_answer: event.selectedAnswer,
     is_correct: event.isCorrect,
   })
+}
+
+export async function cancelMockTest(testId: UUID, userId: UUID): Promise<void> {
+  const current = await repositories.mockTests.getMockTest(testId)
+  if (!current || current.test.user_id !== userId || current.test.time_taken_seconds != null) return
+  await repositories.mockTests.cancelMockTest(testId)
 }
 
 export async function finalizeMockTest(

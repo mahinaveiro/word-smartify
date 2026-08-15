@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, ArrowRight, Clock, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { ArrowLeft, ArrowRight, Clock, ShieldAlert, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -14,10 +14,12 @@ import { QuizCard } from '@/features/session/quiz-card'
 import { useMockTest } from '@/hooks/use-data'
 import { formatDuration } from '@/lib/date'
 import { useAuth } from '@/features/auth/auth-provider'
-import { finalizeMockTest, saveMockTestAnswer } from '@/services/mock-test'
+import { cancelMockTest, finalizeMockTest, saveMockTestAnswer } from '@/services/mock-test'
 import type { MockTestAnswer } from '@/types/database'
 import type { QuizAnswerEvent } from '@/lib/quiz-engine'
 import { useQuizEngine } from '@/hooks/use-quiz-engine'
+
+type SecurityState = 'preparing' | 'active' | 'needs-fullscreen' | 'cancelling' | 'needs-cancel'
 
 export function MockTestRunView({ testId }: { testId: string }) {
   const router = useRouter()
@@ -27,18 +29,106 @@ export function MockTestRunView({ testId }: { testId: string }) {
   const [savedAnswerMap, setSavedAnswerMap] = useState<Record<string, MockTestAnswer>>({})
   const [localSelections, setLocalSelections] = useState<Record<string, string>>({})
   const [elapsed, setElapsed] = useState(0)
-  const [answerSaving, setAnswerSaving] = useState(false)
+  const [pendingSaves, setPendingSaves] = useState(0)
   const [runError, setRunError] = useState<string | null>(null)
   const [pendingAnswer, setPendingAnswer] = useState<{ questionId: string; event: QuizAnswerEvent } | null>(null)
   const [submitOpen, setSubmitOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [securityState, setSecurityState] = useState<SecurityState>('preparing')
+  const [securityMessage, setSecurityMessage] = useState('Preparing a secure fullscreen exam.')
+  const securityStateRef = useRef<SecurityState>('preparing')
+  const intentionalLeaveRef = useRef(false)
+  const pendingSavesRef = useRef(new Set<Promise<MockTestAnswer>>())
+  const saveQueuesRef = useRef(new Map<string, Promise<void>>())
 
   useEffect(() => {
     if (data?.test.time_taken_seconds != null) {
       router.replace(`/mock-tests/${testId}/result`)
     }
   }, [data?.test.time_taken_seconds, router, testId])
+
+  const cancelExam = useCallback(async (reason: string) => {
+    if (securityStateRef.current === 'cancelling') return
+    securityStateRef.current = 'cancelling'
+    setSecurityState('cancelling')
+    setSecurityMessage(reason)
+
+    if (!userId) {
+      securityStateRef.current = 'needs-cancel'
+      setSecurityState('needs-cancel')
+      setSecurityMessage('You must be signed in to cancel this exam safely.')
+      return
+    }
+
+    try {
+      await cancelMockTest(testId, userId)
+      router.replace('/mock-tests')
+    } catch {
+      securityStateRef.current = 'needs-cancel'
+      setSecurityState('needs-cancel')
+      setSecurityMessage('The exam could not be cancelled automatically. Try again before leaving this page.')
+    }
+  }, [router, testId, userId])
+
+  const enterFullscreen = useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen()
+      securityStateRef.current = 'active'
+      setSecurityState('active')
+      setSecurityMessage('')
+    } catch {
+      securityStateRef.current = 'needs-fullscreen'
+      setSecurityState('needs-fullscreen')
+      setSecurityMessage('Fullscreen is required to start this exam. Use the button below and allow fullscreen in your browser.')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!data || data.test.time_taken_seconds != null) return
+
+    const handleVisibilityChange = () => {
+      if (document.hidden && securityStateRef.current === 'active') {
+        void cancelExam('The exam was cancelled because you left the exam window.')
+      }
+    }
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && securityStateRef.current === 'active') {
+        void cancelExam('The exam was cancelled because fullscreen mode was exited.')
+      }
+    }
+    const handlePageHide = () => {
+      if (securityStateRef.current === 'active' && !intentionalLeaveRef.current) {
+        void cancelExam('The exam was cancelled because the page was left.')
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    window.addEventListener('pagehide', handlePageHide)
+
+    let initialFullscreenTimer: number | undefined
+    if (document.fullscreenElement) {
+      initialFullscreenTimer = window.setTimeout(() => {
+        if (securityStateRef.current === 'preparing') {
+          securityStateRef.current = 'active'
+          setSecurityState('active')
+          setSecurityMessage('')
+        }
+      }, 0)
+    } else {
+      initialFullscreenTimer = window.setTimeout(() => {
+        void enterFullscreen()
+      }, 0)
+    }
+
+    return () => {
+      if (initialFullscreenTimer !== undefined) window.clearTimeout(initialFullscreenTimer)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+      window.removeEventListener('pagehide', handlePageHide)
+    }
+  }, [cancelExam, data, enterFullscreen])
 
   const createdAt = data?.test.created_at
 
@@ -76,38 +166,48 @@ export function MockTestRunView({ testId }: { testId: string }) {
   async function persistAnswer(questionId: string, event: QuizAnswerEvent) {
     setRunError(null)
     setPendingAnswer({ questionId, event })
-    setAnswerSaving(true)
+
+    const previous = saveQueuesRef.current.get(questionId) ?? Promise.resolve()
+    const request = previous
+      .catch(() => undefined)
+      .then(() => saveMockTestAnswer(testId, event))
+    const queueTail = request.then(() => undefined, () => undefined)
+    saveQueuesRef.current.set(questionId, queueTail)
+    pendingSavesRef.current.add(request)
+    setPendingSaves((value) => value + 1)
+
     try {
-      const saved = await saveMockTestAnswer(testId, event)
-      setSavedAnswerMap((previous) => ({ ...previous, [questionId]: saved }))
-      setLocalSelections((previous) => {
-        const next = { ...previous }
+      const saved = await request
+      setSavedAnswerMap((previousAnswers) => ({ ...previousAnswers, [questionId]: saved }))
+      setLocalSelections((previousSelections) => {
+        if (previousSelections[questionId] !== event.selectedAnswer) return previousSelections
+        const next = { ...previousSelections }
         delete next[questionId]
         return next
       })
-      setPendingAnswer(null)
+      setPendingAnswer((previousAnswer) => (
+        previousAnswer?.event.questionId === event.questionId ? null : previousAnswer
+      ))
     } catch {
-      setLocalSelections((previous) => {
-        const next = { ...previous }
-        delete next[questionId]
-        return next
-      })
-      setRunError('Your answer was not saved. Your previous saved answer is unchanged. Try again.')
+      setRunError('Your answer could not be saved in the background. Retry it before submitting the exam.')
     } finally {
-      setAnswerSaving(false)
+      pendingSavesRef.current.delete(request)
+      if (saveQueuesRef.current.get(questionId) === queueTail) saveQueuesRef.current.delete(questionId)
+      setPendingSaves((value) => Math.max(0, value - 1))
     }
   }
 
-  async function choose(option: string) {
-    if (!current || answerSaving) return
+  function choose(option: string) {
+    if (!current) return
     const event = quiz.submit(option)
     if (!event) return
-    await persistAnswer(current.id, event)
+    setLocalSelections((previous) => ({ ...previous, [current.id]: event.selectedAnswer }))
+    void persistAnswer(current.id, event)
   }
 
-  async function retryAnswer() {
-    if (!pendingAnswer || answerSaving) return
-    await persistAnswer(pendingAnswer.questionId, pendingAnswer.event)
+  function retryAnswer() {
+    if (!pendingAnswer) return
+    void persistAnswer(pendingAnswer.questionId, pendingAnswer.event)
   }
 
   async function submitTest() {
@@ -116,10 +216,15 @@ export function MockTestRunView({ testId }: { testId: string }) {
     setSubmitError(null)
     try {
       if (!userId) throw new Error('Please sign in to submit a mock test.')
+      const pendingResults = await Promise.allSettled(Array.from(pendingSavesRef.current))
+      if (pendingResults.some((result) => result.status === 'rejected') || runError) {
+        throw new Error('Some answers are not saved yet. Retry the failed answer before submitting.')
+      }
       await finalizeMockTest(testId, elapsed, userId)
+      intentionalLeaveRef.current = true
       router.replace(`/mock-tests/${testId}/result`)
-    } catch {
-      setSubmitError('The test could not be submitted. Please try again.')
+    } catch (submitFailure) {
+      setSubmitError(submitFailure instanceof Error ? submitFailure.message : 'The test could not be submitted. Please try again.')
       setSubmitting(false)
     }
   }
@@ -152,15 +257,37 @@ export function MockTestRunView({ testId }: { testId: string }) {
       />
     )
   }
+  if (securityState !== 'active') {
+    return (
+      <SecurityGate
+        state={securityState}
+        message={securityMessage}
+        onEnterFullscreen={() => void enterFullscreen()}
+        onRetryCancellation={() => void cancelExam('Retrying exam cancellation.')}
+        onCancel={() => void cancelExam('You chose not to continue in fullscreen mode.')}
+      />
+    )
+  }
 
   const progress = Math.round(((index + 1) / data.questions.length) * 100)
 
   return (
     <>
-      <div className="mx-auto flex min-h-dvh max-w-2xl flex-col px-4 py-5 pb-8 sm:px-6">
+      <div
+        className="mx-auto flex min-h-dvh max-w-2xl select-none flex-col px-4 py-5 pb-8 sm:px-6"
+        onCopy={(event) => event.preventDefault()}
+        onCut={(event) => event.preventDefault()}
+        onContextMenu={(event) => event.preventDefault()}
+        onDragStart={(event) => event.preventDefault()}
+      >
         <div className="flex items-center gap-3">
-          <Button asChild variant="ghost" size="sm" className="shrink-0 px-0">
-            <Link href="/mock-tests"><X className="size-5" aria-hidden /> Exit</Link>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="shrink-0 px-0"
+            onClick={() => void cancelExam('The exam was cancelled because you exited it.')}
+          >
+            <X className="size-5" aria-hidden /> Exit
           </Button>
           <div className="h-3 flex-1 overflow-hidden rounded-full border-2 border-foreground bg-card">
             <div className="h-full bg-coral transition-[width] duration-normal" style={{ width: `${progress}%` }} />
@@ -186,6 +313,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
               selected={selected}
               onSelect={choose}
               revealed={false}
+              secure
             />
             {runError ? (
               <ErrorState
@@ -202,17 +330,17 @@ export function MockTestRunView({ testId }: { testId: string }) {
           <Button
             variant="outline"
             onClick={() => setIndex((value) => Math.max(0, value - 1))}
-            disabled={index === 0 || answerSaving}
+            disabled={index === 0}
           >
             <ArrowLeft className="size-4" aria-hidden /> Previous
           </Button>
           <span className="text-center text-xs text-muted-foreground">
-            {data.questions.length - unanswered} answered
+            {pendingSaves > 0 ? `Saving ${pendingSaves} in background…` : `${data.questions.length - unanswered} answered`}
           </span>
           <Button onClick={() => {
             if (index < data.questions.length - 1) setIndex((value) => value + 1)
             else setSubmitOpen(true)
-          }} disabled={answerSaving} loading={answerSaving}>
+          }} disabled={submitting}>
             {index < data.questions.length - 1 ? 'Next' : 'Review & submit'}
             <ArrowRight className="size-4" aria-hidden />
           </Button>
@@ -228,7 +356,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
             ? `You still have ${unanswered} unanswered question${unanswered === 1 ? '' : 's'}.`
             : 'All questions are answered and ready to submit.'
         }
-        footer={
+        footer={(
           <>
             <Button
               variant={unanswered > 0 ? 'primary' : 'outline'}
@@ -241,7 +369,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
               Submit test
             </Button>
           </>
-        }
+        )}
       >
         {submitError ? (
           <ErrorState
@@ -253,6 +381,51 @@ export function MockTestRunView({ testId }: { testId: string }) {
         ) : null}
       </Modal>
     </>
+  )
+}
+
+function SecurityGate({
+  state,
+  message,
+  onEnterFullscreen,
+  onRetryCancellation,
+  onCancel,
+}: {
+  state: SecurityState
+  message: string
+  onEnterFullscreen: () => void
+  onRetryCancellation: () => void
+  onCancel: () => void
+}) {
+  const requiresFullscreen = state === 'preparing' || state === 'needs-fullscreen'
+  const cancelling = state === 'cancelling'
+
+  return (
+    <div className="mx-auto flex min-h-dvh max-w-2xl items-center justify-center px-4 py-6 sm:px-6">
+      <Card className="w-full">
+        <CardContent className="flex flex-col items-center gap-5 p-6 text-center sm:p-10">
+          <span className="grid size-14 place-items-center rounded-full border-2 border-foreground bg-coral text-coral-foreground">
+            <ShieldAlert className="size-7" aria-hidden />
+          </span>
+          <div>
+            <h1 className="font-heading text-2xl font-bold">
+              {cancelling ? 'Cancelling exam' : requiresFullscreen ? 'Fullscreen required' : 'Exam cancellation needs attention'}
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{message}</p>
+          </div>
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+            {requiresFullscreen ? (
+              <Button onClick={onEnterFullscreen}>Enter fullscreen</Button>
+            ) : state === 'needs-cancel' ? (
+              <Button onClick={onRetryCancellation}>Retry cancellation</Button>
+            ) : null}
+            {!cancelling ? (
+              <Button variant="outline" onClick={onCancel}>Cancel exam</Button>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
 

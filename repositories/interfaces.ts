@@ -137,6 +137,8 @@ export interface MockTestRepository {
     testId: UUID,
     input: { time_taken_seconds: number },
   ): Promise<{ test: MockTest; finalized: boolean }>
+  /** Cancel an in-progress test and remove its saved answer slots. */
+  cancelMockTest(testId: UUID): Promise<void>
   getMockTest(testId: UUID): Promise<{ test: MockTest; answers: MockTestAnswer[] } | null>
   getMockTestsForUser(userId: UUID): Promise<MockTest[]>
 }

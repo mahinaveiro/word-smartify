@@ -41,8 +41,10 @@ export function GoalRing({
         <circle cx={center} cy={center} r={r} fill="none" stroke="var(--foreground)" strokeWidth={1.5} />
       </svg>
       <span className="absolute inset-0 grid place-items-center text-center leading-none">
-        <span className="font-heading text-xl font-bold">{label ?? `${Math.round(pct * 100)}%`}</span>
-        {sublabel ? <span className="mt-1 text-[11px] text-muted-foreground">{sublabel}</span> : null}
+        <span className="grid place-items-center gap-0.5 text-center">
+          <span className="font-heading text-xl font-bold">{label ?? `${Math.round(pct * 100)}%`}</span>
+          {sublabel ? <span className="text-[11px] text-muted-foreground">{sublabel}</span> : null}
+        </span>
       </span>
     </div>
   )
