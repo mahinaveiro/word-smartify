@@ -34,6 +34,7 @@ import {
 } from '@/hooks/use-data'
 import { shortDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
+import { isOwnerUserId, OwnerDisplayName } from '@/lib/owner'
 
 interface Achievement {
   id: string
@@ -89,7 +90,10 @@ export function ProfileView() {
   }
 
   const recentTests = (tests ?? []).slice(0, 3)
-  const earnedCount = achievements.filter((achievement) => achievement.earned).length
+  const displayedAchievements = isOwnerUserId(profile.id)
+    ? [{ id: 'word-smartify-owner', label: 'Owner', description: 'The Word Smartify owner', earned: true }, ...achievements]
+    : achievements
+  const earnedCount = displayedAchievements.filter((achievement) => achievement.earned).length
 
   return (
     <div className="flex flex-col gap-6">
@@ -107,7 +111,7 @@ export function ProfileView() {
         <CardContent className="flex flex-col items-center gap-4 p-6 text-center sm:flex-row sm:text-left">
           <Avatar name={profile.display_name} avatarId={profile.avatar_id} avatarUrl={profile.avatar_url} size="xl" />
           <div className="min-w-0 flex-1 text-center sm:text-left">
-            <h2 className="break-words font-heading text-2xl font-bold">{profile.display_name}</h2>
+            <h2 className="font-heading text-2xl font-bold"><OwnerDisplayName userId={profile.id} name={profile.display_name} /></h2>
             <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
               <Badge variant="mint" className="gap-1 px-2.5 py-1 text-sm"><Trophy className="size-3.5" aria-hidden /> Level {progressSummary.level.level}</Badge>
               <Badge variant="coral" className="gap-1 px-2.5 py-1 text-sm"><Flame className="size-3.5" aria-hidden /> {stats.current_streak} day streak</Badge>
@@ -162,12 +166,12 @@ export function ProfileView() {
       </section>
 
       <section>
-        <SectionHeader title="Achievements" action={<span className="font-heading text-sm font-bold tabular-nums text-muted-foreground">{earnedCount}/{achievements.length}</span>} />
+        <SectionHeader title="Achievements" action={<span className="font-heading text-sm font-bold tabular-nums text-muted-foreground">{earnedCount}/{displayedAchievements.length}</span>} />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {achievements.map((achievement) => (
-            <Card key={achievement.id} flat className={cn(!achievement.earned && 'opacity-60')}>
+          {displayedAchievements.map((achievement) => (
+            <Card key={achievement.id} flat className={cn(!achievement.earned && 'opacity-60', achievement.id === 'word-smartify-owner' && 'border-foreground bg-coral shadow-brutal-md')}>
               <CardContent className="flex flex-col items-center gap-2 p-4 text-center">
-                <span className={cn('grid size-12 place-items-center rounded-full border-2 border-foreground shadow-brutal-sm', achievement.earned ? 'bg-mint text-mint-foreground' : 'bg-muted text-muted-foreground')}>
+                <span className={cn('grid size-12 place-items-center rounded-full border-2 border-foreground shadow-brutal-sm', achievement.id === 'word-smartify-owner' ? 'bg-card text-foreground' : achievement.earned ? 'bg-mint text-mint-foreground' : 'bg-muted text-muted-foreground')}>
                   {achievement.earned ? <Award className="size-6" aria-hidden /> : <Lock className="size-5" aria-hidden />}
                 </span>
                 <p className="font-heading text-sm font-bold leading-tight">{achievement.label}</p>

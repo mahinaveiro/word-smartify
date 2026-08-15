@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, Award, BarChart3, BookOpen, Flame, Medal, Target, Trophy } from 'lucide-react'
+import { ArrowLeft, Award, BarChart3, BookOpen, ExternalLink, Flame, Medal, MessageCircle, Send, Target, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/features/shared/stat-tile'
 import { Avatar } from '@/features/shared/avatar'
 import { useBooks, usePublicProfile } from '@/hooks/use-data'
+import { isOwnerUserId, OwnerDisplayName, STUDY_GC_DISCORD_URL, STUDY_GC_TELEGRAM_URL } from '@/lib/owner'
 
 export function PublicProfileView({ userId }: { userId: string }) {
   const { data: profile, error, isLoading, mutate } = usePublicProfile(userId)
@@ -41,7 +42,7 @@ export function PublicProfileView({ userId }: { userId: string }) {
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Learner profile"
-        title={profile.display_name}
+        title={<OwnerDisplayName userId={profile.id} name={profile.display_name} className="text-balance" />}
         actions={
           <Button asChild variant="outline" size="sm">
             <Link href="/leaderboard"><ArrowLeft className="size-4" aria-hidden /> Leaderboard</Link>
@@ -53,7 +54,9 @@ export function PublicProfileView({ userId }: { userId: string }) {
         <CardContent className="flex flex-col items-center gap-4 p-6 text-center sm:flex-row sm:text-left">
           <Avatar name={profile.display_name} avatarId={profile.avatar_id} avatarUrl={profile.avatar_url} size="xl" />
           <div className="min-w-0">
-            <h2 className="font-heading text-2xl font-bold">{profile.display_name}</h2>
+            <h2 className="font-heading text-2xl font-bold">
+              <OwnerDisplayName userId={profile.id} name={profile.display_name} />
+            </h2>
             <div className="mt-2 flex flex-wrap justify-center gap-2 sm:justify-start">
               <span className="inline-flex items-center gap-1 rounded-md border-2 border-foreground bg-coral px-2.5 py-1 text-sm font-heading font-bold text-coral-foreground">
                 <Flame className="size-3.5" aria-hidden /> {profile.current_streak} day streak
@@ -70,6 +73,8 @@ export function PublicProfileView({ userId }: { userId: string }) {
           </div>
         </CardContent>
       </Card>
+
+      {isOwnerUserId(profile.id) ? <StudyGcCommunityCard /> : null}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatTile icon={Trophy} value={profile.total_xp.toLocaleString()} label="Total XP" accent="ink" />
@@ -111,9 +116,9 @@ export function PublicProfileView({ userId }: { userId: string }) {
         {profile.achievements.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2">
             {profile.achievements.map((badge) => (
-              <Card key={badge.id}>
+              <Card key={badge.id} className={badge.id === 'word-smartify-owner' ? 'bg-coral shadow-brutal-md' : undefined}>
                 <CardContent className="flex items-start gap-3 p-4">
-                  <span className="grid size-10 shrink-0 place-items-center rounded-md border-2 border-foreground bg-mint text-mint-foreground shadow-brutal-sm">
+                  <span className={badge.id === 'word-smartify-owner' ? 'grid size-10 shrink-0 place-items-center rounded-md border-2 border-foreground bg-card text-foreground shadow-brutal-sm' : 'grid size-10 shrink-0 place-items-center rounded-md border-2 border-foreground bg-mint text-mint-foreground shadow-brutal-sm'}>
                     <Award className="size-5" aria-hidden />
                   </span>
                   <div className="min-w-0">
@@ -160,6 +165,36 @@ export function PublicProfileView({ userId }: { userId: string }) {
         )}
       </section>
     </div>
+  )
+}
+
+function StudyGcCommunityCard() {
+  return (
+    <Card className="bg-muted">
+      <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-md border-2 border-foreground bg-mint text-mint-foreground shadow-brutal-sm">
+            <MessageCircle className="size-5" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h2 className="font-heading font-bold">Study-GC community</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">Join the conversation and help shape Word Smartify&apos;s next study features.</p>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button asChild size="sm" variant="outline">
+            <a href={STUDY_GC_TELEGRAM_URL} target="_blank" rel="noreferrer">
+              <Send className="size-4" aria-hidden /> Telegram <ExternalLink className="size-3.5" aria-hidden />
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a href={STUDY_GC_DISCORD_URL} target="_blank" rel="noreferrer">
+              Discord <ExternalLink className="size-3.5" aria-hidden />
+            </a>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

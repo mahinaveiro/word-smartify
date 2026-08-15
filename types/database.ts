@@ -120,6 +120,7 @@ export interface Profile {
   avatar_url: string | null
   daily_goal: DailyGoal
   current_book_id: UUID | null
+  study_gc_joined: boolean
   created_at: ISOTimestamp
   updated_at: ISOTimestamp
 }

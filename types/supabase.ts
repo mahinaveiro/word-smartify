@@ -239,6 +239,7 @@ export type Database = {
           current_book_id: string | null
           daily_goal: number
           display_name: string
+          study_gc_joined: boolean
           id: string
           updated_at: string
         }
@@ -249,6 +250,7 @@ export type Database = {
           current_book_id?: string | null
           daily_goal?: number
           display_name: string
+          study_gc_joined?: boolean
           id: string
           updated_at?: string
         }
@@ -259,6 +261,7 @@ export type Database = {
           current_book_id?: string | null
           daily_goal?: number
           display_name?: string
+          study_gc_joined?: boolean
           id?: string
           updated_at?: string
         }

@@ -52,6 +52,7 @@ import { isMissingRowError } from '@/lib/supabase/errors'
 import { calculateMockTestScore } from '@/lib/mock-test-scoring'
 import { shuffleArray } from '@/lib/quiz-randomizer'
 import { currentWeekPeriod } from '@/lib/date'
+import { isOwnerUserId } from '@/lib/owner'
 
 type Client = SupabaseClient<Database>
 type QuizRow = Database['public']['Tables']['quiz_questions']['Row']
@@ -164,12 +165,16 @@ function emptyDaily(userId: UUID, date: ISODate): DailyProgress {
 }
 
 function buildAchievementBadges(
+  userId: UUID,
   stats: Pick<UserStats, 'words_learned' | 'current_streak' | 'longest_streak'>,
   bookProgress: PublicBookProgressRpcRow[],
   books: Array<{ id: UUID; name: string }>,
   leaderboard: PublicLeaderboardSummary,
 ): AchievementBadge[] {
   const badges: AchievementBadge[] = []
+  if (isOwnerUserId(userId)) {
+    badges.push({ id: 'word-smartify-owner', title: 'Owner', description: 'Built Word Smartify.' })
+  }
   const completedBooks = new Set(
     bookProgress
       .filter((progress) => progress.total > 0 && progress.learned >= progress.total)
@@ -536,6 +541,7 @@ class SupabaseProfileRepository implements ProfileRepository {
     }
     const books = booksResult.data ?? []
     const achievements = buildAchievementBadges(
+      userId,
       statsResult.data,
       bookProgress,
       books,

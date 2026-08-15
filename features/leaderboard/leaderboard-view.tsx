@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { formatWeekPeriod } from '@/lib/date'
 import { useLeaderboard } from '@/hooks/use-data'
 import { useAuth } from '@/features/auth/auth-provider'
+import { OwnerDisplayName } from '@/lib/owner'
 import type { LeaderboardMode } from '@/types/database'
 
 export function LeaderboardView() {
@@ -85,7 +86,7 @@ export function LeaderboardView() {
               <Avatar name={entry.profile.display_name} avatarId={entry.profile.avatar_id} avatarUrl={entry.profile.avatar_url} size={rank === 1 ? 'lg' : 'md'} />
               <div className="text-center">
                 <p className={cn('max-w-[8rem] truncate font-heading text-sm font-bold', isMe && 'text-mint-foreground')}>
-                  {isMe ? 'You' : entry.profile.display_name}
+                  <OwnerDisplayName userId={entry.profile.id} name={isMe ? 'You' : entry.profile.display_name} />
                 </p>
                 <p className="text-xs tabular-nums text-muted-foreground">{scoreFor(entry, mode).toLocaleString()} {mode === 'weekly' ? 'XP this week' : 'XP'}</p>
               </div>
@@ -118,7 +119,9 @@ function LeaderboardRow({ entry, mode, meId }: { entry: NonNullable<ReturnType<t
           <span className="w-6 text-center font-heading text-sm font-bold tabular-nums text-muted-foreground">{entry.rank}</span>
           <Avatar name={entry.profile.display_name} avatarId={entry.profile.avatar_id} avatarUrl={entry.profile.avatar_url} size="sm" />
           <div className="min-w-0 flex-1">
-            <p className="truncate font-medium">{isMe ? 'You' : entry.profile.display_name}</p>
+            <p className="truncate font-medium">
+              <OwnerDisplayName userId={entry.profile.id} name={isMe ? 'You' : entry.profile.display_name} />
+            </p>
             <p className="flex items-center gap-1 text-xs text-muted-foreground"><Flame className="size-3" aria-hidden />{entry.stats.current_streak} day streak</p>
           </div>
           <span className="flex items-center gap-1 font-heading text-sm font-bold tabular-nums">

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProfile } from '@/hooks/use-data'
+import { StudyGcPrompt } from '@/features/setup/study-gc-prompt'
 
 export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -35,5 +36,10 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   }
   if (!isSetupRoute && needsSetup) return null
   if (isSetupRoute && !needsSetup) return null
-  return children
+  return (
+    <>
+      {children}
+      {!isSetupRoute && !needsSetup ? <StudyGcPrompt userId={profile.id} joined={profile.study_gc_joined} /> : null}
+    </>
+  )
 }
