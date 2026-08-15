@@ -3,22 +3,22 @@
 import { createPortal } from 'react-dom'
 import type { CSSProperties } from 'react'
 
-const COLORS = ['#16b8aa', '#ff8b5c', '#ffd166', '#4f46e5', '#f4f1e8']
+const COLORS = ['#0f766e', '#e2552f', '#d89b00', '#3730a3', '#171717', '#0e7490']
 
-const PARTICLES = Array.from({ length: 30 }, (_, index) => {
+const PARTICLES = Array.from({ length: 48 }, (_, index) => {
   const fromLeft = index % 2 === 0
-  const distance = 28 + ((index * 17) % 34)
-  const verticalTravel = -34 + ((index * 23) % 82)
+  const distance = 32 + ((index * 17) % 38)
+  const verticalTravel = -38 + ((index * 23) % 76)
   return {
     id: index,
     side: fromLeft ? 'left' : 'right',
     x: `${fromLeft ? distance : -distance}vw`,
     y: `${verticalTravel}vh`,
-    delay: `${(index % 6) * 35}ms`,
-    duration: `${760 + (index % 5) * 70}ms`,
+    delay: `${(index % 8) * 30}ms`,
+    duration: `${920 + (index % 5) * 80}ms`,
     rotate: `${240 + (index % 7) * 75}deg`,
     color: COLORS[index % COLORS.length],
-    top: `${30 + ((index * 19) % 42)}%`,
+    top: `${24 + ((index * 19) % 52)}%`,
   }
 })
 

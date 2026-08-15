@@ -251,11 +251,13 @@
 .quiz-confetti-piece {
   position: absolute;
   display: block;
-  width: 10px;
-  height: 18px;
-  border: 1px solid color-mix(in srgb, var(--foreground) 25%, transparent);
+  width: 11px;
+  height: 20px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 35%, transparent);
   border-radius: 2px;
   opacity: 0;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
   animation: quiz-confetti-burst var(--confetti-duration) cubic-bezier(0.2, 0.8, 0.2, 1) var(--confetti-delay) both;
 }
 
@@ -271,6 +273,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .quiz-confetti-piece {
-    display: none;
+    animation: none;
+    opacity: 1;
   }
 }
