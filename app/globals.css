@@ -232,3 +232,45 @@
     animation: none !important;
   }
 }
+
+
+@keyframes quiz-confetti-burst {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--confetti-x), var(--confetti-y), 0) rotate(var(--confetti-rotate)) scale(0.72);
+  }
+}
+
+.quiz-confetti-piece {
+  position: absolute;
+  display: block;
+  width: 10px;
+  height: 18px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 25%, transparent);
+  border-radius: 2px;
+  opacity: 0;
+  animation: quiz-confetti-burst var(--confetti-duration) cubic-bezier(0.2, 0.8, 0.2, 1) var(--confetti-delay) both;
+}
+
+.quiz-confetti-piece:nth-child(3n) {
+  width: 7px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.quiz-confetti-piece:nth-child(3n + 1) {
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quiz-confetti-piece {
+    display: none;
+  }
+}

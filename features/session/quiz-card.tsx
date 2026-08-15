@@ -1,8 +1,11 @@
 'use client'
 
-import { Check, X } from 'lucide-react'
+import { Check, Lightbulb, X } from 'lucide-react'
 import type { QuizQuestion } from '@/types/database'
 import { cn } from '@/lib/utils'
+import { IconButton } from '@/components/ui/icon-button'
+import { CorrectAnswerCelebration } from './correct-answer-celebration'
+import { useState } from 'react'
 
 export function QuizCard({
   question,
@@ -17,11 +20,15 @@ export function QuizCard({
   revealed: boolean
   secure?: boolean
 }) {
+  const [explanationForQuestion, setExplanationForQuestion] = useState<string | null>(null)
   const options = question.options ?? []
+  const explanationOpen = revealed && explanationForQuestion === question.id
+  const canRevealExplanation = revealed && Boolean(question.explanation)
+  const answeredCorrectly = revealed && selected === question.correct_answer
 
   return (
     <div
-      className={cn('flex flex-col gap-5', secure && 'select-none')}
+      className={cn('relative flex flex-col gap-5', secure && 'select-none')}
       onCopy={secure ? (event) => event.preventDefault() : undefined}
       onCut={secure ? (event) => event.preventDefault() : undefined}
       onContextMenu={secure ? (event) => event.preventDefault() : undefined}
@@ -48,7 +55,10 @@ export function QuizCard({
               key={option}
               type="button"
               disabled={revealed}
-              onClick={() => onSelect(option)}
+              onClick={() => {
+                setExplanationForQuestion(null)
+                onSelect(option)
+              }}
               aria-pressed={isSelected}
               className={cn(
                 'press flex items-center justify-between gap-3 rounded-md border-2 border-foreground px-4 py-3.5 text-left font-medium transition-all duration-normal ease-brutal',
@@ -70,11 +80,31 @@ export function QuizCard({
         })}
       </div>
 
-      {revealed && question.explanation ? (
-        <div className="animate-in fade-in slide-in-from-top-2 duration-normal rounded-md border-2 border-foreground bg-muted/60 p-4 text-sm leading-relaxed">
+      <div className="flex min-h-10 items-center justify-end">
+        <IconButton
+            label={explanationOpen ? 'Hide explanation' : canRevealExplanation ? 'Show explanation' : question.explanation ? 'Answer first to show explanation' : 'No explanation available'}
+            variant={explanationOpen ? 'accent' : 'solid'}
+            size="sm"
+            disabled={!canRevealExplanation}
+            aria-expanded={explanationOpen}
+            aria-controls={`quiz-explanation-${question.id}`}
+            onClick={() => setExplanationForQuestion(explanationOpen ? null : question.id)}
+          >
+            <Lightbulb className={cn(canRevealExplanation && !explanationOpen && 'animate-pulse')} aria-hidden />
+          </IconButton>
+        </div>
+
+      {explanationOpen && question.explanation ? (
+        <div
+          id={`quiz-explanation-${question.id}`}
+          role="status"
+          className="absolute inset-x-0 top-full z-20 mt-2 rounded-md border-2 border-foreground bg-muted p-4 text-sm leading-relaxed shadow-brutal animate-in fade-in slide-in-from-top-2 duration-normal"
+        >
           {question.explanation}
         </div>
       ) : null}
+
+      {answeredCorrectly ? <CorrectAnswerCelebration /> : null}
     </div>
   )
 }
