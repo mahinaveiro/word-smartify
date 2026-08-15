@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth/auth-provider'
 import { buildTodayPlan } from '@/services/daily-loop'
 import { buildProgressSummary } from '@/services/progress'
 import { getMockTestData } from '@/services/mock-test'
+import type { LeaderboardMode } from '@/types/database'
 
 const repo = repositories
 
@@ -68,8 +69,13 @@ export function usePublicProfile(userId: string | null) {
   )
 }
 
-export function useLeaderboard(limit = 10) {
-  return useSWR(['leaderboard', limit], () => repo.stats.getLeaderboard(limit))
+export function useLeaderboard(modeOrLimit: LeaderboardMode | number = 'all_time', requestedLimit = 10) {
+  const uid = useOptionalUserId()
+  const mode: LeaderboardMode = typeof modeOrLimit === 'number' ? 'all_time' : modeOrLimit
+  const limit = typeof modeOrLimit === 'number' ? modeOrLimit : requestedLimit
+  return useSWR(uid ? ['leaderboard', mode, uid, limit] : null, () => repo.stats.getLeaderboard(mode, uid as string, limit), {
+    revalidateOnFocus: false,
+  })
 }
 
 export function useAllProgress() {

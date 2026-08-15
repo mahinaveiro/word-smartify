@@ -21,6 +21,7 @@ import { useProfile, useBooks } from '@/hooks/use-data'
 import { useActions } from '@/hooks/use-actions'
 import { useAuth } from '@/features/auth/auth-provider'
 import { checkPassword } from '@/lib/password'
+import { validateAvatarUrl } from '@/lib/profile'
 import { isAuthError } from '@/types/auth'
 import type { DailyGoal } from '@/types/database'
 
@@ -50,6 +51,7 @@ export function SettingsView() {
 
   const [nameDraft, setNameDraft] = useState<string | null>(null)
   const [avatarDraft, setAvatarDraft] = useState<string | null>(null)
+  const [avatarUrlDraft, setAvatarUrlDraft] = useState<string | null>(null)
   const [dailyGoalDraft, setDailyGoalDraft] = useState<DailyGoal | null>(null)
   const [bookIdDraft, setBookIdDraft] = useState<string | null | undefined>(undefined)
   const [saving, setSaving] = useState(false)
@@ -65,6 +67,8 @@ export function SettingsView() {
 
   const name = nameDraft ?? profile?.display_name ?? ''
   const avatarId = avatarDraft ?? profile?.avatar_id ?? 'mint'
+  const avatarUrl = avatarUrlDraft ?? profile?.avatar_url ?? ''
+  const avatarUrlError = validateAvatarUrl(avatarUrl)
   const dailyGoal = dailyGoalDraft ?? profile?.daily_goal ?? 10
   const bookId = bookIdDraft === undefined ? profile?.current_book_id ?? null : bookIdDraft
 
@@ -85,17 +89,19 @@ export function SettingsView() {
   const dirty =
     name.trim() !== profile.display_name ||
     avatarId !== profile.avatar_id ||
+    avatarUrl.trim() !== (profile.avatar_url ?? '') ||
     dailyGoal !== profile.daily_goal ||
     bookId !== profile.current_book_id
 
   async function onSave() {
-    if (profileSaveDisabled(name, saving)) return
+    if (profileSaveDisabled(name, saving) || avatarUrlError) return
     setSaving(true)
     setSaveError(false)
     try {
       const updated = await updateProfile({
         display_name: name.trim(),
         avatar_id: avatarId,
+        avatar_url: avatarUrl.trim() || null,
         daily_goal: dailyGoal,
         current_book_id: bookId,
       })
@@ -169,14 +175,31 @@ export function SettingsView() {
         <Card>
           <CardContent className="flex flex-col gap-5 p-5">
             <div className="flex items-center gap-4">
-              <Avatar name={name || profile.display_name} avatarId={avatarId} size="lg" />
+              <Avatar name={name || profile.display_name} avatarId={avatarId} avatarUrl={avatarUrl || null} size="lg" />
               <div className="min-w-0 flex-1">
                 <p className="font-heading text-sm font-semibold">Avatar</p>
-                <p className="text-xs text-muted-foreground">Pick a color for your profile badge.</p>
+                <p className="text-xs text-muted-foreground">Use a preset color or add an external image URL.</p>
               </div>
             </div>
 
             <AvatarPicker name={name || profile.display_name} value={avatarId} onChange={(value) => setAvatarDraft(value)} disabled={saving} />
+            <Field
+              label="External image URL (optional)"
+              htmlFor="avatar-url"
+              hint="Only http:// and https:// links are accepted. Clear the field to use the preset avatar."
+              error={avatarUrlError ?? undefined}
+            >
+              <Input
+                id="avatar-url"
+                type="url"
+                value={avatarUrl}
+                onChange={(event) => setAvatarUrlDraft(event.target.value)}
+                placeholder="https://example.com/avatar.jpg"
+                autoComplete="url"
+                aria-invalid={Boolean(avatarUrlError)}
+                disabled={saving}
+              />
+            </Field>
             <DisplayNameField value={name} onChange={(value) => setNameDraft(value)} disabled={saving} />
           </CardContent>
         </Card>
@@ -322,7 +345,7 @@ export function SettingsView() {
             onRetry={onSave}
           />
         ) : null}
-        <Button size="lg" className="w-full" onClick={onSave} disabled={!dirty || profileSaveDisabled(name, saving)} loading={saving}>
+        <Button size="lg" className="w-full" onClick={onSave} disabled={!dirty || profileSaveDisabled(name, saving) || Boolean(avatarUrlError)} loading={saving}>
           <Save className="size-5" aria-hidden />
           {dirty ? 'Save changes' : 'All changes saved'}
         </Button>

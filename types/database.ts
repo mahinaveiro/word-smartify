@@ -99,13 +99,14 @@ export interface Profile {
   id: UUID // -> auth.users.id
   display_name: string
   avatar_id: string
+  avatar_url: string | null
   daily_goal: DailyGoal
   current_book_id: UUID | null
   created_at: ISOTimestamp
   updated_at: ISOTimestamp
 }
 
-export type LeaderboardProfile = Pick<Profile, 'id' | 'display_name' | 'avatar_id'>
+export type LeaderboardProfile = Pick<Profile, 'id' | 'display_name' | 'avatar_id' | 'avatar_url'>
 
 export interface UserStats {
   user_id: UUID
@@ -122,7 +123,25 @@ export type WordStatus = 'new' | 'learning' | 'strong' | 'mastered'
 export type LeaderboardStats = Pick<
   UserStats,
   'user_id' | 'total_xp' | 'current_streak' | 'longest_streak' | 'words_learned' | 'words_mastered'
->
+> & {
+  weekly_xp?: number
+}
+
+export type LeaderboardMode = 'all_time' | 'weekly'
+
+export interface LeaderboardEntry {
+  rank: number
+  profile: LeaderboardProfile
+  stats: LeaderboardStats
+}
+
+export interface LeaderboardResult {
+  mode: LeaderboardMode
+  week_start: ISODate
+  week_end: ISODate
+  entries: LeaderboardEntry[]
+  current_user: LeaderboardEntry | null
+}
 
 export interface UserWordProgress {
   id: UUID
@@ -158,17 +177,46 @@ export interface BookProgressSummary {
   mastered: number
 }
 
+export interface AchievementBadge {
+  id: string
+  title: string
+  description: string
+}
+
+export interface PublicLeaderboardSummary {
+  current_week_rank: number | null
+  highest_weekly_rank: number | null
+  weekly_wins: number
+  weekly_second_places: number
+  weekly_third_places: number
+  weeks_ranked: number
+  best_weekly_xp: number
+  all_time_rank: number | null
+}
+
+export interface PublicMockTestSummary {
+  tests_taken: number
+  average_score: number | null
+  highest_score: number | null
+  average_percentage: number | null
+  best_percentage: number | null
+}
+
 /** Public fields safe to show on profiles, leaderboards, and social surfaces. */
 export interface PublicProfile {
   id: UUID
   display_name: string
   avatar_id: string
+  avatar_url: string | null
   current_streak: number
   longest_streak: number
   total_xp: number
   words_learned: number
   words_mastered: number
   book_progress: BookProgressSummary[]
+  achievements: AchievementBadge[]
+  leaderboard: PublicLeaderboardSummary
+  mock_tests: PublicMockTestSummary
 }
 
 // ---------------------------------------------------------------------------

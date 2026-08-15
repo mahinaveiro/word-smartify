@@ -15,8 +15,8 @@ import type {
   MockTest,
   MockTestAnswer,
   Profile,
-  LeaderboardProfile,
-  LeaderboardStats,
+  LeaderboardMode,
+  LeaderboardResult,
   QuizQuestion,
   UserStats,
   UserWordProgress,
@@ -59,6 +59,8 @@ export interface WordRepository {
   getWordByNumber(bookWordNumber: number): Promise<Word | null>
   /** Lightweight search across word + meaning; paginated for performance. */
   searchWords(query: string, limit?: number, offset?: number): Promise<Paginated<Word>>
+  /** Deterministic broad vocabulary sample for the exploratory Daily Challenge. */
+  getWordsForChallenge(limit: number, seed?: number): Promise<Word[]>
 }
 
 export interface QuizRepository {
@@ -82,8 +84,8 @@ export interface StatsRepository {
   updateStats(userId: UUID, patch: Partial<Omit<UserStats, 'user_id'>>): Promise<UserStats>
   /** Adds XP and updates last_activity; returns the new stats. */
   addXp(userId: UUID, amount: number): Promise<UserStats>
-  /** Leaderboard is DERIVED from user_stats.total_xp (no separate table). */
-  getLeaderboard(limit?: number): Promise<Array<{ rank: number; profile: LeaderboardProfile; stats: LeaderboardStats }>>
+  /** Returns a bounded leaderboard plus the current user's position. */
+  getLeaderboard(mode: LeaderboardMode, userId: UUID, limit?: number): Promise<LeaderboardResult>
 }
 
 export interface LevelProgressSummary {

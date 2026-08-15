@@ -17,11 +17,13 @@ const SIZES = {
 export function Avatar({
   name,
   avatarId = 'mint',
+  avatarUrl,
   size = 'md',
   className,
 }: {
   name: string
   avatarId?: string
+  avatarUrl?: string | null
   size?: keyof typeof SIZES
   className?: string
 }) {
@@ -35,13 +37,13 @@ export function Avatar({
     <span
       aria-hidden="true"
       className={cn(
-        'grid shrink-0 place-items-center rounded-full border-2 border-foreground font-heading font-bold shadow-brutal-sm',
+        'grid shrink-0 place-items-center overflow-hidden rounded-full border-2 border-foreground font-heading font-bold shadow-brutal-sm',
         AVATAR_BG[avatarId] ?? AVATAR_BG.mint,
         SIZES[size],
         className,
       )}
     >
-      {initials}
+      {avatarUrl ? <span className="size-full bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(${avatarUrl})` }} /> : initials}
     </span>
   )
 }

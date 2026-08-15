@@ -41,3 +41,29 @@ export function formatDuration(seconds: number): string {
   const s = seconds % 60
   return `${m}:${s.toString().padStart(2, '0')}`
 }
+
+
+export interface WeekPeriod {
+  start: string
+  end: string
+}
+
+/** The product week runs from Saturday through Friday in UTC calendar dates. */
+export function currentWeekPeriod(date = todayISO()): WeekPeriod {
+  const [year, month, day] = date.split('-').map(Number)
+  const current = new Date(Date.UTC(year, (month ?? 1) - 1, day ?? 1))
+  const sundayBasedDay = current.getUTCDay()
+  const daysSinceSaturday = (sundayBasedDay + 1) % 7
+  const start = new Date(current)
+  start.setUTCDate(start.getUTCDate() - daysSinceSaturday)
+  const end = new Date(start)
+  end.setUTCDate(end.getUTCDate() + 6)
+  return {
+    start: start.toISOString().slice(0, 10),
+    end: end.toISOString().slice(0, 10),
+  }
+}
+
+export function formatWeekPeriod(period: WeekPeriod): string {
+  return `${shortDate(period.start)} – ${shortDate(period.end)}`
+}

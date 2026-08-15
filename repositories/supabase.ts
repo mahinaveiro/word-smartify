@@ -10,6 +10,10 @@ import type {
   MockTest,
   MockTestAnswer,
   Profile,
+  AchievementBadge,
+  LeaderboardEntry,
+  LeaderboardMode,
+  LeaderboardResult,
   LeaderboardProfile,
   LeaderboardStats,
   QuizQuestion,
@@ -20,6 +24,8 @@ import type {
   WordStatus,
   PublicProfile,
   WordDifficulty,
+  PublicLeaderboardSummary,
+  PublicMockTestSummary,
 } from '@/types/database'
 import type { Database } from '@/types/supabase'
 import type {
@@ -40,12 +46,18 @@ import type {
 import { SupabaseAuthRepository } from './supabase-auth'
 import { isMissingRowError } from '@/lib/supabase/errors'
 import { calculateMockTestScore } from '@/lib/mock-test-scoring'
+import { shuffleArray } from '@/lib/quiz-randomizer'
+import { currentWeekPeriod } from '@/lib/date'
 
 type Client = SupabaseClient<Database>
 type QuizRow = Database['public']['Tables']['quiz_questions']['Row']
 type WordRow = Database['public']['Tables']['words']['Row']
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
 type ProgressRow = Database['public']['Tables']['user_word_progress']['Row']
+type LeaderboardRpcRow = Database['public']['Functions']['get_leaderboard']['Returns'][number]
+type PublicBookProgressRpcRow = Database['public']['Functions']['get_public_book_progress']['Returns'][number]
+type PublicLeaderboardRpcRow = Database['public']['Functions']['get_public_leaderboard_summary']['Returns'][number]
+type PublicMockTestRpcRow = Database['public']['Functions']['get_public_mock_test_summary']['Returns'][number]
 
 function unwrap<T>(result: { data: T | null; error: { message: string; code?: string } | null }): T {
   if (result.error) throw new Error(result.error.message)
@@ -117,6 +129,60 @@ function emptyDaily(userId: UUID, date: ISODate): DailyProgress {
     completed: false,
     created_at: new Date().toISOString(),
   }
+}
+
+function buildAchievementBadges(
+  stats: Pick<UserStats, 'words_learned' | 'current_streak' | 'longest_streak'>,
+  bookProgress: PublicBookProgressRpcRow[],
+  books: Array<{ id: UUID; name: string }>,
+  leaderboard: PublicLeaderboardSummary,
+): AchievementBadge[] {
+  const badges: AchievementBadge[] = []
+  const completedBooks = new Set(
+    bookProgress
+      .filter((progress) => progress.total > 0 && progress.learned >= progress.total)
+      .map((progress) => progress.book_id),
+  )
+  for (const book of books) {
+    if (completedBooks.has(book.id)) {
+      badges.push({
+        id: `book-complete-${book.id}`,
+        title: `${book.name} complete`,
+        description: `Learn every word in ${book.name}.`,
+      })
+    }
+  }
+  if (stats.words_learned >= 100) {
+    badges.push({ id: 'words-100', title: '100 words learned', description: 'Learn 100 words.' })
+  }
+  if (stats.words_learned >= 500) {
+    badges.push({ id: 'words-500', title: '500 words learned', description: 'Learn 500 words.' })
+  }
+  if (stats.words_learned >= 1000) {
+    badges.push({ id: 'words-1000', title: '1,000 words learned', description: 'Learn 1,000 words.' })
+  }
+  if (stats.longest_streak >= 7) {
+    badges.push({ id: 'streak-7', title: '7-day streak', description: 'Maintain a 7-day streak.' })
+  }
+  if (stats.longest_streak >= 30) {
+    badges.push({ id: 'streak-30', title: '30-day streak', description: 'Maintain a 30-day streak.' })
+  }
+  if (stats.longest_streak >= 100) {
+    badges.push({ id: 'streak-100', title: '100-day streak', description: 'Maintain a 100-day streak.' })
+  }
+  if (leaderboard.weekly_wins > 0) {
+    badges.push({ id: 'weekly-first', title: 'Weekly #1', description: 'Finish first in a weekly leaderboard.' })
+  }
+  if (leaderboard.weekly_second_places > 0) {
+    badges.push({ id: 'weekly-second', title: 'Weekly #2', description: 'Finish second in a weekly leaderboard.' })
+  }
+  if (leaderboard.weekly_third_places > 0) {
+    badges.push({ id: 'weekly-third', title: 'Weekly #3', description: 'Finish third in a weekly leaderboard.' })
+  }
+  if (stats.current_streak >= 1 && !badges.some((badge) => badge.id === 'streak-7')) {
+    badges.unshift({ id: 'first-session', title: 'First steps', description: 'Start building a learning habit.' })
+  }
+  return badges.slice(0, 12)
 }
 
 class SupabaseBookRepository implements BookRepository {
@@ -241,6 +307,24 @@ class SupabaseWordRepository implements WordRepository {
       limit,
     }
   }
+
+  async getWordsForChallenge(limit: number, seed = Date.now()): Promise<Word[]> {
+    const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 100)
+    const countResult = await this.client.from('words').select('id', { count: 'exact', head: true })
+    if (countResult.error) throw new Error(countResult.error.message)
+    const total = countResult.count ?? 0
+    const maxOffset = Math.max(0, total - safeLimit)
+    const normalizedSeed = Math.abs(Math.floor(seed))
+    const offset = maxOffset > 0 ? normalizedSeed % (maxOffset + 1) : 0
+    const rows = unwrap(
+      await this.client
+        .from('words')
+        .select('*')
+        .order('book_word_number', { ascending: true })
+        .range(offset, offset + safeLimit - 1),
+    )
+    return shuffleArray(rows.map(toWord))
+  }
 }
 
 class SupabaseQuizRepository implements QuizRepository {
@@ -282,7 +366,7 @@ class SupabaseQuizRepository implements QuizRepository {
 }
 
 class SupabaseProfileRepository implements ProfileRepository {
-  constructor(private readonly client: Client, private readonly wordProgress: WordProgressRepository) {}
+  constructor(private readonly client: Client) {}
 
   async getProfile(userId: UUID): Promise<Profile | null> {
     const result = await this.client.from('profiles').select('*').eq('id', userId).maybeSingle()
@@ -291,27 +375,67 @@ class SupabaseProfileRepository implements ProfileRepository {
   }
 
   async getPublicProfile(userId: UUID): Promise<PublicProfile | null> {
-    const [profileResult, statsResult] = await Promise.all([
-      this.client.from('profiles').select('id, display_name, avatar_id').eq('id', userId).maybeSingle(),
+    const [profileResult, statsResult, bookProgressResult, leaderboardResult, mockTestsResult, booksResult] = await Promise.all([
+      this.client.from('profiles').select('id, display_name, avatar_id, avatar_url').eq('id', userId).maybeSingle(),
       this.client
         .from('user_stats')
         .select('user_id, total_xp, current_streak, longest_streak, words_learned, words_mastered')
         .eq('user_id', userId)
         .maybeSingle(),
+      this.client.rpc('get_public_book_progress', { p_user_id: userId }),
+      this.client.rpc('get_public_leaderboard_summary', { p_user_id: userId }),
+      this.client.rpc('get_public_mock_test_summary', { p_user_id: userId }),
+      this.client.from('books').select('id, name').order('display_order', { ascending: true }),
     ])
     if (profileResult.error && !isMissingRowError(profileResult.error)) throw new Error(profileResult.error.message)
     if (statsResult.error && !isMissingRowError(statsResult.error)) throw new Error(statsResult.error.message)
+    if (bookProgressResult.error) throw new Error(bookProgressResult.error.message)
+    if (leaderboardResult.error) throw new Error(leaderboardResult.error.message)
+    if (mockTestsResult.error) throw new Error(mockTestsResult.error.message)
+    if (booksResult.error) throw new Error(booksResult.error.message)
     if (!profileResult.data || !statsResult.data) return null
+
+    const bookProgress = (bookProgressResult.data ?? []) as PublicBookProgressRpcRow[]
+    const leaderboard = ((leaderboardResult.data ?? [])[0] ?? null) as PublicLeaderboardRpcRow | null
+    const mockTests = ((mockTestsResult.data ?? [])[0] ?? null) as PublicMockTestRpcRow | null
+    const publicLeaderboard: PublicLeaderboardSummary = {
+      current_week_rank: leaderboard?.current_week_rank ?? null,
+      highest_weekly_rank: leaderboard?.highest_weekly_rank ?? null,
+      weekly_wins: leaderboard?.weekly_wins ?? 0,
+      weekly_second_places: leaderboard?.weekly_second_places ?? 0,
+      weekly_third_places: leaderboard?.weekly_third_places ?? 0,
+      weeks_ranked: leaderboard?.weeks_ranked ?? 0,
+      best_weekly_xp: leaderboard?.best_weekly_xp ?? 0,
+      all_time_rank: leaderboard?.all_time_rank ?? null,
+    }
+    const publicMockTests: PublicMockTestSummary = {
+      tests_taken: mockTests?.tests_taken ?? 0,
+      average_score: mockTests?.average_score == null ? null : Number(mockTests.average_score),
+      highest_score: mockTests?.highest_score == null ? null : Number(mockTests.highest_score),
+      average_percentage: mockTests?.average_percentage == null ? null : Number(mockTests.average_percentage),
+      best_percentage: mockTests?.best_percentage == null ? null : Number(mockTests.best_percentage),
+    }
+    const books = booksResult.data ?? []
+    const achievements = buildAchievementBadges(
+      statsResult.data,
+      bookProgress,
+      books,
+      publicLeaderboard,
+    )
     return {
       id: profileResult.data.id,
       display_name: profileResult.data.display_name,
       avatar_id: profileResult.data.avatar_id,
+      avatar_url: profileResult.data.avatar_url,
       current_streak: statsResult.data.current_streak,
       longest_streak: statsResult.data.longest_streak,
       total_xp: statsResult.data.total_xp,
       words_learned: statsResult.data.words_learned,
       words_mastered: statsResult.data.words_mastered,
-      book_progress: await this.wordProgress.getBookProgress(userId),
+      book_progress: bookProgress,
+      achievements,
+      leaderboard: publicLeaderboard,
+      mock_tests: publicMockTests,
     }
   }
 
@@ -347,30 +471,46 @@ class SupabaseStatsRepository implements StatsRepository {
   }
 
   async addXp(userId: UUID, amount: number): Promise<UserStats> {
-    const current = await this.getStats(userId)
-    return this.updateStats(userId, {
-      total_xp: current.total_xp + Math.max(0, amount),
-      last_activity_at: new Date().toISOString(),
-    })
+    const xp = Math.max(0, Math.floor(amount))
+    if (xp === 0) return this.getStats(userId)
+    const result = await this.client.rpc('record_xp', { p_amount: xp })
+    if (result.error) throw new Error(result.error.message)
+    return this.getStats(userId)
   }
 
-  async getLeaderboard(limit = 10): Promise<Array<{ rank: number; profile: LeaderboardProfile; stats: LeaderboardStats }>> {
-    const [profilesResult, statsResult] = await Promise.all([
-      this.client.from('profiles').select('id, display_name, avatar_id'),
-      this.client.from('user_stats').select('user_id, total_xp, current_streak, longest_streak, words_learned, words_mastered'),
-    ])
-    if (profilesResult.error) throw new Error(profilesResult.error.message)
-    if (statsResult.error) throw new Error(statsResult.error.message)
-    const statsByUser = new Map((statsResult.data ?? []).map((stats) => [stats.user_id, stats]))
-    return (profilesResult.data ?? [])
-      .map((profile) => {
-        const stats = statsByUser.get(profile.id)
-        return stats ? { profile, stats } : null
-      })
-      .filter((row): row is { profile: LeaderboardProfile; stats: LeaderboardStats } => row != null)
-      .sort((a, b) => b.stats.total_xp - a.stats.total_xp || a.profile.display_name.localeCompare(b.profile.display_name))
-      .slice(0, limit)
-      .map((row, index) => ({ ...row, rank: index + 1 }))
+  async getLeaderboard(mode: LeaderboardMode, userId: UUID, limit = 10): Promise<LeaderboardResult> {
+    const result = await this.client.rpc('get_leaderboard', {
+      p_mode: mode,
+      p_limit: Math.min(Math.max(Math.floor(limit), 1), 50),
+    })
+    if (result.error) throw new Error(result.error.message)
+    const rows = (result.data ?? []) as LeaderboardRpcRow[]
+    const period = currentWeekPeriod()
+    const entries: LeaderboardEntry[] = rows.map((row) => ({
+      rank: row.rank,
+      profile: {
+        id: row.user_id,
+        display_name: row.display_name,
+        avatar_id: row.avatar_id,
+        avatar_url: row.avatar_url,
+      },
+      stats: {
+        user_id: row.user_id,
+        total_xp: row.total_xp,
+        current_streak: row.current_streak,
+        longest_streak: row.longest_streak,
+        words_learned: row.words_learned,
+        words_mastered: row.words_mastered,
+        weekly_xp: row.weekly_xp ?? undefined,
+      },
+    }))
+    return {
+      mode,
+      week_start: rows[0]?.week_start ?? period.start,
+      week_end: rows[0]?.week_end ?? period.end,
+      entries,
+      current_user: entries.find((entry) => entry.profile.id === userId) ?? null,
+    }
   }
 }
 
@@ -687,7 +827,7 @@ export function createSupabaseRepositories(client: Client): Repositories {
     levels,
     words,
     quizzes,
-    profiles: new SupabaseProfileRepository(client, wordProgress),
+    profiles: new SupabaseProfileRepository(client),
     stats: new SupabaseStatsRepository(client),
     wordProgress,
     dailyProgress: new SupabaseDailyProgressRepository(client),

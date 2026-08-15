@@ -30,12 +30,12 @@ export function ChallengeView() {
   const [localPhase, setLocalPhase] = useState<Phase>('quiz')
   const phase: Phase = daily?.challenge_completed ? 'summary' : localPhase
   const [index, setIndex] = useState(0)
-  const [busy, setBusy] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [results, setResults] = useState<QuizAnswerResult[]>([])
   const answeredIds = useRef<string[]>([])
+  const saveQueuesRef = useRef<Map<string, Promise<boolean>>>(new Map())
+  const failedAnswersRef = useRef<Map<string, QuizAnswerEvent>>(new Map())
   const [answerError, setAnswerError] = useState(false)
-  const [pendingAnswer, setPendingAnswer] = useState<{ wordId: string; event: QuizAnswerEvent } | null>(null)
   const [finishError, setFinishError] = useState(false)
 
 
@@ -71,39 +71,54 @@ export function ChallengeView() {
         <EmptyState
           icon={Sparkles}
           title="Build your challenge first"
-          description="Answer a few learning or review words, then come back for a short weak-word quiz."
+          description="Explore a fresh set of real Word Smart vocabulary with a short daily quiz."
           action={<Button onClick={() => router.push('/dashboard')}>Back to dashboard</Button>}
         />
       </div>
     )
   }
 
-  async function persistAnswer(wordId: string, event: QuizAnswerEvent) {
+  function persistAnswer(wordId: string, event: QuizAnswerEvent) {
     setAnswerError(false)
-    setPendingAnswer({ wordId, event })
-    setBusy(true)
-    try {
-      const result = await recordQuizAnswer(wordId, event.isCorrect, 'challenge')
-      answeredIds.current = [...answeredIds.current, wordId]
-      setResults((previous) => [...previous, result])
-      setPendingAnswer(null)
-    } catch {
-      setAnswerError(true)
-    } finally {
-      setBusy(false)
-    }
+    if (!answeredIds.current.includes(wordId)) answeredIds.current = [...answeredIds.current, wordId]
+    if (saveQueuesRef.current.has(wordId)) return
+    const save = (async () => {
+      try {
+        const result = await recordQuizAnswer(wordId, event.isCorrect, 'challenge')
+        failedAnswersRef.current.delete(wordId)
+        setResults((previous) => [...previous, result])
+        return true
+      } catch {
+        failedAnswersRef.current.set(wordId, event)
+        setAnswerError(true)
+        return false
+      } finally {
+        saveQueuesRef.current.delete(wordId)
+      }
+    })()
+    saveQueuesRef.current.set(wordId, save)
+    void save.catch(() => undefined)
   }
 
-  async function chooseAnswer(option: string) {
+  function chooseAnswer(option: string) {
     if (!card) return
     const event = quiz.submit(option)
     if (!event) return
-    await persistAnswer(card.word.id, event)
+    persistAnswer(card.word.id, event)
   }
 
-  async function retryAnswer() {
-    if (!pendingAnswer || busy) return
-    await persistAnswer(pendingAnswer.wordId, pendingAnswer.event)
+  async function retryFailedAnswers() {
+    const failed = [...failedAnswersRef.current.entries()]
+    if (failed.length === 0) return
+    setAnswerError(false)
+    failed.forEach(([wordId, event]) => persistAnswer(wordId, event))
+    await Promise.all([...saveQueuesRef.current.values()])
+  }
+
+  async function waitForAnswerSaves() {
+    const pending = [...saveQueuesRef.current.values()]
+    const results = await Promise.all(pending)
+    return results.every(Boolean) && failedAnswersRef.current.size === 0
   }
 
   async function next() {
@@ -115,6 +130,11 @@ export function ChallengeView() {
     setFinishing(true)
     setFinishError(false)
     try {
+      const savesComplete = await waitForAnswerSaves()
+      if (!savesComplete) {
+        setAnswerError(true)
+        return
+      }
       await completeDailyChallenge([...new Set(answeredIds.current)])
       revalidateUser()
       toast({ title: 'Challenge complete!', description: '+15 XP earned.', tone: 'success' })
@@ -140,7 +160,7 @@ export function ChallengeView() {
         <span className="w-14 shrink-0 text-right font-heading text-sm font-bold tabular-nums">{done ? total : index + 1}/{total}</span>
       </div>
       <p className="mt-3 text-center font-heading text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        Daily challenge · {done ? 'Complete' : 'Weak-word quiz'}
+        Daily challenge · {done ? 'Complete' : 'Explore quiz'}
       </p>
       <div className="flex flex-1 flex-col justify-center py-6">
         {!done && card ? (
@@ -151,7 +171,7 @@ export function ChallengeView() {
                 className="mt-5 py-6"
                 title="Your challenge answer couldn't be saved"
                 description="Your previous progress is unchanged. Retry before moving on."
-                onRetry={retryAnswer}
+                onRetry={retryFailedAnswers}
               />
             ) : null}
             {finishError ? (
@@ -180,7 +200,7 @@ export function ChallengeView() {
       </div>
       <div className="mt-auto">
         {!done ? (
-          <Button size="lg" className="w-full" onClick={next} disabled={!quiz.revealed || busy || finishing || answerError} loading={busy || finishing}>
+          <Button size="lg" className="w-full" onClick={next} disabled={!quiz.revealed || finishing || answerError} loading={finishing}>
             {index < total - 1 ? 'Next word' : 'Finish challenge'} <ArrowRight className="size-5" aria-hidden />
           </Button>
         ) : <Button size="lg" className="w-full" onClick={() => router.push('/dashboard')}>Back to dashboard</Button>}

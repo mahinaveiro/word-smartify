@@ -234,6 +234,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_id: string
+          avatar_url: string | null
           created_at: string
           current_book_id: string | null
           daily_goal: number
@@ -243,6 +244,7 @@ export type Database = {
         }
         Insert: {
           avatar_id?: string
+          avatar_url?: string | null
           created_at?: string
           current_book_id?: string | null
           daily_goal?: number
@@ -252,6 +254,7 @@ export type Database = {
         }
         Update: {
           avatar_id?: string
+          avatar_url?: string | null
           created_at?: string
           current_book_id?: string | null
           daily_goal?: number
@@ -312,6 +315,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      weekly_leaderboard_entries: {
+        Row: {
+          created_at: string
+          finalized_at: string | null
+          finalized_rank: number | null
+          first_earned_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          week_end: string
+          week_start: string
+          xp: number
+        }
+        Insert: {
+          created_at?: string
+          finalized_at?: string | null
+          finalized_rank?: number | null
+          first_earned_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          week_end: string
+          week_start: string
+          xp?: number
+        }
+        Update: {
+          created_at?: string
+          finalized_at?: string | null
+          finalized_rank?: number | null
+          first_earned_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          week_end?: string
+          week_start?: string
+          xp?: number
+        }
+        Relationships: []
       }
       user_stats: {
         Row: {
@@ -454,7 +496,64 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      finalize_weekly_leaderboard: {
+        Args: { p_week_start: string }
+        Returns: number
+      }
+      get_leaderboard: {
+        Args: { p_limit?: number; p_mode: string }
+        Returns: Array<{
+          rank: number
+          user_id: string
+          display_name: string
+          avatar_id: string
+          avatar_url: string | null
+          total_xp: number
+          weekly_xp: number | null
+          current_streak: number
+          longest_streak: number
+          words_learned: number
+          words_mastered: number
+          week_start: string
+          week_end: string
+        }>
+      }
+      get_public_book_progress: {
+        Args: { p_user_id: string }
+        Returns: Array<{
+          book_id: string
+          total: number
+          learned: number
+          mastered: number
+        }>
+      }
+      get_public_leaderboard_summary: {
+        Args: { p_user_id: string }
+        Returns: Array<{
+          current_week_rank: number | null
+          highest_weekly_rank: number | null
+          weekly_wins: number
+          weekly_second_places: number
+          weekly_third_places: number
+          weeks_ranked: number
+          best_weekly_xp: number
+          all_time_rank: number | null
+        }>
+      }
+      get_public_mock_test_summary: {
+        Args: { p_user_id: string }
+        Returns: Array<{
+          tests_taken: number
+          average_score: number | null
+          highest_score: number | null
+          average_percentage: number | null
+          best_percentage: number | null
+        }>
+      }
+      record_xp: {
+        Args: { p_amount: number }
+        Returns: null
+      }
     }
     Enums: {
       [_ in never]: never

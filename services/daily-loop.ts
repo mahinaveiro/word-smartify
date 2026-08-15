@@ -10,7 +10,6 @@ import {
 import { buildDailyPlan, type DailyPlan } from '@/lib/daily-plan'
 import { computeStreak } from '@/lib/streak'
 import {
-  buildChallengeQueue,
   buildReviewQueue,
   DAILY_CHALLENGE_LIMIT,
   DEFAULT_REVIEW_QUEUE_LIMIT,
@@ -117,10 +116,9 @@ export async function recordQuizAnswer(
     completed: nowCompleted,
   })
 
-  const stats = await repositories.stats.getStats(userId)
+  const stats = await repositories.stats.addXp(userId, answerXp + goalXp)
   const streak = await refreshStreak(userId, date)
   await repositories.stats.updateStats(userId, {
-    total_xp: stats.total_xp + answerXp + goalXp,
     current_streak: streak.current,
     longest_streak: streak.longest,
     words_learned: stats.words_learned + (progressUpdate.becameLearned ? 1 : 0),
@@ -162,14 +160,13 @@ export async function finalizeSession(
 
 export async function buildDailyChallenge(
   userId: string,
+  date = todayISO(),
 ): Promise<ChallengeCard[]> {
-  const allProgress = await repositories.wordProgress.getAllProgress(userId)
-  const queue = buildChallengeQueue(allProgress, DAILY_CHALLENGE_LIMIT)
+  const seed = [...`${userId}:${date}`].reduce((hash, character) => ((hash * 31) + character.charCodeAt(0)) | 0, 7)
+  const words = await repositories.words.getWordsForChallenge(DAILY_CHALLENGE_LIMIT, seed)
   const cards = await Promise.all(
-    queue.map(async (progress): Promise<ChallengeCard | null> => {
-      const word = await repositories.words.getWord(progress.word_id)
-      if (!word) return null
-      const questions = await repositories.quizzes.getQuizQuestions(progress.word_id)
+    words.map(async (word): Promise<ChallengeCard | null> => {
+      const questions = await repositories.quizzes.getQuizQuestions(word.id)
       const question = questions.find((item) => item.question_type === 'meaning') ?? questions[0]
       return question ? { word, question: prepareQuizQuestion(question) } : null
     }),
@@ -207,10 +204,9 @@ export async function completeDailyChallenge(
     xp_earned: (today?.xp_earned ?? 0) + challengeXp,
     completed: newWordsCompleted >= goal,
   })
-  const stats = await repositories.stats.getStats(userId)
+  await repositories.stats.addXp(userId, challengeXp)
   const streak = await refreshStreak(userId, date)
   await repositories.stats.updateStats(userId, {
-    total_xp: stats.total_xp + challengeXp,
     current_streak: streak.current,
     longest_streak: streak.longest,
     last_activity_at: new Date().toISOString(),

@@ -6,5 +6,8 @@ import { buildDailyChallenge, type ChallengeCard } from '@/services/daily-loop'
 
 export function useChallengeSession() {
   const uid = useAuth().user?.id ?? null
-  return useSWR(uid ? ['challenge-session', uid] : null, () => buildDailyChallenge(uid as string))
+  return useSWR(uid ? ['challenge-session', uid] : null, () => buildDailyChallenge(uid as string), {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  })
 }
