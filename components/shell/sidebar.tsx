@@ -56,13 +56,6 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="mt-4 rounded-[--radius-md] border-2 border-foreground bg-muted px-3 py-3">
-        <p className="font-heading text-sm font-semibold">Local mode</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-          Running on local sample data. Progress is saved on this device.
-        </p>
-      </div>
-
       <button
         type="button"
         onClick={handleSignOut}

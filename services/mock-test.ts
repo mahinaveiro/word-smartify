@@ -32,11 +32,12 @@ export async function startMockTest(userId: UUID, totalQuestions: number): Promi
   }
 
   const profile = await repositories.profiles.getProfile(userId)
-  if (!profile?.current_book_id) {
-    throw new Error('Choose a curriculum before starting a mock test.')
+  const currentBookId = profile?.current_book_id ?? (await repositories.books.getBooks())[0]?.id ?? null
+  if (!currentBookId) {
+    throw new Error('No vocabulary book is available for mock tests.')
   }
 
-  const words = await repositories.wordProgress.getWordsInCompletedLevels(userId, profile.current_book_id)
+  const words = await repositories.wordProgress.getWordsInCompletedLevels(userId, currentBookId)
   const questions = await repositories.quizzes.getQuizQuestionsForWords(words.map((word) => word.id))
   const eligibleQuestionIds = [...new Set(questions.map((question) => question.id))]
   if (eligibleQuestionIds.length < totalQuestions) {

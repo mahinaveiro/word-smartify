@@ -72,22 +72,24 @@ export function LevelDetail({ levelId }: { levelId: string }) {
         {words.map((w) => {
           const status = statusByWord.get(w.id) ?? 'new'
           return (
-            <Card key={w.id}>
-              <CardContent className="flex items-center gap-3 p-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <Link href={`/word/${w.id}`} className="press truncate font-heading text-base font-bold hover:underline">
-                      {w.word}
-                    </Link>
-                    {w.pronunciation ? (
-                      <span className="truncate text-xs text-muted-foreground">{w.pronunciation}</span>
-                    ) : null}
+            <Link key={w.id} href={`/word/${w.id}`} className="block">
+              <Card className="transition-colors hover:bg-muted">
+                <CardContent className="flex items-center gap-3 p-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate font-heading text-base font-bold hover:underline">
+                        {w.word}
+                      </span>
+                      {w.pronunciation ? (
+                        <span className="truncate text-xs text-muted-foreground">{w.pronunciation}</span>
+                      ) : null}
+                    </div>
+                    <p className="truncate text-sm text-muted-foreground">{w.english_meaning}</p>
                   </div>
-                  <p className="truncate text-sm text-muted-foreground">{w.english_meaning}</p>
-                </div>
-                <WordStatusBadge status={status} />
-              </CardContent>
-            </Card>
+                  <WordStatusBadge status={status} />
+                </CardContent>
+              </Card>
+            </Link>
           )
         })}
       </div>

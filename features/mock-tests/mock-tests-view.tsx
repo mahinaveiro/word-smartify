@@ -30,20 +30,21 @@ export function MockTestsView() {
   const userId = useAuth().user?.id
   const [selectedCount, setSelectedCount] = useState<number>(MOCK_TEST_LENGTHS[0])
   const [starting, setStarting] = useState(false)
-  const [startError, setStartError] = useState(false)
+  const [startError, setStartError] = useState<string | null>(null)
 
   async function start() {
     setStarting(true)
-    setStartError(false)
+    setStartError(null)
     try {
       if (!userId) throw new Error('Please sign in to start a mock test.')
       const test = await startMockTest(userId, selectedCount)
       router.push(`/mock-tests/${test.id}`)
-    } catch {
-      setStartError(true)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Please try again.'
+      setStartError(message)
       toast({
         title: 'Could not start test',
-        description: 'Please try again.',
+        description: message,
         tone: 'error',
       })
     } finally {
@@ -93,7 +94,7 @@ export function MockTestsView() {
           {startError ? (
             <ErrorState
               title="Could not start this test"
-              description="Your test was not created. Try again."
+              description={startError}
               onRetry={start}
             />
           ) : null}
