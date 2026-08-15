@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   Award,
   BookOpen,
@@ -9,12 +9,9 @@ import {
   FileText,
   Flame,
   Lock,
-  Pencil,
-  Save,
   Settings,
   Target,
   Trophy,
-  X,
   Zap,
 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
@@ -27,8 +24,6 @@ import { ErrorState } from '@/components/ui/error-state'
 import { SectionHeader } from '@/components/ui/section-header'
 import { Avatar } from '@/features/shared/avatar'
 import { StatTile } from '@/features/shared/stat-tile'
-import { DisplayNameField, profileSaveDisabled } from '@/features/profile/profile-form'
-import { useActions } from '@/hooks/use-actions'
 import {
   useBookProgress,
   useBooks,
@@ -54,21 +49,12 @@ export function ProfileView() {
   const bookProgressQuery = useBookProgress()
   const booksQuery = useBooks()
   const testsQuery = useMockTests()
-  const { data: profile, mutate: mutateProfile } = profileQuery
+  const { data: profile } = profileQuery
   const { data: stats } = statsQuery
   const { data: progressSummary } = progressQuery
   const { data: bookProgress } = bookProgressQuery
   const { data: books } = booksQuery
   const { data: tests } = testsQuery
-  const { updateProfile, revalidateUser } = useActions()
-  const [editing, setEditing] = useState(false)
-  const [nameDraft, setNameDraft] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState(false)
-
-
-  const name = nameDraft ?? profile?.display_name ?? ''
-
   const achievements = useMemo<Achievement[]>(() => {
     if (!stats) return []
     return [
@@ -105,22 +91,6 @@ export function ProfileView() {
   const recentTests = (tests ?? []).slice(0, 3)
   const earnedCount = achievements.filter((achievement) => achievement.earned).length
 
-  async function saveName() {
-    if (profileSaveDisabled(name, saving)) return
-    setSaving(true)
-    setSaveError(false)
-    try {
-      const updated = await updateProfile({ display_name: name.trim() })
-      await mutateProfile(updated, false)
-      await revalidateUser()
-      setEditing(false)
-    } catch {
-      setSaveError(true)
-    } finally {
-      setSaving(false)
-    }
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -136,35 +106,8 @@ export function ProfileView() {
       <Card>
         <CardContent className="flex flex-col items-center gap-4 p-6 text-center sm:flex-row sm:text-left">
           <Avatar name={profile.display_name} avatarId={profile.avatar_id} avatarUrl={profile.avatar_url} size="xl" />
-          <div className="min-w-0 flex-1">
-            {editing ? (
-              <div className="flex flex-col gap-3">
-                <DisplayNameField value={name} onChange={(value) => setNameDraft(value)} disabled={saving} id="profile-display-name" />
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" onClick={saveName} disabled={profileSaveDisabled(name, saving)} loading={saving}>
-                    <Save className="size-4" aria-hidden /> Save name
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setNameDraft(null); setEditing(false) }} disabled={saving}>
-                    <X className="size-4" aria-hidden /> Cancel
-                  </Button>
-                </div>
-                {saveError ? (
-                  <ErrorState
-                    className="py-6"
-                    title="Your profile couldn't be saved"
-                    description="Your previous display name is unchanged. Try saving again."
-                    onRetry={saveName}
-                  />
-                ) : null}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <h2 className="truncate font-heading text-2xl font-bold">{profile.display_name}</h2>
-                <Button variant="ghost" size="sm" onClick={() => setEditing(true)} aria-label="Edit display name">
-                  <Pencil className="size-4" aria-hidden />
-                </Button>
-              </div>
-            )}
+          <div className="min-w-0 flex-1 text-center sm:text-left">
+            <h2 className="break-words font-heading text-2xl font-bold">{profile.display_name}</h2>
             <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
               <Badge variant="mint" className="gap-1 px-2.5 py-1 text-sm"><Trophy className="size-3.5" aria-hidden /> Level {progressSummary.level.level}</Badge>
               <Badge variant="coral" className="gap-1 px-2.5 py-1 text-sm"><Flame className="size-3.5" aria-hidden /> {stats.current_streak} day streak</Badge>
