@@ -58,17 +58,17 @@ export function LearnView() {
         description="Work through levels of 10 words. Master each word by getting its quizzes right."
       />
 
-      <Card className="flex flex-col items-start justify-between gap-4 bg-mint/35 sm:flex-row sm:items-center">
-        <div className="flex items-start gap-3">
+      <Card className="flex min-w-0 flex-col items-start justify-between gap-4 overflow-hidden bg-mint/35 p-4 sm:flex-row sm:items-center sm:p-5">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-md border-2 border-foreground bg-primary text-primary-foreground shadow-brutal-sm">
             <LibraryBig className="size-5" aria-hidden />
           </span>
-          <div>
+          <div className="min-w-0">
             <p className="font-heading font-bold">Need a reference view?</p>
             <p className="mt-1 text-sm text-muted-foreground">Browse every Word Smart word, search meanings, and save words for later.</p>
           </div>
         </div>
-        <Button asChild variant="outline" size="sm">
+        <Button asChild variant="outline" size="sm" className="shrink-0">
           <Link href="/library">Open Library <ArrowRight className="size-4" aria-hidden /></Link>
         </Button>
       </Card>

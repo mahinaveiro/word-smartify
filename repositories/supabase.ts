@@ -71,6 +71,10 @@ function unwrap<T>(result: { data: T | null; error: { message: string; code?: st
   return result.data
 }
 
+function isUuid(value: string): value is UUID {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+}
+
 function normalizeOptions(value: QuizRow['options']): string[] | null {
   if (!Array.isArray(value)) return null
   const options = value.filter((option): option is string => typeof option === 'string')
@@ -221,9 +225,12 @@ class SupabaseBookRepository implements BookRepository {
   }
 
   async getBook(idOrSlug: string): Promise<Book | null> {
-    const byId = await this.client.from('books').select('*').eq('id', idOrSlug).maybeSingle()
-    if (byId.error) throw new Error(byId.error.message)
-    if (byId.data) return byId.data
+    if (isUuid(idOrSlug)) {
+      const byId = await this.client.from('books').select('*').eq('id', idOrSlug).maybeSingle()
+      if (byId.error) throw new Error(byId.error.message)
+      if (byId.data) return byId.data
+    }
+
     const bySlug = await this.client.from('books').select('*').eq('slug', idOrSlug).maybeSingle()
     if (bySlug.error) throw new Error(bySlug.error.message)
     return bySlug.data

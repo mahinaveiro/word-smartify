@@ -97,8 +97,8 @@ export function LibraryLandingView() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card className="flex flex-col justify-between gap-5 bg-mint/40">
-          <div>
+        <Card className="flex min-w-0 flex-col justify-between gap-5 overflow-hidden bg-mint/40 p-5 sm:p-6">
+          <div className="min-w-0">
             <Badge variant="mint">Dictionary</Badge>
             <h2 className="mt-3 font-heading text-xl font-bold">Search the whole vocabulary</h2>
             <p className="mt-2 text-sm text-muted-foreground">Find words by spelling, meaning, synonyms, antonyms, book, level, or first letter.</p>
@@ -110,8 +110,8 @@ export function LibraryLandingView() {
             </Link>
           </Button>
         </Card>
-        <Card className="flex flex-col justify-between gap-5 bg-coral/35">
-          <div>
+        <Card className="flex min-w-0 flex-col justify-between gap-5 overflow-hidden bg-coral/35 p-5 sm:p-6">
+          <div className="min-w-0">
             <Badge variant="coral">Private shelf</Badge>
             <h2 className="mt-3 font-heading text-xl font-bold">Saved words</h2>
             <p className="mt-2 text-sm text-muted-foreground">Bookmark words from anywhere in Library and return to them when you have time.</p>
@@ -145,15 +145,15 @@ export function LibraryLandingView() {
 
 function BookCard({ book }: { book: Book }) {
   return (
-    <Link href={`/library/${book.slug}`} className="group">
-      <Card className="flex h-full items-start justify-between gap-4 transition-transform duration-normal group-hover:-translate-y-0.5">
-        <div className="flex gap-3">
+    <Link href={`/library/${book.slug}`} className="group block min-w-0">
+      <Card className="flex h-full min-w-0 items-start justify-between gap-4 overflow-hidden p-4 transition-transform duration-normal group-hover:-translate-y-0.5 sm:p-5">
+        <div className="flex min-w-0 flex-1 gap-3">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-md border-2 border-foreground bg-primary text-primary-foreground shadow-brutal-sm">
             <BookOpen className="size-5" aria-hidden />
           </span>
-          <div>
-            <h3 className="font-heading text-lg font-bold">{book.name}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{book.description || 'A structured Word Smart vocabulary collection.'}</p>
+          <div className="min-w-0 flex-1">
+            <h3 className="break-words font-heading text-lg font-bold">{book.name}</h3>
+            <p className="mt-1 break-words text-sm text-muted-foreground">{book.description || 'A structured Word Smart vocabulary collection.'}</p>
             <p className="mt-3 text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">{book.word_count.toLocaleString()} words</p>
           </div>
         </div>
@@ -218,11 +218,11 @@ function ChapterSection({ chapter, levels, bookSlug }: { chapter: Chapter; level
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {levels.map((level) => (
-          <Link key={level.id} href={`/library/${bookSlug}/level/${level.level_number}`} className="group">
-            <Card className="flex items-center justify-between gap-3 transition-transform duration-normal group-hover:-translate-y-0.5">
-              <div>
+          <Link key={level.id} href={`/library/${bookSlug}/level/${level.level_number}`} className="group block min-w-0">
+            <Card className="flex min-w-0 items-center justify-between gap-3 overflow-hidden p-4 transition-transform duration-normal group-hover:-translate-y-0.5 sm:p-5">
+              <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Level {level.level_number}</p>
-                <h3 className="mt-1 font-heading font-bold">{level.title}</h3>
+                <h3 className="mt-1 break-words font-heading font-bold">{level.title}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">{level.word_count} words</p>
               </div>
               <ArrowRight className="size-5 shrink-0 transition-transform group-hover:translate-x-1" aria-hidden />
@@ -309,7 +309,7 @@ export function LibraryDictionaryView({ bookSlug }: { bookSlug?: string }) {
       <LibraryBreadcrumb items={[...(activeBook ? [{ label: activeBook.name, href: `/library/${activeBook.slug}` }] : []), { label: 'Dictionary' }]} />
       <PageHeader eyebrow="Dictionary View" title="Search the vocabulary" description="Search words, meanings, synonyms, antonyms, books, levels, or first letters." />
 
-      <Card className="flex flex-col gap-4 bg-muted/45">
+      <Card className="flex flex-col gap-4 overflow-hidden bg-muted/45 p-4 sm:p-5">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <Input value={query} onChange={(event) => { setQuery(event.target.value); setPage(0) }} placeholder="Search a word, meaning, synonym…" className="pl-9" aria-label="Search dictionary" />
@@ -458,9 +458,9 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
         <span className="text-sm text-muted-foreground">Curriculum word {word.book_word_number}</span>
       </div>
 
-      <Card className="flex flex-col gap-6 bg-card">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
+      <Card className="flex flex-col gap-6 overflow-hidden bg-card p-5 sm:p-6">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Word detail</p>
             <h1 className="mt-2 font-heading text-4xl font-black tracking-tight sm:text-5xl">{word.word}</h1>
             {word.pronunciation ? <p className="mt-2 font-mono text-sm text-muted-foreground">{word.pronunciation}</p> : null}
@@ -494,8 +494,8 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
       </Card>
 
       {testMe ? (
-        <Card className="flex flex-col gap-5 bg-muted/45">
-          <div>
+        <Card className="flex flex-col gap-5 overflow-hidden bg-muted/45 p-5 sm:p-6">
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Test Me</p>
             <h2 className="mt-1 font-heading text-xl font-bold">Check this word once</h2>
             <p className="mt-1 text-sm text-muted-foreground">This quick check uses the shared quiz evaluator and stays on this word page.</p>
