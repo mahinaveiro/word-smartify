@@ -89,19 +89,19 @@ export function LibraryLandingView() {
   if (!query.data?.length) return <EmptyState title="No books available" description="There are no vocabulary books available right now." />
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 sm:gap-6">
       <PageHeader
         eyebrow="Reference"
         title="Library"
         description="Browse the full Word Smart curriculum, look up any word, and keep a private shelf of words worth revisiting."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card className="flex min-w-0 flex-col justify-between gap-5 overflow-hidden bg-mint/40 p-5 sm:p-6">
+      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+        <Card className="flex min-w-0 flex-col justify-between gap-3 overflow-hidden bg-mint/40 p-3.5 sm:gap-5 sm:p-6">
           <div className="min-w-0">
             <Badge variant="mint">Dictionary</Badge>
-            <h2 className="mt-3 font-heading text-xl font-bold">Search the whole vocabulary</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Find words by spelling, meaning, synonyms, antonyms, book, level, or first letter.</p>
+            <h2 className="mt-2 font-heading text-lg font-bold sm:mt-3 sm:text-xl">Search the whole vocabulary</h2>
+            <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground sm:mt-2 sm:text-sm">Find words by spelling, meaning, book, level, or first letter.</p>
           </div>
           <Button asChild variant="primary" size="sm" className="w-fit">
             <Link href="/library/dictionary">
@@ -110,11 +110,11 @@ export function LibraryLandingView() {
             </Link>
           </Button>
         </Card>
-        <Card className="flex min-w-0 flex-col justify-between gap-5 overflow-hidden bg-coral/35 p-5 sm:p-6">
+        <Card className="flex min-w-0 flex-col justify-between gap-3 overflow-hidden bg-coral/35 p-3.5 sm:gap-5 sm:p-6">
           <div className="min-w-0">
             <Badge variant="coral">Private shelf</Badge>
-            <h2 className="mt-3 font-heading text-xl font-bold">Saved words</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Bookmark words from anywhere in Library and return to them when you have time.</p>
+            <h2 className="mt-2 font-heading text-lg font-bold sm:mt-3 sm:text-xl">Saved words</h2>
+            <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground sm:mt-2 sm:text-sm">Bookmark words from Library and revisit them later.</p>
           </div>
           <Button asChild variant="outline" size="sm" className="w-fit">
             <Link href="/library/saved">
@@ -125,15 +125,15 @@ export function LibraryLandingView() {
         </Card>
       </div>
 
-      <section className="flex flex-col gap-3">
+      <section className="flex flex-col gap-2.5 sm:gap-3">
         <div className="flex items-end justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Curriculum</p>
-            <h2 className="font-heading text-2xl font-bold">Choose a book</h2>
+            <h2 className="font-heading text-xl font-bold sm:text-2xl">Choose a book</h2>
           </div>
           <span className="text-sm text-muted-foreground">{query.data.length} available</span>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-3">
           {query.data.map((book) => (
             <BookCard key={book.id} book={book} />
           ))}
@@ -146,15 +146,15 @@ export function LibraryLandingView() {
 function BookCard({ book }: { book: Book }) {
   return (
     <Link href={`/library/${book.slug}`} className="group block min-w-0">
-      <Card className="flex h-full min-w-0 items-start justify-between gap-4 overflow-hidden p-4 transition-transform duration-normal group-hover:-translate-y-0.5 sm:p-5">
+      <Card className="flex h-full min-w-0 max-w-full items-start justify-between gap-2.5 overflow-hidden p-3 transition-transform duration-normal group-hover:-translate-y-0.5 sm:gap-4 sm:p-5">
         <div className="flex min-w-0 flex-1 gap-3">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-md border-2 border-foreground bg-primary text-primary-foreground shadow-brutal-sm">
-            <BookOpen className="size-5" aria-hidden />
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-md border-2 border-foreground bg-primary text-primary-foreground shadow-brutal-sm sm:size-11">
+            <BookOpen className="size-4 sm:size-5" aria-hidden />
           </span>
           <div className="min-w-0 flex-1">
             <h3 className="break-words font-heading text-lg font-bold">{book.name}</h3>
-            <p className="mt-1 break-words text-sm text-muted-foreground">{book.description || 'A structured Word Smart vocabulary collection.'}</p>
-            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">{book.word_count.toLocaleString()} words</p>
+            <p className="mt-1 line-clamp-1 break-words text-xs text-muted-foreground sm:line-clamp-2 sm:text-sm">{book.description || 'A structured Word Smart vocabulary collection.'}</p>
+            <p className="mt-2 text-[0.68rem] font-semibold uppercase tracking-[0.15em] text-muted-foreground sm:mt-3 sm:text-xs">{book.word_count.toLocaleString()} words</p>
           </div>
         </div>
         <ArrowRight className="mt-1 size-5 shrink-0 transition-transform group-hover:translate-x-1" aria-hidden />
