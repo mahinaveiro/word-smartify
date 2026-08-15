@@ -1,5 +1,6 @@
 'use client'
 
+import { createPortal } from 'react-dom'
 import type { CSSProperties } from 'react'
 
 const COLORS = ['#16b8aa', '#ff8b5c', '#ffd166', '#4f46e5', '#f4f1e8']
@@ -30,8 +31,10 @@ type ConfettiStyle = CSSProperties & {
 }
 
 export function CorrectAnswerCelebration() {
-  return (
-    <div className="pointer-events-none fixed inset-0 z-[80] overflow-hidden" aria-hidden="true">
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
+    <div className="pointer-events-none fixed inset-0 z-[9999] overflow-hidden" aria-hidden="true">
       {PARTICLES.map((particle) => (
         <span
           key={particle.id}
@@ -49,6 +52,7 @@ export function CorrectAnswerCelebration() {
           } as ConfettiStyle}
         />
       ))}
-    </div>
+    </div>,
+    document.body,
   )
 }

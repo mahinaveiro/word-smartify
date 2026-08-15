@@ -30,5 +30,8 @@ export function useSessionData(levelId: string | null) {
     }
 
     return createRandomizedQuizCards(sessionWords, questionsByWord)
+  }, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
   })
 }
