@@ -111,6 +111,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
   }
 
   async function submitTest() {
+    if (submitting) return
     setSubmitting(true)
     setSubmitError(null)
     try {

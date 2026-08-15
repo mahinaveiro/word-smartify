@@ -4,6 +4,7 @@ import useSWR from 'swr'
 import { repositories } from '@/repositories'
 import { useAuth } from '@/features/auth/auth-provider'
 import { buildReviewQueue, DEFAULT_REVIEW_QUEUE_LIMIT } from '@/lib/review-scheduler'
+import { selectPreparedQuestion } from '@/lib/quiz-randomizer'
 import type { QuizQuestion, Word } from '@/types/database'
 
 export interface ReviewCard {
@@ -18,16 +19,14 @@ export function useReviewSession(limit = DEFAULT_REVIEW_QUEUE_LIMIT) {
     const queue = buildReviewQueue(allProgress, { limit })
 
     const cards = await Promise.all(
-      queue.map(async (p): Promise<ReviewCard | null> => {
+      queue.map(async (p): Promise<ReviewCard> => {
         const word = await repositories.words.getWord(p.word_id)
-        if (!word) return null
+        if (!word) throw new Error(`Word ${p.word_id} could not be loaded for review.`)
         const questions = await repositories.quizzes.getQuizQuestions(p.word_id)
-        const question = questions.find((q) => q.question_type === 'meaning') ?? questions[0]
-        if (!question) return null
-        return { word, question }
+        return { word, question: selectPreparedQuestion(questions, `word ${p.word_id}`) }
       }),
     )
 
-    return cards.filter((c): c is ReviewCard => c != null)
+    return cards
   })
 }

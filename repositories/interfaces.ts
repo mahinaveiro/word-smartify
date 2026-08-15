@@ -53,6 +53,8 @@ export interface LevelRepository {
 export interface WordRepository {
   /** Words for a level, ordered by book_word_number. */
   getWordsForLevel(levelId: UUID): Promise<Word[]>
+  /** Words for multiple levels, ordered by book_word_number. */
+  getWordsForLevels(levelIds: UUID[]): Promise<Word[]>
   getWord(id: UUID): Promise<Word | null>
   getWordByNumber(bookWordNumber: number): Promise<Word | null>
   /** Lightweight search across word + meaning; paginated for performance. */
@@ -62,8 +64,10 @@ export interface WordRepository {
 export interface QuizRepository {
   /** All quiz questions for a single word (up to 5). */
   getQuizQuestions(wordId: UUID): Promise<QuizQuestion[]>
-  /** A pool of questions across many words, for mock tests. */
-  getRandomQuestions(count: number, seed?: number): Promise<QuizQuestion[]>
+  /** All quiz questions for multiple words, ordered by creation time. */
+  getQuizQuestionsForWords(wordIds: UUID[]): Promise<QuizQuestion[]>
+  /** Exact quiz questions by persisted IDs, preserving no random pool behavior. */
+  getQuizQuestionsByIds(questionIds: UUID[]): Promise<QuizQuestion[]>
   getQuestion(id: UUID): Promise<QuizQuestion | null>
 }
 
@@ -100,6 +104,8 @@ export interface WordProgressRepository {
    */
   getLevelProgress(userId: UUID, bookId: UUID): Promise<Record<UUID, LevelProgressSummary>>
   getBookProgress(userId: UUID): Promise<BookProgressSummary[]>
+  /** Words belonging to levels fully learned by the user in the selected book. */
+  getWordsInCompletedLevels(userId: UUID, bookId: UUID): Promise<Word[]>
   updateWordProgress(
     userId: UUID,
     wordId: UUID,
@@ -120,17 +126,17 @@ export interface DailyProgressRepository {
 export interface MockTestRepository {
   createMockTest(
     userId: UUID,
-    input: { total_questions: number },
+    input: { total_questions: number; question_ids: UUID[] },
   ): Promise<MockTest>
   saveMockAnswer(
     testId: UUID,
     answer: { question_id: UUID; user_answer: string | null; is_correct: boolean },
   ): Promise<MockTestAnswer>
-  /** Finalize a test: recompute correct_answers / score / time. */
+  /** Finalize a test and report whether this call performed the transition. */
   finalizeMockTest(
     testId: UUID,
     input: { time_taken_seconds: number },
-  ): Promise<MockTest>
+  ): Promise<{ test: MockTest; finalized: boolean }>
   getMockTest(testId: UUID): Promise<{ test: MockTest; answers: MockTestAnswer[] } | null>
   getMockTestsForUser(userId: UUID): Promise<MockTest[]>
 }

@@ -39,6 +39,7 @@ import type {
 } from './interfaces'
 import { SupabaseAuthRepository } from './supabase-auth'
 import { isMissingRowError } from '@/lib/supabase/errors'
+import { calculateMockTestScore } from '@/lib/mock-test-scoring'
 
 type Client = SupabaseClient<Database>
 type QuizRow = Database['public']['Tables']['quiz_questions']['Row']
@@ -188,11 +189,16 @@ class SupabaseWordRepository implements WordRepository {
   constructor(private readonly client: Client) {}
 
   async getWordsForLevel(levelId: UUID): Promise<Word[]> {
+    return this.getWordsForLevels([levelId])
+  }
+
+  async getWordsForLevels(levelIds: UUID[]): Promise<Word[]> {
+    if (levelIds.length === 0) return []
     const rows = unwrap(
       await this.client
         .from('words')
         .select('*')
-        .eq('level_id', levelId)
+        .in('level_id', levelIds)
         .order('book_word_number', { ascending: true }),
     )
     return rows.map(toWord)
@@ -241,31 +247,31 @@ class SupabaseQuizRepository implements QuizRepository {
   constructor(private readonly client: Client) {}
 
   async getQuizQuestions(wordId: UUID): Promise<QuizQuestion[]> {
+    return this.getQuizQuestionsForWords([wordId])
+  }
+
+  async getQuizQuestionsForWords(wordIds: UUID[]): Promise<QuizQuestion[]> {
+    if (wordIds.length === 0) return []
     const rows = unwrap(
       await this.client
         .from('quiz_questions')
         .select('*')
-        .eq('word_id', wordId)
+        .in('word_id', wordIds)
         .order('created_at', { ascending: true }),
     )
     return rows.map(toQuizQuestion)
   }
 
-  async getRandomQuestions(count: number): Promise<QuizQuestion[]> {
-    if (count <= 0) return []
-    const head = await this.client.from('quiz_questions').select('id', { count: 'exact', head: true })
-    if (head.error) throw new Error(head.error.message)
-    const total = head.count ?? 0
-    if (!total) return []
-    const maxStart = Math.max(0, total - count)
-    const start = Math.floor(Math.random() * (maxStart + 1))
+  async getQuizQuestionsByIds(questionIds: UUID[]): Promise<QuizQuestion[]> {
+    if (questionIds.length === 0) return []
     const rows = unwrap(
       await this.client
         .from('quiz_questions')
         .select('*')
-        .range(start, start + count - 1),
+        .in('id', questionIds),
     )
-    return rows.map(toQuizQuestion)
+    const byId = new Map(rows.map((row) => [row.id, toQuizQuestion(row)]))
+    return questionIds.map((questionId) => byId.get(questionId)).filter((question): question is QuizQuestion => question != null)
   }
 
   async getQuestion(id: UUID): Promise<QuizQuestion | null> {
@@ -448,6 +454,21 @@ class SupabaseWordProgressRepository implements WordProgressRepository {
     )
   }
 
+  async getWordsInCompletedLevels(userId: UUID, bookId: UUID): Promise<Word[]> {
+    const [levels, progressByLevel] = await Promise.all([
+      this.levels.getLevelsForBook(bookId),
+      this.getLevelProgress(userId, bookId),
+    ])
+    const completedLevelIds = levels
+      .filter((level) => {
+        const progress = progressByLevel[level.id]
+        return progress != null && progress.total > 0 && progress.learned >= progress.total
+      })
+      .map((level) => level.id)
+
+    return this.words.getWordsForLevels(completedLevelIds)
+  }
+
   async updateWordProgress(
     userId: UUID,
     wordId: UUID,
@@ -525,67 +546,106 @@ class SupabaseDailyProgressRepository implements DailyProgressRepository {
 class SupabaseMockTestRepository implements MockTestRepository {
   constructor(private readonly client: Client) {}
 
-  async createMockTest(userId: UUID, input: { total_questions: number }): Promise<MockTest> {
-    return unwrap(
-      await this.client
-        .from('mock_tests')
-        .insert({ user_id: userId, total_questions: input.total_questions })
-        .select('*')
-        .single(),
-    )
+  async createMockTest(
+    userId: UUID,
+    input: { total_questions: number; question_ids: UUID[] },
+  ): Promise<MockTest> {
+    if (input.question_ids.length !== input.total_questions) {
+      throw new Error('A mock test must contain exactly the requested number of questions.')
+    }
+
+    const testResult = await this.client
+      .from('mock_tests')
+      .insert({ user_id: userId, total_questions: input.total_questions })
+      .select('*')
+      .single()
+    if (testResult.error) throw new Error(testResult.error.message)
+    if (!testResult.data) throw new Error('Supabase returned no mock-test row.')
+    const test = testResult.data
+
+    if (input.question_ids.length > 0) {
+      const createdAt = Date.now()
+      const placeholders = await this.client
+        .from('mock_test_answers')
+        .insert(input.question_ids.map((questionId, index) => ({
+          test_id: test.id,
+          question_id: questionId,
+          user_answer: null,
+          is_correct: false,
+          created_at: new Date(createdAt + index).toISOString(),
+        })))
+      if (placeholders.error) {
+        await this.client.from('mock_tests').delete().eq('id', test.id)
+        throw new Error(placeholders.error.message)
+      }
+    }
+
+    return test
   }
 
   async saveMockAnswer(
     testId: UUID,
     answer: { question_id: UUID; user_answer: string | null; is_correct: boolean },
   ): Promise<MockTestAnswer> {
+    const test = await this.client.from('mock_tests').select('time_taken_seconds').eq('id', testId).maybeSingle()
+    if (test.error && !isMissingRowError(test.error)) throw new Error(test.error.message)
+    if (!test.data) throw new Error('Mock test not found.')
+    if (test.data.time_taken_seconds != null) throw new Error('This mock test has already been submitted.')
+
     const existing = await this.client
       .from('mock_test_answers')
       .select('*')
       .eq('test_id', testId)
       .eq('question_id', answer.question_id)
-      .maybeSingle()
-    if (existing.error && !isMissingRowError(existing.error)) throw new Error(existing.error.message)
-    if (existing.data) {
-      return unwrap(
-        await this.client
-          .from('mock_test_answers')
-          .update({ user_answer: answer.user_answer, is_correct: answer.is_correct })
-          .eq('id', existing.data.id)
-          .select('*')
-          .single(),
-      )
+      .order('created_at', { ascending: false })
+      .limit(2)
+    if (existing.error) throw new Error(existing.error.message)
+    if ((existing.data ?? []).length === 0) {
+      throw new Error('This question is not part of the saved mock test.')
     }
+    if ((existing.data ?? []).length > 1) {
+      throw new Error('This mock test contains duplicate answer records and cannot be changed safely.')
+    }
+
     return unwrap(
       await this.client
         .from('mock_test_answers')
-        .insert({ test_id: testId, question_id: answer.question_id, user_answer: answer.user_answer, is_correct: answer.is_correct })
+        .update({ user_answer: answer.user_answer, is_correct: answer.is_correct })
+        .eq('id', existing.data[0].id)
         .select('*')
         .single(),
     )
   }
 
-  async finalizeMockTest(testId: UUID, input: { time_taken_seconds: number }): Promise<MockTest> {
+  async finalizeMockTest(
+    testId: UUID,
+    input: { time_taken_seconds: number },
+  ): Promise<{ test: MockTest; finalized: boolean }> {
     const current = await this.getMockTest(testId)
     if (!current) throw new Error('Mock test not found.')
-    const latest = new Map<string, MockTestAnswer>()
-    for (const answer of current.answers) {
-      const previous = latest.get(answer.question_id)
-      if (!previous || answer.created_at >= previous.created_at) latest.set(answer.question_id, answer)
+    if (current.test.time_taken_seconds != null) return { test: current.test, finalized: false }
+
+    const score = calculateMockTestScore(current.test.total_questions, current.answers)
+    const result = await this.client
+      .from('mock_tests')
+      .update({
+        correct_answers: score.correct,
+        score: score.percentage,
+        time_taken_seconds: Math.max(0, Math.floor(input.time_taken_seconds)),
+      })
+      .eq('id', testId)
+      .is('time_taken_seconds', null)
+      .select('*')
+      .maybeSingle()
+
+    if (result.error) throw new Error(result.error.message)
+    if (result.data) return { test: result.data, finalized: true }
+
+    const afterRace = await this.getMockTest(testId)
+    if (afterRace?.test.time_taken_seconds != null) {
+      return { test: afterRace.test, finalized: false }
     }
-    const correct = [...latest.values()].filter((answer) => answer.is_correct).length
-    return unwrap(
-      await this.client
-        .from('mock_tests')
-        .update({
-          correct_answers: correct,
-          score: current.test.total_questions > 0 ? Math.round((correct / current.test.total_questions) * 100) : 0,
-          time_taken_seconds: input.time_taken_seconds,
-        })
-        .eq('id', testId)
-        .select('*')
-        .single(),
-    )
+    throw new Error('Mock test could not be finalized.')
   }
 
   async getMockTest(testId: UUID): Promise<{ test: MockTest; answers: MockTestAnswer[] } | null> {

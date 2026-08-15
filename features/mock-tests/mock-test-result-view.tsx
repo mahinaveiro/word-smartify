@@ -66,23 +66,27 @@ export function MockTestResultView({ testId }: { testId: string }) {
               <p className="font-heading text-5xl font-bold">
                 {data.correct}/{data.test.total_questions}
               </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Raw score {formatRawScore(data.rawScore)} · {data.test.score}%
+              </p>
             </div>
             <p className="flex items-center gap-1 text-sm text-muted-foreground">
               <Zap className="size-4 text-coral" aria-hidden /> +{data.earnedXp} XP
             </p>
           </div>
           <div className="h-3 overflow-hidden rounded-full border-2 border-foreground bg-card">
-            <div className="h-full bg-mint" style={{ width: `${data.test.score}%` }} />
+            <div className="h-full bg-mint" style={{ width: `${Math.max(0, Math.min(100, data.test.score))}%` }} />
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-        <StatTile icon={Target} value={`${data.test.score}%`} label="Percentage" accent="ink" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
+        <StatTile icon={Target} value={formatRawScore(data.rawScore)} label="Raw score" accent="ink" />
+        <StatTile icon={Target} value={`${data.test.score}%`} label="Percentage" />
         <StatTile icon={Check} value={data.correct} label="Correct" accent="mint" />
         <StatTile icon={X} value={data.incorrect} label="Incorrect" accent="coral" />
         <StatTile icon={BookOpen} value={data.unanswered} label="Unanswered" />
-        <StatTile icon={Clock} value={formatDuration(data.test.time_taken_seconds)} label="Time" className="col-span-2 sm:col-span-1" />
+        <StatTile icon={Clock} value={formatDuration(data.test.time_taken_seconds)} label="Time" />
       </div>
 
       <section id="mistakes">
@@ -91,7 +95,7 @@ export function MockTestResultView({ testId }: { testId: string }) {
           <EmptyState
             icon={Check}
             title="Nothing to review"
-            description="You answered every question correctly."
+            description={data.incorrect === 0 ? 'No incorrect answers were recorded.' : 'Your answered mistakes are listed below.'}
           />
         ) : (
           <div className="flex flex-col gap-3">
@@ -138,13 +142,17 @@ export function MockTestResultView({ testId }: { testId: string }) {
   )
 }
 
+function formatRawScore(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+}
+
 function MockTestResultSkeleton() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6">
       <Skeleton className="h-12 w-64" />
       <Skeleton className="h-36 w-full" />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="h-24 w-full" />)}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
+        {Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-24 w-full" />)}
       </div>
       <Skeleton className="h-48 w-full" />
     </div>

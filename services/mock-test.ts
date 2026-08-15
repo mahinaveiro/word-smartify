@@ -1,4 +1,6 @@
 import type { QuizAnswerEvent } from '@/lib/quiz-engine'
+import { calculateMockTestScore } from '@/lib/mock-test-scoring'
+import { prepareQuizQuestion, shuffleArray } from '@/lib/quiz-randomizer'
 import { XP } from '@/lib/xp'
 import { repositories } from '@/repositories'
 import type { MockTest, MockTestAnswer, QuizQuestion, UUID } from '@/types/database'
@@ -19,21 +21,33 @@ export interface MockTestData {
   correct: number
   incorrect: number
   unanswered: number
+  rawScore: number
   earnedXp: number
   mistakes: MockTestAnswerReview[]
 }
 
-/** Stable numeric seed used to reconstruct a test's questions from its id. */
-export function mockTestSeed(testId: string): number {
-  let hash = 2166136261
-  for (let index = 0; index < testId.length; index += 1) {
-    hash = Math.imul(hash ^ testId.charCodeAt(index), 16777619)
-  }
-  return (hash >>> 0) || 1
-}
-
 export async function startMockTest(userId: UUID, totalQuestions: number): Promise<MockTest> {
-  return repositories.mockTests.createMockTest(userId, { total_questions: totalQuestions })
+  if (!MOCK_TEST_LENGTHS.includes(totalQuestions as (typeof MOCK_TEST_LENGTHS)[number])) {
+    throw new Error('Unsupported mock-test length.')
+  }
+
+  const profile = await repositories.profiles.getProfile(userId)
+  if (!profile?.current_book_id) {
+    throw new Error('Choose a curriculum before starting a mock test.')
+  }
+
+  const words = await repositories.wordProgress.getWordsInCompletedLevels(userId, profile.current_book_id)
+  const questions = await repositories.quizzes.getQuizQuestionsForWords(words.map((word) => word.id))
+  const eligibleQuestionIds = [...new Set(questions.map((question) => question.id))]
+  if (eligibleQuestionIds.length < totalQuestions) {
+    throw new Error(`You need at least ${totalQuestions} questions from fully learned levels to start this test.`)
+  }
+
+  const questionIds = shuffleArray(eligibleQuestionIds).slice(0, totalQuestions)
+  return repositories.mockTests.createMockTest(userId, {
+    total_questions: totalQuestions,
+    question_ids: questionIds,
+  })
 }
 
 export async function getMockTestData(
@@ -43,30 +57,38 @@ export async function getMockTestData(
   const stored = await repositories.mockTests.getMockTest(testId)
   if (!stored || stored.test.user_id !== userId) return null
 
-  const questions = await repositories.quizzes.getRandomQuestions(stored.test.total_questions)
-  const answerMap = latestAnswerMap(stored.answers)
-  const answers = Object.values(answerMap)
-  const correct = stored.test.time_taken_seconds == null
-    ? answers.filter((answer) => answer.is_correct).length
-    : stored.test.correct_answers
-  const unanswered = Math.max(0, stored.test.total_questions - answers.length)
-  const incorrect = Math.max(0, answers.length - correct)
+  const latestAnswers = latestAnswerMap(stored.answers)
+  const questionIds = stored.answers.map((answer) => answer.question_id)
+  if (questionIds.length !== stored.test.total_questions || new Set(questionIds).size !== questionIds.length) {
+    throw new Error('This saved mock test does not contain a complete question set. Start a new test.')
+  }
+
+  const questions = (await repositories.quizzes.getQuizQuestionsByIds(questionIds)).map((question) => prepareQuizQuestion(question))
+  if (questions.length !== questionIds.length) {
+    throw new Error('One or more saved mock-test questions are no longer available.')
+  }
+
+  const answers = questionIds
+    .map((questionId) => latestAnswers[questionId])
+    .filter((answer): answer is MockTestAnswer => answer != null)
+  const score = calculateMockTestScore(stored.test.total_questions, answers)
   const mistakes = questions
     .filter((question) => {
-      const answer = answerMap[question.id]
-      return !answer || !answer.is_correct
+      const answer = latestAnswers[question.id]
+      return answer?.user_answer != null && !answer.is_correct
     })
-    .map((question) => ({ question, answer: answerMap[question.id] ?? null }))
+    .map((question) => ({ question, answer: latestAnswers[question.id] ?? null }))
 
   return {
     test: stored.test,
     questions,
     answers,
-    answerMap,
-    correct,
-    incorrect,
-    unanswered,
-    earnedXp: stored.test.correct_answers * XP.CORRECT_QUIZ,
+    answerMap: latestAnswers,
+    correct: score.correct,
+    incorrect: score.incorrect,
+    unanswered: score.unanswered,
+    rawScore: score.rawScore,
+    earnedXp: stored.test.time_taken_seconds == null ? 0 : stored.test.correct_answers * XP.CORRECT_QUIZ,
     mistakes,
   }
 }
@@ -92,20 +114,17 @@ export async function finalizeMockTest(
     throw new Error('Mock test not found')
   }
   if (stored.test.time_taken_seconds != null) {
-    return {
-      test: stored.test,
-      earnedXp: stored.test.correct_answers * XP.CORRECT_QUIZ,
-    }
+    return { test: stored.test, earnedXp: 0 }
   }
 
-  const test = await repositories.mockTests.finalizeMockTest(testId, {
+  const result = await repositories.mockTests.finalizeMockTest(testId, {
     time_taken_seconds: timeTakenSeconds,
   })
-  const earnedXp = test.correct_answers * XP.CORRECT_QUIZ
-  if (earnedXp > 0) {
+  const earnedXp = result.finalized ? result.test.correct_answers * XP.CORRECT_QUIZ : 0
+  if (result.finalized && earnedXp > 0) {
     await repositories.stats.addXp(userId, earnedXp)
   }
-  return { test, earnedXp }
+  return { test: result.test, earnedXp }
 }
 
 function latestAnswerMap(answers: MockTestAnswer[]): Record<string, MockTestAnswer> {

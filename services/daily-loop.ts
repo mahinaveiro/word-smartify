@@ -16,6 +16,7 @@ import {
   DEFAULT_REVIEW_QUEUE_LIMIT,
 } from '@/lib/review-scheduler'
 import { todayISO } from '@/lib/date'
+import { prepareQuizQuestion } from '@/lib/quiz-randomizer'
 import type { ISODate, QuizQuestion, Word } from '@/types/database'
 
 export type { QuizMode } from '@/lib/xp'
@@ -170,7 +171,7 @@ export async function buildDailyChallenge(
       if (!word) return null
       const questions = await repositories.quizzes.getQuizQuestions(progress.word_id)
       const question = questions.find((item) => item.question_type === 'meaning') ?? questions[0]
-      return question ? { word, question } : null
+      return question ? { word, question: prepareQuizQuestion(question) } : null
     }),
   )
   return cards.filter((card): card is ChallengeCard => card != null)
