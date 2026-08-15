@@ -249,7 +249,7 @@ export function LibraryLevelView({ bookSlug, levelNumber }: { bookSlug: string; 
   return (
     <div className="flex flex-col gap-6">
       <LibraryBreadcrumb items={[{ label: book.name, href: `/library/${book.slug}` }, { label: `Level ${level.level_number}` }]} />
-      <PageHeader eyebrow={`Level ${level.level_number}`} title={level.title} description={`${wordsQuery.data.length} words in curriculum order. Open any word to study its reference details.`} />
+      <PageHeader eyebrow={`Level ${level.level_number}`} title={level.title} description={`${wordsQuery.data.length} words in order. Open a word to study its details.`} />
       <div className="grid gap-2">
         {wordsQuery.data.map((word, index) => (
           <WordRow key={word.id} word={word} bookSlug={book.slug} number={index + 1} />
@@ -262,12 +262,12 @@ export function LibraryLevelView({ bookSlug, levelNumber }: { bookSlug: string; 
 
 function WordRow({ word, bookSlug, number }: { word: Word; bookSlug?: string; number?: number }) {
   return (
-    <Link href={libraryWordHref(word.id, bookSlug)} className="group">
-      <Card className="flex items-center gap-3 p-4 transition-transform duration-normal group-hover:-translate-y-0.5 sm:px-5">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded border-2 border-foreground bg-muted font-heading text-xs font-bold">{number ?? word.book_word_number}</span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate font-heading text-base font-bold">{word.word}</span>
-          <span className="mt-0.5 block truncate text-sm text-muted-foreground">{word.english_meaning}</span>
+    <Link href={libraryWordHref(word.id, bookSlug)} className="group block min-w-0 max-w-full">
+      <Card className="flex min-w-0 max-w-full items-center gap-2 overflow-hidden p-3 transition-transform duration-normal group-hover:-translate-y-0.5 sm:gap-3 sm:px-5 sm:py-4">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded border-2 border-foreground bg-muted font-heading text-[0.7rem] font-bold sm:size-8 sm:text-xs">{number ?? word.book_word_number}</span>
+        <span className="min-w-0 flex-1 overflow-hidden">
+          <span className="block truncate font-heading text-sm font-bold sm:text-base">{word.word}</span>
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground sm:text-sm">{word.english_meaning}</span>
         </span>
         {word.difficulty ? <Badge variant="muted" className="hidden capitalize sm:inline-flex">{word.difficulty}</Badge> : null}
         <ChevronRight className="size-4 shrink-0 transition-transform group-hover:translate-x-1" aria-hidden />
