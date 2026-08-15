@@ -135,7 +135,7 @@ export function ProfileView() {
 
       <Card>
         <CardContent className="flex flex-col items-center gap-4 p-6 text-center sm:flex-row sm:text-left">
-          <Avatar name={profile.display_name} avatarId={profile.avatar_id} size="xl" />
+          <Avatar name={profile.display_name} avatarId={profile.avatar_id} avatarUrl={profile.avatar_url} size="xl" />
           <div className="min-w-0 flex-1">
             {editing ? (
               <div className="flex flex-col gap-3">
