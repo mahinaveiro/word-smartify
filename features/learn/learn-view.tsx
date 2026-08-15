@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Lock, Search, Check } from 'lucide-react'
+import { Lock, Search, Check, LibraryBig, ArrowRight } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -56,6 +57,21 @@ export function LearnView() {
         title="Learn"
         description="Work through levels of 10 words. Master each word by getting its quizzes right."
       />
+
+      <Card className="flex flex-col items-start justify-between gap-4 bg-mint/35 sm:flex-row sm:items-center">
+        <div className="flex items-start gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-md border-2 border-foreground bg-primary text-primary-foreground shadow-brutal-sm">
+            <LibraryBig className="size-5" aria-hidden />
+          </span>
+          <div>
+            <p className="font-heading font-bold">Need a reference view?</p>
+            <p className="mt-1 text-sm text-muted-foreground">Browse every Word Smart word, search meanings, and save words for later.</p>
+          </div>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/library">Open Library <ArrowRight className="size-4" aria-hidden /></Link>
+        </Button>
+      </Card>
 
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />

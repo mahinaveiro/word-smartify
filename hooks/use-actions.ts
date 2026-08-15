@@ -50,6 +50,9 @@ export function useActions() {
         'level-progress',
         'mock-tests',
         'mock-test',
+        'saved-words',
+        'saved-word',
+        'library-search',
       ].includes(key[0]),
     )
   }, [mutate])
@@ -70,11 +73,44 @@ export function useActions() {
   const updateProfile = (patch: Parameters<typeof repositories.profiles.updateProfile>[1]) =>
     repositories.profiles.updateProfile(requireUserId(), patch)
 
+  const saveWord = useCallback(
+    async (wordId: string) => {
+      const saved = await repositories.savedWords.saveWord(requireUserId(), wordId)
+      await revalidateUser()
+      return saved
+    },
+    [requireUserId, revalidateUser],
+  )
+
+  const removeSavedWord = useCallback(
+    async (wordId: string) => {
+      await repositories.savedWords.removeSavedWord(requireUserId(), wordId)
+      await revalidateUser()
+    },
+    [requireUserId, revalidateUser],
+  )
+
+  const addToReview = useCallback(
+    async (wordId: string) => {
+      const now = new Date().toISOString()
+      const progress = await repositories.wordProgress.updateWordProgress(requireUserId(), wordId, {
+        status: 'learning',
+        next_review_at: now,
+      })
+      await revalidateUser()
+      return progress
+    },
+    [requireUserId, revalidateUser],
+  )
+
   return {
     recordQuizAnswer,
     recordSessionProgress,
     completeDailyChallenge,
     updateProfile,
+    saveWord,
+    removeSavedWord,
+    addToReview,
     revalidateUser,
   }
 }

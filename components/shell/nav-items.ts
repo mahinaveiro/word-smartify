@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { House, GraduationCap, ChartColumn, Trophy, User, Settings, FileText } from 'lucide-react'
+import { House, GraduationCap, ChartColumn, Trophy, User, Settings, FileText, LibraryBig } from 'lucide-react'
 
 export interface NavItem {
   label: string
@@ -20,6 +20,7 @@ export const PRIMARY_NAV: NavItem[] = [
 
 /** Secondary items shown only in the desktop sidebar (below the divider). */
 export const SECONDARY_NAV: NavItem[] = [
+  { label: 'Library', href: '/library', icon: LibraryBig, matchPrefix: true },
   { label: 'Mock Tests', href: '/mock-tests', icon: FileText, matchPrefix: true },
   { label: 'Settings', href: '/settings', icon: Settings },
 ]

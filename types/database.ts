@@ -65,6 +65,24 @@ export interface Word {
   created_at: ISOTimestamp
 }
 
+export interface DictionarySearchFilters {
+  query?: string
+  book_id?: UUID | null
+  level_id?: UUID | null
+  letter?: string | null
+}
+
+export interface SavedWord {
+  id: UUID
+  user_id: UUID
+  word_id: UUID
+  created_at: ISOTimestamp
+}
+
+export interface SavedWordWithWord extends SavedWord {
+  word: Word
+}
+
 export type QuestionType =
   | 'meaning'
   | 'synonym'

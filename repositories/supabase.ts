@@ -26,6 +26,9 @@ import type {
   WordDifficulty,
   PublicLeaderboardSummary,
   PublicMockTestSummary,
+  DictionarySearchFilters,
+  SavedWord,
+  SavedWordWithWord,
 } from '@/types/database'
 import type { Database } from '@/types/supabase'
 import type {
@@ -42,6 +45,7 @@ import type {
   StatsRepository,
   WordProgressRepository,
   WordRepository,
+  SavedWordRepository,
 } from './interfaces'
 import { SupabaseAuthRepository } from './supabase-auth'
 import { isMissingRowError } from '@/lib/supabase/errors'
@@ -58,6 +62,8 @@ type LeaderboardRpcRow = Database['public']['Functions']['get_leaderboard']['Ret
 type PublicBookProgressRpcRow = Database['public']['Functions']['get_public_book_progress']['Returns'][number]
 type PublicLeaderboardRpcRow = Database['public']['Functions']['get_public_leaderboard_summary']['Returns'][number]
 type PublicMockTestRpcRow = Database['public']['Functions']['get_public_mock_test_summary']['Returns'][number]
+type LibrarySearchRpcRow = Database['public']['Functions']['search_library_words']['Returns'][number]
+type SavedWordRow = Database['public']['Tables']['saved_words']['Row']
 
 function unwrap<T>(result: { data: T | null; error: { message: string; code?: string } | null }): T {
   if (result.error) throw new Error(result.error.message)
@@ -102,6 +108,28 @@ function toProfile(row: ProfileRow): Profile {
 
 function toProgress(row: ProgressRow): UserWordProgress {
   return { ...row, status: normalizeStatus(row.status) }
+}
+
+function toSavedWord(row: SavedWordRow): SavedWord {
+  return row
+}
+
+function toLibraryWord(row: LibrarySearchRpcRow): Word {
+  return {
+    id: row.id,
+    level_id: row.level_id,
+    book_word_number: row.book_word_number,
+    word: row.word,
+    pronunciation: row.pronunciation,
+    english_meaning: row.english_meaning,
+    bangla_meaning: row.bangla_meaning,
+    example_sentence: row.example_sentence,
+    mnemonic: row.mnemonic,
+    synonyms: row.synonyms,
+    antonyms: row.antonyms,
+    difficulty: normalizeDifficulty(row.difficulty),
+    created_at: row.created_at,
+  }
 }
 
 function emptyStats(userId: UUID): UserStats {
@@ -308,6 +336,27 @@ class SupabaseWordRepository implements WordRepository {
     }
   }
 
+  async searchLibraryWords(filters: DictionarySearchFilters, limit = 24, offset = 0): Promise<Paginated<Word>> {
+    const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 100)
+    const safeOffset = Math.max(Math.floor(offset), 0)
+    const result = await this.client.rpc('search_library_words', {
+      p_query: filters.query?.trim() ?? '',
+      p_book_id: filters.book_id ?? null,
+      p_level_id: filters.level_id ?? null,
+      p_letter: filters.letter?.trim().slice(0, 1) || null,
+      p_limit: safeLimit,
+      p_offset: safeOffset,
+    })
+    if (result.error) throw new Error(result.error.message)
+    const rows = (result.data ?? []) as LibrarySearchRpcRow[]
+    return {
+      items: rows.map(toLibraryWord),
+      total: rows[0]?.total_count ?? 0,
+      offset: safeOffset,
+      limit: safeLimit,
+    }
+  }
+
   async getWordsForChallenge(limit: number, seed = Date.now()): Promise<Word[]> {
     const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 100)
     const countResult = await this.client.from('words').select('id', { count: 'exact', head: true })
@@ -324,6 +373,69 @@ class SupabaseWordRepository implements WordRepository {
         .range(offset, offset + safeLimit - 1),
     )
     return shuffleArray(rows.map(toWord))
+  }
+}
+
+type SavedWordJoinRow = SavedWordRow & { word: WordRow | null }
+
+class SupabaseSavedWordRepository implements SavedWordRepository {
+  constructor(private readonly client: Client) {}
+
+  async getSavedWords(userId: UUID, limit = 24, offset = 0): Promise<Paginated<SavedWordWithWord>> {
+    const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 100)
+    const safeOffset = Math.max(Math.floor(offset), 0)
+    const result = await this.client
+      .from('saved_words')
+      .select('id, user_id, word_id, created_at, word:words(*)', { count: 'exact' })
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .range(safeOffset, safeOffset + safeLimit - 1)
+    if (result.error) throw new Error(result.error.message)
+    const rows = (result.data ?? []) as unknown as SavedWordJoinRow[]
+    return {
+      items: rows
+        .filter((row) => row.word != null)
+        .map((row) => ({ ...toSavedWord(row), word: toWord(row.word as WordRow) })),
+      total: result.count ?? 0,
+      offset: safeOffset,
+      limit: safeLimit,
+    }
+  }
+
+  async isWordSaved(userId: UUID, wordId: UUID): Promise<boolean> {
+    const result = await this.client
+      .from('saved_words')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('word_id', wordId)
+      .maybeSingle()
+    if (result.error) throw new Error(result.error.message)
+    return result.data != null
+  }
+
+  async saveWord(userId: UUID, wordId: UUID): Promise<SavedWord> {
+    const result = await this.client
+      .from('saved_words')
+      .insert({ user_id: userId, word_id: wordId })
+      .select('*')
+      .single()
+    if (!result.error && result.data) return toSavedWord(result.data)
+    if (result.error?.code === '23505') {
+      const existing = await this.client
+        .from('saved_words')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('word_id', wordId)
+        .single()
+      if (existing.error) throw new Error(existing.error.message)
+      return toSavedWord(existing.data)
+    }
+    throw new Error(result.error?.message ?? 'Unable to save this word.')
+  }
+
+  async removeSavedWord(userId: UUID, wordId: UUID): Promise<void> {
+    const result = await this.client.from('saved_words').delete().eq('user_id', userId).eq('word_id', wordId)
+    if (result.error) throw new Error(result.error.message)
   }
 }
 
@@ -818,6 +930,7 @@ export function createSupabaseRepositories(client: Client): Repositories {
   const levels = new SupabaseLevelRepository(client)
   const words = new SupabaseWordRepository(client)
   const quizzes = new SupabaseQuizRepository(client)
+  const savedWords = new SupabaseSavedWordRepository(client)
   const wordProgress = new SupabaseWordProgressRepository(client, levels, words, books, chapters)
 
   return {
@@ -832,5 +945,6 @@ export function createSupabaseRepositories(client: Client): Repositories {
     wordProgress,
     dailyProgress: new SupabaseDailyProgressRepository(client),
     mockTests: new SupabaseMockTestRepository(client),
+    savedWords,
   }
 }

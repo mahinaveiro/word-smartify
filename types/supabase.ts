@@ -316,6 +316,35 @@ export type Database = {
           },
         ]
       }
+      saved_words: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+          word_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+          word_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+          word_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_words_word_id_fkey"
+            columns: ["word_id"]
+            isOneToOne: false
+            referencedRelation: "words"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       weekly_leaderboard_entries: {
         Row: {
           created_at: string
@@ -553,6 +582,32 @@ export type Database = {
       record_xp: {
         Args: { p_amount: number }
         Returns: null
+      }
+      search_library_words: {
+        Args: {
+          p_book_id?: string | null
+          p_level_id?: string | null
+          p_letter?: string | null
+          p_limit?: number
+          p_offset?: number
+          p_query?: string
+        }
+        Returns: Array<{
+          antonyms: string[] | null
+          bangla_meaning: string | null
+          book_word_number: number
+          created_at: string
+          difficulty: string | null
+          english_meaning: string
+          example_sentence: string | null
+          id: string
+          level_id: string
+          mnemonic: string | null
+          pronunciation: string | null
+          synonyms: string[] | null
+          total_count: number
+          word: string
+        }>
       }
     }
     Enums: {

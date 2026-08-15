@@ -24,6 +24,9 @@ import type {
   Word,
   WordStatus,
   PublicProfile,
+  DictionarySearchFilters,
+  SavedWord,
+  SavedWordWithWord,
 } from '@/types/database'
 import type { AuthUser, SignUpInput, SignUpResult } from '@/types/auth'
 
@@ -59,6 +62,8 @@ export interface WordRepository {
   getWordByNumber(bookWordNumber: number): Promise<Word | null>
   /** Lightweight search across word + meaning; paginated for performance. */
   searchWords(query: string, limit?: number, offset?: number): Promise<Paginated<Word>>
+  /** Bounded dictionary search across word, meanings, synonyms, antonyms, and curriculum filters. */
+  searchLibraryWords(filters: DictionarySearchFilters, limit?: number, offset?: number): Promise<Paginated<Word>>
   /** Deterministic broad vocabulary sample for the exploratory Daily Challenge. */
   getWordsForChallenge(limit: number, seed?: number): Promise<Word[]>
 }
@@ -77,6 +82,13 @@ export interface ProfileRepository {
   getProfile(userId: UUID): Promise<Profile | null>
   getPublicProfile(userId: UUID): Promise<PublicProfile | null>
   updateProfile(userId: UUID, patch: Partial<Omit<Profile, 'id' | 'created_at'>>): Promise<Profile>
+}
+
+export interface SavedWordRepository {
+  getSavedWords(userId: UUID, limit?: number, offset?: number): Promise<Paginated<SavedWordWithWord>>
+  isWordSaved(userId: UUID, wordId: UUID): Promise<boolean>
+  saveWord(userId: UUID, wordId: UUID): Promise<SavedWord>
+  removeSavedWord(userId: UUID, wordId: UUID): Promise<void>
 }
 
 export interface StatsRepository {
@@ -187,4 +199,5 @@ export interface Repositories {
   wordProgress: WordProgressRepository
   dailyProgress: DailyProgressRepository
   mockTests: MockTestRepository
+  savedWords: SavedWordRepository
 }

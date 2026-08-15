@@ -6,7 +6,7 @@ import { useAuth } from '@/features/auth/auth-provider'
 import { buildTodayPlan } from '@/services/daily-loop'
 import { buildProgressSummary } from '@/services/progress'
 import { getMockTestData } from '@/services/mock-test'
-import type { LeaderboardMode } from '@/types/database'
+import type { DictionarySearchFilters, LeaderboardMode } from '@/types/database'
 
 const repo = repositories
 
@@ -24,6 +24,10 @@ export function useBook(idOrSlug: string | null) {
 
 export function useLevelsForBook(bookId: string | null) {
   return useSWR(bookId ? ['levels', bookId] : null, () => repo.levels.getLevelsForBook(bookId as string))
+}
+
+export function useChaptersForBook(bookId: string | null) {
+  return useSWR(bookId ? ['chapters', bookId] : null, () => repo.chapters.getChaptersForBook(bookId as string))
 }
 
 export function useLevel(levelId: string | null) {
@@ -47,6 +51,26 @@ export function useWord(wordId: string | null) {
 
 export function useWordSearch(query: string, limit = 20) {
   return useSWR(['search', query, limit], () => repo.words.searchWords(query, limit))
+}
+
+export function useLibrarySearch(filters: DictionarySearchFilters, limit = 24, offset = 0) {
+  return useSWR(
+    ['library-search', filters.query ?? '', filters.book_id ?? '', filters.level_id ?? '', filters.letter ?? '', limit, offset],
+    () => repo.words.searchLibraryWords(filters, limit, offset),
+    { keepPreviousData: true },
+  )
+}
+
+export function useSavedWords(limit = 100) {
+  const uid = useOptionalUserId()
+  return useSWR(uid ? ['saved-words', uid, limit] : null, () => repo.savedWords.getSavedWords(uid as string, limit))
+}
+
+export function useSavedWord(wordId: string | null) {
+  const uid = useOptionalUserId()
+  return useSWR(uid && wordId ? ['saved-word', uid, wordId] : null, () =>
+    repo.savedWords.isWordSaved(uid as string, wordId as string),
+  )
 }
 
 export function useQuizForWord(wordId: string | null) {
