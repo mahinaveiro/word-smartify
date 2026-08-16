@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import {
   Award,
   BookOpen,
@@ -56,6 +56,15 @@ export function ProfileView() {
   const { data: bookProgress } = bookProgressQuery
   const { data: books } = booksQuery
   const { data: tests } = testsQuery
+
+  useEffect(() => {
+    if (!profile) return
+    document.title = `${profile.display_name} · Word Smartify owner`
+    return () => {
+      document.title = 'Word Smartify — Learn vocabulary, word by word'
+    }
+  }, [profile])
+
   const achievements = useMemo<Achievement[]>(() => {
     if (!stats) return []
     return [

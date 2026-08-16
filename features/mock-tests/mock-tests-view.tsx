@@ -37,17 +37,9 @@ export function MockTestsView() {
     setStartError(null)
     try {
       if (!userId) throw new Error('Please sign in to start a mock test.')
-      try {
-        if (!document.fullscreenElement) await document.documentElement.requestFullscreen()
-      } catch {
-        // The exam runner will show its explicit fullscreen gate if the browser denies this request.
-      }
       const test = await startMockTest(userId, selectedCount)
       router.push(`/mock-tests/${test.id}`)
     } catch (error) {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen().catch(() => undefined)
-      }
       const message = error instanceof Error ? error.message : 'Please try again.'
       setStartError(message)
       toast({

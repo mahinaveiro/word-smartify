@@ -29,7 +29,6 @@ export function MockTestRunView({ testId }: { testId: string }) {
   const [savedAnswerMap, setSavedAnswerMap] = useState<Record<string, MockTestAnswer>>({})
   const [localSelections, setLocalSelections] = useState<Record<string, string>>({})
   const [elapsed, setElapsed] = useState(0)
-  const [pendingSaves, setPendingSaves] = useState(0)
   const [runError, setRunError] = useState<string | null>(null)
   const [pendingAnswer, setPendingAnswer] = useState<{ questionId: string; event: QuizAnswerEvent } | null>(null)
   const [submitOpen, setSubmitOpen] = useState(false)
@@ -72,6 +71,13 @@ export function MockTestRunView({ testId }: { testId: string }) {
   }, [router, testId, userId])
 
   const enterFullscreen = useCallback(async () => {
+    if (window.matchMedia('(max-width: 767px)').matches) {
+      securityStateRef.current = 'active'
+      setSecurityState('active')
+      setSecurityMessage('')
+      return
+    }
+
     try {
       if (!document.fullscreenElement) await document.documentElement.requestFullscreen()
       securityStateRef.current = 'active'
@@ -174,7 +180,6 @@ export function MockTestRunView({ testId }: { testId: string }) {
     const queueTail = request.then(() => undefined, () => undefined)
     saveQueuesRef.current.set(questionId, queueTail)
     pendingSavesRef.current.add(request)
-    setPendingSaves((value) => value + 1)
 
     try {
       const saved = await request
@@ -189,11 +194,10 @@ export function MockTestRunView({ testId }: { testId: string }) {
         previousAnswer?.event.questionId === event.questionId ? null : previousAnswer
       ))
     } catch {
-      setRunError('Your answer could not be saved in the background. Retry it before submitting the exam.')
+      setRunError('Your answer could not be saved. Retry it before submitting the exam.')
     } finally {
       pendingSavesRef.current.delete(request)
       if (saveQueuesRef.current.get(questionId) === queueTail) saveQueuesRef.current.delete(questionId)
-      setPendingSaves((value) => Math.max(0, value - 1))
     }
   }
 
@@ -335,7 +339,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
             <ArrowLeft className="size-4" aria-hidden /> Previous
           </Button>
           <span className="text-center text-xs text-muted-foreground">
-            {pendingSaves > 0 ? `Saving ${pendingSaves} in background…` : `${data.questions.length - unanswered} answered`}
+            {data.questions.length - unanswered} answered
           </span>
           <Button onClick={() => {
             if (index < data.questions.length - 1) setIndex((value) => value + 1)

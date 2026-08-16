@@ -273,7 +273,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .quiz-confetti-piece {
-    animation: none;
-    opacity: 1;
+    animation-duration: 650ms;
   }
 }

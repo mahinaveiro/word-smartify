@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { ArrowLeft, Award, BarChart3, BookOpen, ExternalLink, Flame, Medal, MessageCircle, Send, Target, Trophy } from 'lucide-react'
+import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -16,6 +17,15 @@ import { isOwnerUserId, OwnerDisplayName, STUDY_GC_DISCORD_URL, STUDY_GC_TELEGRA
 export function PublicProfileView({ userId }: { userId: string }) {
   const { data: profile, error, isLoading, mutate } = usePublicProfile(userId)
   const { data: books } = useBooks()
+
+  useEffect(() => {
+    if (!profile) return
+    const suffix = isOwnerUserId(profile.id) ? 'Word Smartify owner' : 'Word Smartify profile'
+    document.title = `${profile.display_name} · ${suffix}`
+    return () => {
+      document.title = 'Word Smartify — Learn vocabulary, word by word'
+    }
+  }, [profile])
 
   if (isLoading) return <PublicProfileSkeleton />
   if (error) {

@@ -32,7 +32,6 @@ export function SessionView({ levelId }: { levelId: string }) {
   const [phase, setPhase] = useState<Phase>('flashcards')
   const [index, setIndex] = useState(0)
   const [flipped, setFlipped] = useState(false)
-  const [pendingSaves, setPendingSaves] = useState(0)
   const [finishing, setFinishing] = useState(false)
   const [results, setResults] = useState<QuizAnswerResult[]>([])
   const [answerError, setAnswerError] = useState(false)
@@ -99,7 +98,6 @@ export function SessionView({ levelId }: { levelId: string }) {
 
     const request = recordQuizAnswer(wordId, event.isCorrect, 'learning')
     pendingSavesRef.current.add(request)
-    setPendingSaves((value) => value + 1)
 
     void request
       .then((res) => {
@@ -113,7 +111,6 @@ export function SessionView({ levelId }: { levelId: string }) {
       })
       .finally(() => {
         pendingSavesRef.current.delete(request)
-        setPendingSaves((value) => Math.max(0, value - 1))
       })
   }
 
@@ -219,9 +216,6 @@ export function SessionView({ levelId }: { levelId: string }) {
 
       {/* Footer actions */}
       <div className="mt-auto">
-        {phase === 'quiz' && pendingSaves > 0 ? (
-          <p className="mb-2 text-center text-xs text-muted-foreground">Saving answer in background…</p>
-        ) : null}
         {phase === 'flashcards' ? (
           <Button size="lg" className="w-full" onClick={nextFlashcard}>
             {index < total - 1 ? 'Next word' : 'Start quiz'}

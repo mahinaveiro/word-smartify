@@ -27,13 +27,15 @@ export function ReviewView() {
 
   const [phase, setPhase] = useState<Phase>('quiz')
   const [index, setIndex] = useState(0)
-  const [busy, setBusy] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [results, setResults] = useState<QuizAnswerResult[]>([])
   const [answerError, setAnswerError] = useState(false)
   const [pendingAnswer, setPendingAnswer] = useState<{ wordId: string; event: QuizAnswerEvent } | null>(null)
   const [finishError, setFinishError] = useState(false)
   const finishRecorded = useRef(false)
+  const pendingSavesRef = useRef(new Set<Promise<QuizAnswerResult>>())
+  const failedSavesRef = useRef(new Set<string>())
+  const resultsRef = useRef<QuizAnswerResult[]>([])
 
   const total = cards?.length ?? 0
   const card = cards?.[index]
@@ -91,31 +93,38 @@ export function ReviewView() {
     router.push('/dashboard')
   }
 
-  async function persistAnswer(wordId: string, event: QuizAnswerEvent) {
+  function persistAnswer(wordId: string, event: QuizAnswerEvent) {
     setAnswerError(false)
     setPendingAnswer({ wordId, event })
-    setBusy(true)
-    try {
-      const res = await recordQuizAnswer(wordId, event.isCorrect, 'review')
-      setResults((prev) => [...prev, res])
-      setPendingAnswer(null)
-    } catch {
-      setAnswerError(true)
-    } finally {
-      setBusy(false)
-    }
+    failedSavesRef.current.delete(wordId)
+
+    const request = recordQuizAnswer(wordId, event.isCorrect, 'review')
+    pendingSavesRef.current.add(request)
+    void request
+      .then((res) => {
+        resultsRef.current = [...resultsRef.current, res]
+        setResults(resultsRef.current)
+        setPendingAnswer((previous) => previous?.wordId === wordId ? null : previous)
+      })
+      .catch(() => {
+        failedSavesRef.current.add(wordId)
+        setAnswerError(true)
+      })
+      .finally(() => {
+        pendingSavesRef.current.delete(request)
+      })
   }
 
-  async function chooseAnswer(option: string) {
+  function chooseAnswer(option: string) {
     if (!card) return
     const event = quiz.submit(option)
     if (!event) return
-    await persistAnswer(card.word.id, event)
+    persistAnswer(card.word.id, event)
   }
 
-  async function retryAnswer() {
-    if (!pendingAnswer || busy) return
-    await persistAnswer(pendingAnswer.wordId, pendingAnswer.event)
+  function retryAnswer() {
+    if (!pendingAnswer) return
+    persistAnswer(pendingAnswer.wordId, pendingAnswer.event)
   }
 
   async function next() {
@@ -128,9 +137,14 @@ export function ReviewView() {
     setFinishing(true)
     setFinishError(false)
     try {
+      const pendingResults = await Promise.allSettled(Array.from(pendingSavesRef.current))
+      if (pendingResults.some((result) => result.status === 'rejected') || failedSavesRef.current.size > 0) {
+        throw new Error('Some answers could not be saved. Retry them before finishing the review.')
+      }
+      setResults(resultsRef.current)
       await recordSessionProgress()
       revalidateUser()
-      if (results.some((result) => result.goalJustCompleted)) {
+      if (resultsRef.current.some((result) => result.goalJustCompleted)) {
         toast({ title: 'Daily goal complete!', description: `+${XP.DAILY_GOAL} XP bonus earned.`, tone: 'success' })
       }
       setPhase('summary')
@@ -216,8 +230,8 @@ export function ReviewView() {
             size="lg"
             className="w-full"
             onClick={next}
-            disabled={!quiz.revealed || busy || finishing || answerError}
-            loading={busy || finishing}
+            disabled={!quiz.revealed || finishing || answerError}
+            loading={finishing}
           >
             {index < total - 1 ? 'Next word' : 'Finish'}
             <ArrowRight className="size-5" aria-hidden />
