@@ -139,6 +139,7 @@ export function QuizCard({
           <IconButton
             label={explanationOpen ? 'Hide explanation' : canRevealExplanation ? 'Show explanation' : question.explanation ? 'Answer first to show explanation' : 'No explanation available'}
             variant={explanationOpen ? 'accent' : 'solid'}
+            className="relative z-50"
             size="sm"
             disabled={!canRevealExplanation}
             aria-expanded={explanationOpen}
@@ -152,7 +153,7 @@ export function QuizCard({
               id={`quiz-explanation-${question.id}`}
               role="dialog"
               aria-modal="true"
-              className="absolute bottom-[calc(100%+0.75rem)] right-0 w-[min(22rem,calc(100vw-2rem))] rounded-md border-2 border-foreground bg-muted p-4 text-left text-sm leading-relaxed shadow-brutal animate-in fade-in slide-in-from-bottom-2 duration-normal sm:p-5"
+              className="relative z-50 absolute bottom-[calc(100%+0.75rem)] right-0 w-[min(22rem,calc(100vw-2rem))] rounded-md border-2 border-foreground bg-muted p-4 text-left text-sm leading-relaxed shadow-brutal quiz-explanation-pop sm:p-5"
             >
               <span
                 aria-hidden
