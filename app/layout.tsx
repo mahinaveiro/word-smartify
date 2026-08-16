@@ -30,8 +30,9 @@ const notoSansBengali = Noto_Sans_Bengali({
 })
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://word-smartify.vercel.app'
+const socialImageUrl = new URL('/og-image.jpg', siteUrl).toString()
 const siteDescription =
-  'Word Smartify is a focused vocabulary trainer for Word Smart I and II, IBA English preparation, and long-term vocabulary recall through short lessons, mnemonics, quizzes, spaced review, and mock tests.'
+  'Master Word Smart and IBA English vocabulary with mnemonics, quizzes, spaced review, and mock tests.'
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -71,10 +72,12 @@ export const metadata: Metadata = {
     locale: 'en_US',
     images: [
       {
-        url: '/og-image.png',
+        url: socialImageUrl,
+        secureUrl: socialImageUrl,
+        type: 'image/jpeg',
         width: 1200,
         height: 630,
-        alt: 'Word Smartify vocabulary learning app with a vocabulary flashcard',
+        alt: 'Word Smartify vocabulary learning app with a Start Learning call to action',
       },
     ],
   },
@@ -82,7 +85,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Word Smartify | Vocabulary Learning for IBA English',
     description: siteDescription,
-    images: ['/og-image.png'],
+    images: [socialImageUrl],
   },
   robots: {
     index: true,
