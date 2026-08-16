@@ -126,7 +126,7 @@ function FilterSelect({
         <ChevronDown className={cn('pointer-events-none absolute right-3 size-4 transition-transform', open && 'rotate-180')} aria-hidden />
       </button>
       {open ? (
-        <div role="listbox" aria-label={label} className="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-md border-2 border-foreground bg-card p-1 shadow-brutal-sm">
+        <div role="listbox" aria-label={label} className="absolute inset-x-0 top-full z-50 mt-1 h-56 overflow-y-auto overscroll-contain rounded-md border-2 border-foreground bg-card p-1 shadow-brutal-sm">
           {options.map((option) => {
             const isSelected = option.value === value
             return (
@@ -367,7 +367,7 @@ export function LibraryDictionaryView({ bookSlug }: { bookSlug?: string }) {
       <LibraryBackButton href={activeBook ? `/library/${activeBook.slug}` : '/library'} label={activeBook ? `Back to ${activeBook.name}` : 'Back to library'} />
       <PageHeader title="Search the vocabulary" />
 
-      <Card className="flex flex-col gap-4 overflow-hidden bg-muted/45 p-4 sm:p-5">
+        <Card className="relative z-20 flex flex-col gap-4 overflow-visible bg-muted/45 p-4 sm:p-5">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <Input value={query} onChange={(event) => { setQuery(event.target.value); setPage(0) }} placeholder="Search a word, meaning, synonym…" className="pl-9" aria-label="Search dictionary" />
