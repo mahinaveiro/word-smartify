@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { ArrowRight, BookOpen, CircleCheckBig, Flame, Sparkles, Target, Trophy, Zap } from 'lucide-react'
+import { ArrowRight, BookOpen, CircleCheckBig, FileText, Flame, Sparkles, Target, Trophy, Zap } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -137,6 +137,23 @@ export function DashboardView() {
         <StatTile icon={Trophy} value={stats.words_mastered.toLocaleString()} label="Mastered" accent="mint" />
         <StatTile icon={Flame} value={stats.longest_streak} label="Best streak" />
       </div>
+
+      <Card className="border-coral bg-coral/10">
+        <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-md border-2 border-foreground bg-coral text-coral-foreground shadow-brutal-sm">
+              <FileText className="size-5" aria-hidden />
+            </span>
+            <div>
+              <p className="font-heading text-lg font-bold">Mock test</p>
+              <p className="text-sm text-muted-foreground">Timed practice to check what you remember.</p>
+            </div>
+          </div>
+          <Button asChild variant="outline" size="sm" className="self-start sm:self-auto">
+            <Link href="/mock-tests">Start a test <ArrowRight className="size-4" aria-hidden /></Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-3 lg:grid-cols-2">
         <Card>
