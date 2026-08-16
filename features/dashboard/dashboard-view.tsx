@@ -67,7 +67,7 @@ export function DashboardView() {
   const level = plan.newLearning.level
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
           <p className="font-heading text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -82,20 +82,20 @@ export function DashboardView() {
       </div>
 
       <Card className={plan.dayComplete ? 'overflow-hidden border-mint bg-mint/15' : 'overflow-hidden bg-coral/10'}>
-        <CardContent className="p-5 sm:p-7">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-            <div className="flex items-center gap-5 xl:flex-col xl:items-start xl:gap-3">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="flex items-center gap-3 xl:flex-col xl:items-start xl:gap-3">
               <GoalRing value={plan.progress.newWordsCompleted} max={plan.goal} sublabel="today" />
               <div>
                 <p className="font-heading text-sm font-semibold uppercase tracking-wide text-muted-foreground">Today&apos;s plan</p>
                 <h2 className="mt-1 font-heading text-2xl font-bold">
                   {plan.dayComplete ? 'Day complete!' : `${plan.progress.newWordsCompleted} of ${plan.goal} words`}
                 </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {plan.dayComplete
-                    ? 'Your assigned new-word goal is done. Extra practice keeps the momentum going.'
-                    : `${plan.newLearning.remaining} new word${plan.newLearning.remaining === 1 ? '' : 's'} left in the assigned goal.`}
-                </p>
+                {!plan.dayComplete ? (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {plan.newLearning.remaining} new word{plan.newLearning.remaining === 1 ? '' : 's'} left in the assigned goal.
+                  </p>
+                ) : null}
               </div>
             </div>
             <div className="grid w-full gap-3 grid-cols-1 min-[480px]:grid-cols-3 xl:w-auto xl:min-w-[500px]">
@@ -222,18 +222,18 @@ function PlanItem({
   accent: 'mint' | 'coral' | 'ink'
 }) {
   return (
-    <div className="flex min-h-32 flex-col justify-between rounded-md border-2 border-foreground bg-card p-3 shadow-brutal-sm">
+    <div className="flex min-h-28 flex-col justify-between rounded-md border-2 border-foreground bg-card p-3 shadow-brutal-sm">
       <div className="flex items-start justify-between gap-2">
         <span className={`grid size-8 place-items-center rounded-md border-2 border-foreground ${accent === 'mint' ? 'bg-mint' : accent === 'coral' ? 'bg-coral' : 'bg-foreground text-background'}`}>
           <Icon className="size-4" aria-hidden />
         </span>
         {done ? <CircleCheckBig className="size-5 text-mint-foreground" aria-label="Done" /> : null}
       </div>
-      <div className="mt-3">
+      <div className="mt-2">
         <p className="font-heading text-sm font-bold">{title}</p>
         <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{detail}</p>
       </div>
-      <Button asChild variant="ghost" size="sm" className="mt-2 justify-start px-0 shadow-none">
+      <Button asChild variant="ghost" size="sm" className="mt-1 justify-start px-0 shadow-none">
         <Link
           href={href}
           onClick={() => trackProductEvent('today_action_opened', { action: title })}
