@@ -230,7 +230,8 @@ function ChartTip({
 }: {
   active?: boolean
   payload?: Array<{
-    value?: number | string
+    value?: number | string | ReadonlyArray<number | string>
+    dataKey?: string | number
     payload?: Record<string, number | string>
   }>
   label?: string
@@ -238,8 +239,9 @@ function ChartTip({
   dataKey?: string
 }) {
   if (!active || !payload?.length) return null
-  const entry = payload[0]
-  const value = entry.value ?? entry.payload?.[dataKey] ?? '—'
+  const entry = payload.find((item) => String(item.dataKey) === dataKey) ?? payload[0]
+  const rawValue = entry.payload?.[dataKey] ?? entry.value
+  const value = Array.isArray(rawValue) ? rawValue.join(' – ') : rawValue ?? '—'
   return (
     <div className="rounded-md border-2 border-foreground bg-card px-3 py-2 text-xs shadow-brutal-sm">
       <p className="font-heading font-bold">{label}</p>
