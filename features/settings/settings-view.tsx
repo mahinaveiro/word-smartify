@@ -170,7 +170,7 @@ export function SettingsView() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <PageHeader
         title="Settings"
-        leading={<BackButton onClick={() => router.back()} label="Back to profile" />}
+        leading={<BackButton onClick={() => router.back()} label="Back to profile" className="md:hidden" />}
       />
 
       {/* Profile */}

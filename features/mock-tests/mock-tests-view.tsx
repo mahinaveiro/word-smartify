@@ -55,7 +55,7 @@ export function MockTestsView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Mock Tests" leading={<BackButton href="/dashboard" label="Back to dashboard" />} />
+      <PageHeader title="Mock Tests" leading={<BackButton href="/dashboard" label="Back to dashboard" className="md:hidden" />} />
 
       <Card>
         <CardContent className="flex flex-col gap-4 p-5 sm:p-6">

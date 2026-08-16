@@ -61,7 +61,7 @@ function LoadingRows({ count = 5 }: { count?: number }) {
 }
 
 function LibraryBackButton({ href, label = 'Go back' }: { href: string; label?: string }) {
-  return <BackButton href={href} label={label} className="-mb-2" />
+  return <BackButton href={href} label={label} className="-mb-2 md:hidden" />
 }
 
 type FilterOption = { value: string | null; label: string }
