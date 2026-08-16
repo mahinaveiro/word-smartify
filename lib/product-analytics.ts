@@ -15,6 +15,7 @@ export type ProductEvent =
   | 'mock_test_started'
   | 'mock_test_completed'
   | 'mock_test_shared'
+  | 'question_report_submitted'
   | 'onboarding_completed'
 
 export type ProductEventProperties = Record<string, string | number | boolean | null | undefined>

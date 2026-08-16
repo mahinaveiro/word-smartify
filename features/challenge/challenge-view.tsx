@@ -170,6 +170,7 @@ export function ChallengeView() {
               selected={quiz.selected}
               onSelect={chooseAnswer}
               revealed={quiz.revealed}
+              mode="challenge"
               canNext={quiz.revealed && !finishing && !answerError}
               onNext={next}
             />

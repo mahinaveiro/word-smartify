@@ -2,11 +2,13 @@
 
 import { Check, Lightbulb, X } from 'lucide-react'
 import type { QuizQuestion } from '@/types/database'
+import type { QuestionReportMode } from '@/types/question-reports'
 import { cn } from '@/lib/utils'
 import { IconButton } from '@/components/ui/icon-button'
 import { CorrectAnswerCelebration } from './correct-answer-celebration'
 import { useEffect, useState } from 'react'
 import { useQuizKeyboardControls, vibrateForCorrectAnswer } from '@/hooks/use-quiz-keyboard-controls'
+import { QuestionReportDialog } from './question-report-dialog'
 
 export function QuizCard({
   question,
@@ -18,6 +20,7 @@ export function QuizCard({
   onNext,
   canPrevious = false,
   onPrevious,
+  mode = 'learning',
 }: {
   question: QuizQuestion
   selected: string | null
@@ -28,6 +31,7 @@ export function QuizCard({
   onNext?: () => void
   canPrevious?: boolean
   onPrevious?: () => void
+  mode?: QuestionReportMode
 }) {
   const [explanationForQuestion, setExplanationForQuestion] = useState<string | null>(null)
   const options = question.options ?? []
@@ -126,9 +130,11 @@ export function QuizCard({
         })}
       </div>
 
-      {!secure ? (
-        <div className="relative flex min-h-10 items-center justify-end">
-          {explanationOpen && question.explanation ? (
+      <div className="relative flex min-h-10 items-center justify-end gap-1">
+        <QuestionReportDialog question={question} mode={mode} />
+        {!secure ? (
+          <div className="relative flex items-center justify-end">
+            {explanationOpen && question.explanation ? (
             <button
               type="button"
               aria-label="Close explanation"
@@ -136,8 +142,8 @@ export function QuizCard({
               onClick={() => setExplanationForQuestion(null)}
             />
           ) : null}
-          <div className="relative z-50">
-            <IconButton
+            <div className="relative z-50">
+              <IconButton
               label={explanationOpen ? 'Hide explanation' : canRevealExplanation ? 'Show explanation' : question.explanation ? 'Answer first to show explanation' : 'No explanation available'}
               variant={explanationOpen ? 'accent' : 'solid'}
               size="sm"
@@ -147,8 +153,8 @@ export function QuizCard({
               onClick={() => setExplanationForQuestion(explanationOpen ? null : question.id)}
             >
               <Lightbulb className={cn(canRevealExplanation && !explanationOpen && 'animate-pulse')} aria-hidden />
-            </IconButton>
-            {explanationOpen && question.explanation ? (
+              </IconButton>
+              {explanationOpen && question.explanation ? (
               <div
                 id={`quiz-explanation-${question.id}`}
                 role="dialog"
@@ -161,10 +167,11 @@ export function QuizCard({
                 />
                 {question.explanation}
               </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       {answeredCorrectly ? <CorrectAnswerCelebration /> : null}
     </div>

@@ -275,6 +275,72 @@ export type Database = {
           },
         ]
       }
+      question_reports: {
+        Row: {
+          category: string
+          correct_answer: string
+          created_at: string
+          id: string
+          mode: string
+          note: string | null
+          options: Json | null
+          question_id: string | null
+          question_text: string
+          question_type: string
+          status: string
+          updated_at: string
+          user_id: string
+          word_id: string | null
+        }
+        Insert: {
+          category: string
+          correct_answer: string
+          created_at?: string
+          id?: string
+          mode?: string
+          note?: string | null
+          options?: Json | null
+          question_id?: string | null
+          question_text: string
+          question_type: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          word_id?: string | null
+        }
+        Update: {
+          category?: string
+          correct_answer?: string
+          created_at?: string
+          id?: string
+          mode?: string
+          note?: string | null
+          options?: Json | null
+          question_id?: string | null
+          question_text?: string
+          question_type?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          word_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_reports_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_reports_word_id_fkey"
+            columns: ["word_id"]
+            isOneToOne: false
+            referencedRelation: "words"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quiz_questions: {
         Row: {
           correct_answer: string

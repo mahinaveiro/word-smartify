@@ -221,6 +221,7 @@ export function ReviewView({ mode = 'scheduled', sourceTestId }: { mode?: Review
               selected={quiz.selected}
               onSelect={chooseAnswer}
               revealed={quiz.revealed}
+              mode={mode === 'mock_recovery' ? 'mock_test' : 'review'}
               canNext={quiz.revealed && !finishing && !answerError}
               onNext={next}
             />

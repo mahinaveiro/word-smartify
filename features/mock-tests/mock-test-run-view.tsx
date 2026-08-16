@@ -317,6 +317,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
               selected={selected}
               onSelect={choose}
               revealed={false}
+              mode="mock_test"
               secure
               canNext={!submitting}
               onNext={() => {

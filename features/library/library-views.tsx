@@ -613,6 +613,7 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
               if (event) setFeedback(event.isCorrect ? 'Correct.' : `Not quite. The answer is ${tryMeQuestion.correct_answer}.`)
             }}
             revealed={quiz.revealed}
+            mode="library"
           />
         )}
       </Modal>
