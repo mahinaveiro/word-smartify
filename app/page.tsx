@@ -38,9 +38,42 @@ const FAQS = [
   ['Does it work on phones and desktops?', 'Yes. Word Smartify is responsive and installable as a progressive web app, so it works in a browser or as an app-like experience.'],
 ]
 
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'EducationalApplication',
+      name: 'Word Smartify',
+      applicationCategory: 'EducationalApplication',
+      operatingSystem: 'Web, Android, iOS',
+      url: 'https://word-smartify.vercel.app',
+      image: 'https://word-smartify.vercel.app/og-image.png',
+      description: 'Vocabulary learning for Word Smart I and II, IBA English preparation, and long-term English word recall.',
+      educationalUse: ['Vocabulary building', 'Exam preparation', 'Active recall'],
+      learningResourceType: 'Interactive vocabulary lessons and quizzes',
+      isAccessibleForFree: true,
+    },
+    {
+      '@type': 'WebSite',
+      name: 'Word Smartify',
+      url: 'https://word-smartify.vercel.app',
+      description: 'A focused vocabulary trainer for Word Smart and IBA English vocabulary practice.',
+    },
+    {
+      '@type': 'FAQPage',
+      mainEntity: FAQS.map(([question, answer]) => ({
+        '@type': 'Question',
+        name: question,
+        acceptedAnswer: { '@type': 'Answer', text: answer },
+      })),
+    },
+  ],
+}
+
 export default function LandingPage() {
   return (
     <div className="min-h-dvh bg-background">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
       <header className="flex items-center justify-between border-b-2 border-foreground px-4 py-4 md:px-8">
         <Wordmark />
         <div className="flex items-center gap-2">

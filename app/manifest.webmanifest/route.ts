@@ -1,13 +1,13 @@
-import type { NextRequest } from 'next/server'
+import type { NextRequest } from 'next'
 
-// Served as /manifest.webmanifest — Word Smartify is an installable PWA.
 export function GET(_req: NextRequest) {
   const manifest = {
-    name: 'Word Smartify',
-    short_name: 'Smartify',
+    name: 'Word Smartify — Vocabulary Learning for IBA English',
+    short_name: 'Word Smartify',
     description:
-      'Master 1,888 words across Word Smart I & II with spaced review, quizzes, streaks, and mock tests.',
-    start_url: '/dashboard',
+      'Learn Word Smart vocabulary with mnemonics, active recall, spaced review, quizzes, and mock tests for stronger English vocabulary.',
+    id: '/',
+    start_url: '/dashboard?source=pwa',
     scope: '/',
     display: 'standalone',
     orientation: 'portrait-primary',
@@ -18,42 +18,12 @@ export function GET(_req: NextRequest) {
     dir: 'ltr',
     prefer_related_applications: false,
     icons: [
-      {
-        src: '/icon.svg',
-        sizes: 'any',
-        type: 'image/svg+xml',
-        purpose: 'any',
-      },
-      {
-        src: '/icon-192.png',
-        sizes: '192x192',
-        type: 'image/png',
-        purpose: 'any',
-      },
-      {
-        src: '/icon-512.png',
-        sizes: '512x512',
-        type: 'image/png',
-        purpose: 'any',
-      },
-      {
-        src: '/icon-maskable-192.png',
-        sizes: '192x192',
-        type: 'image/png',
-        purpose: 'maskable',
-      },
-      {
-        src: '/icon-maskable-512.png',
-        sizes: '512x512',
-        type: 'image/png',
-        purpose: 'maskable',
-      },
-      {
-        src: '/apple-icon.png',
-        sizes: '180x180',
-        type: 'image/png',
-        purpose: 'apple-touch-icon',
-      },
+      { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+      { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: '/icon-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+      { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: '/apple-icon.png', sizes: '180x180', type: 'image/png', purpose: 'any' },
     ],
     screenshots: [
       {
@@ -61,14 +31,14 @@ export function GET(_req: NextRequest) {
         sizes: '390x844',
         type: 'image/png',
         form_factor: 'narrow',
-        label: 'Word Smartify dashboard on mobile',
+        label: 'Word Smartify vocabulary learning on mobile',
       },
       {
         src: '/screenshot-desktop.png',
         sizes: '1280x800',
         type: 'image/png',
         form_factor: 'wide',
-        label: 'Word Smartify dashboard on desktop',
+        label: 'Word Smartify vocabulary learning on desktop',
       },
     ],
   }

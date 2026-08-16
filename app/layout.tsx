@@ -22,10 +22,6 @@ const dmSans = DM_Sans({
   display: 'swap',
 })
 
-// Bangla meanings are rendered with lang="bn" throughout the app (word detail,
-// flashcards). Neither Space Grotesk nor DM Sans includes Bengali glyphs, so
-// without this the script renders as tofu boxes. This is a functional font,
-// not a design choice — it's only ever applied to Bangla-script text.
 const notoSansBengali = Noto_Sans_Bengali({
   subsets: ['bengali'],
   weight: ['400', '500', '600'],
@@ -33,12 +29,72 @@ const notoSansBengali = Noto_Sans_Bengali({
   display: 'swap',
 })
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://word-smartify.vercel.app'
+const siteDescription =
+  'Word Smartify is a focused vocabulary trainer for Word Smart I and II, IBA English preparation, and long-term vocabulary recall through short lessons, mnemonics, quizzes, spaced review, and mock tests.'
+
 export const metadata: Metadata = {
-  title: 'Word Smartify — Learn vocabulary, word by word',
-  description:
-    'A mobile-first vocabulary trainer. Master 1,888 words across Word Smart I & II with spaced review, quizzes, streaks, and mock tests.',
-  generator: 'v0.app',
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: 'Word Smartify | Vocabulary Learning for IBA English',
+    template: '%s | Word Smartify',
+  },
+  description: siteDescription,
   applicationName: 'Word Smartify',
+  generator: 'Next.js',
+  creator: 'Word Smartify',
+  publisher: 'Word Smartify',
+  category: 'education',
+  keywords: [
+    'Word Smart',
+    'Word Smart I',
+    'Word Smart II',
+    'IBA English vocabulary',
+    'IBA admission vocabulary',
+    'English vocabulary builder',
+    'vocabulary learning app',
+    'English word meanings',
+    'vocabulary quiz',
+    'mnemonics for vocabulary',
+    'spaced repetition vocabulary',
+    'mock test vocabulary practice',
+  ],
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    type: 'website',
+    url: siteUrl,
+    siteName: 'Word Smartify',
+    title: 'Word Smartify | Learn vocabulary. Recall faster.',
+    description: siteDescription,
+    locale: 'en_US',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Word Smartify vocabulary learning app with a vocabulary flashcard',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Word Smartify | Vocabulary Learning for IBA English',
+    description: siteDescription,
+    images: ['/og-image.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
@@ -46,7 +102,14 @@ export const metadata: Metadata = {
     title: 'Word Smartify',
   },
   icons: {
-    icon: '/icon.svg',
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon-light-32x32.png', sizes: '32x32', type: 'image/png', media: '(prefers-color-scheme: light)' },
+      { url: '/icon-dark-32x32.png', sizes: '32x32', type: 'image/png', media: '(prefers-color-scheme: dark)' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
   },
 }
 
