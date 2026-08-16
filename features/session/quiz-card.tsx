@@ -70,7 +70,12 @@ export function QuizCard({
       onContextMenu={secure ? (event) => event.preventDefault() : undefined}
       onDragStart={secure ? (event) => event.preventDefault() : undefined}
     >
-      <h2 className="text-balance font-heading text-xl font-bold leading-snug">{question.question}</h2>
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="min-w-0 text-balance font-heading text-xl font-bold leading-snug">{question.question}</h2>
+        <div className="shrink-0">
+          <QuestionReportDialog question={question} mode={mode} />
+        </div>
+      </div>
 
       <div className="flex flex-col gap-3" role="group" aria-label="Answer options">
         {options.map((option) => {
@@ -131,7 +136,6 @@ export function QuizCard({
       </div>
 
       <div className="relative flex min-h-10 items-center justify-end gap-1">
-        <QuestionReportDialog question={question} mode={mode} />
         {!secure ? (
           <div className="relative flex items-center justify-end">
             {explanationOpen && question.explanation ? (
