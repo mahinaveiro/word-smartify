@@ -108,6 +108,7 @@ export function ProfileView() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Profile"
+        className="flex-row items-center justify-between"
         actions={
           <Button asChild variant="outline" size="sm">
             <Link href="/settings"><Settings className="size-4" aria-hidden /> Settings</Link>
