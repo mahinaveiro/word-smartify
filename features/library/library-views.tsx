@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
   Bookmark,
   Check,
+  ChevronDown,
   ChevronRight,
   Clipboard,
   Filter,
@@ -69,6 +70,91 @@ function LibraryBackButton({ href, label = 'Back' }: { href: string; label?: str
   )
 }
 
+type FilterOption = { value: string | null; label: string }
+
+function FilterSelect({
+  label,
+  value,
+  placeholder,
+  options,
+  onChange,
+  disabled = false,
+}: {
+  label: string
+  value: string | null
+  placeholder: string
+  options: FilterOption[]
+  onChange: (value: string | null) => void
+  disabled?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const selected = options.find((option) => option.value === value)?.label ?? placeholder
+
+  useEffect(() => {
+    if (!open) return
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) setOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', closeOnOutsideClick)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutsideClick)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [open])
+
+  return (
+    <div ref={containerRef} className="relative flex flex-col gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+      <span>{label}</span>
+      <button
+        type="button"
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className={cn(
+          'relative flex h-10 w-full items-center justify-between rounded-md border-2 border-foreground bg-card px-3 pr-10 text-left text-sm font-medium normal-case tracking-normal text-foreground transition-colors',
+          'hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          disabled && 'cursor-not-allowed opacity-50',
+        )}
+      >
+        <span className="truncate">{selected}</span>
+        <ChevronDown className={cn('pointer-events-none absolute right-3 size-4 transition-transform', open && 'rotate-180')} aria-hidden />
+      </button>
+      {open ? (
+        <div role="listbox" aria-label={label} className="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-md border-2 border-foreground bg-card p-1 shadow-brutal-sm">
+          {options.map((option) => {
+            const isSelected = option.value === value
+            return (
+              <button
+                key={option.value ?? 'all'}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                onClick={() => {
+                  onChange(option.value)
+                  setOpen(false)
+                }}
+                className={cn(
+                  'flex w-full items-center justify-between gap-3 rounded px-2.5 py-2 text-left text-sm normal-case tracking-normal transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  isSelected && 'bg-mint/45 font-semibold',
+                )}
+              >
+                <span className="truncate">{option.label}</span>
+                {isSelected ? <Check className="size-4 shrink-0" aria-hidden /> : null}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 export function LibraryLandingView() {
   const query = useBooks()
 
@@ -80,6 +166,7 @@ export function LibraryLandingView() {
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
+      <LibraryBackButton href="/dashboard" label="Back to home" />
       <PageHeader title="Library" />
 
       <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
@@ -178,8 +265,8 @@ export function LibraryBookView({ bookSlug }: { bookSlug: string }) {
           </span>
         }
       />
-      <div className="flex flex-wrap gap-2">
-        <Button asChild variant="accent" size="sm">
+      <div className="flex w-full justify-center">
+        <Button asChild variant="accent" size="sm" className="w-full justify-center">
           <Link href={`/library/${book.slug}/dictionary`}>
             <Search className="size-4" aria-hidden />
             Search this book
@@ -286,27 +373,38 @@ export function LibraryDictionaryView({ bookSlug }: { bookSlug?: string }) {
           <Input value={query} onChange={(event) => { setQuery(event.target.value); setPage(0) }} placeholder="Search a word, meaning, synonym…" className="pl-9" aria-label="Search dictionary" />
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
-          <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Book
-            <select value={effectiveBookId ?? ''} onChange={(event) => { updateFilter(setBookId, event.target.value || null); setLevelId(null) }} className="h-10 rounded-md border-2 border-foreground bg-card px-3 text-sm font-medium normal-case tracking-normal text-foreground" disabled={Boolean(bookSlug)}>
-              <option value="">All books</option>
-              {booksQuery.data?.map((book) => <option key={book.id} value={book.id}>{book.name}</option>)}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Level
-            <select value={levelId ?? ''} onChange={(event) => updateFilter(setLevelId, event.target.value || null)} className="h-10 rounded-md border-2 border-foreground bg-card px-3 text-sm font-medium normal-case tracking-normal text-foreground" disabled={!bookId}>
-              <option value="">All levels</option>
-              {levelsQuery.data?.map((level) => <option key={level.id} value={level.id}>Level {level.level_number}</option>)}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            First letter
-            <select value={letter ?? ''} onChange={(event) => updateFilter(setLetter, event.target.value || null)} className="h-10 rounded-md border-2 border-foreground bg-card px-3 text-sm font-medium normal-case tracking-normal text-foreground">
-              <option value="">A–Z</option>
-              {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((value) => <option key={value} value={value}>{value}</option>)}
-            </select>
-          </label>
+          <FilterSelect
+            label="Book"
+            value={effectiveBookId}
+            placeholder="All books"
+            disabled={Boolean(bookSlug)}
+            options={[
+              { value: null, label: 'All books' },
+              ...(booksQuery.data?.map((book) => ({ value: book.id, label: book.name })) ?? []),
+            ]}
+            onChange={(value) => { updateFilter(setBookId, value); setLevelId(null) }}
+          />
+          <FilterSelect
+            label="Level"
+            value={levelId}
+            placeholder="All levels"
+            disabled={!effectiveBookId}
+            options={[
+              { value: null, label: 'All levels' },
+              ...(levelsQuery.data?.map((level) => ({ value: level.id, label: `Level ${level.level_number}` })) ?? []),
+            ]}
+            onChange={(value) => updateFilter(setLevelId, value)}
+          />
+          <FilterSelect
+            label="First letter"
+            value={letter}
+            placeholder="A–Z"
+            options={[
+              { value: null, label: 'A–Z' },
+              ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((value) => ({ value, label: value })),
+            ]}
+            onChange={(value) => updateFilter(setLetter, value)}
+          />
         </div>
         <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
           <span className="inline-flex items-center gap-1.5"><Filter className="size-4" aria-hidden /> {resultsQuery.data?.total ?? 0} matching words</span>
