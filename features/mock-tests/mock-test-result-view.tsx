@@ -102,6 +102,27 @@ export function MockTestResultView({ testId }: { testId: string }) {
         </CardContent>
       </Card>
 
+      {data.mistakes.length > 0 ? (
+        <Card flat className="border-coral/40 bg-coral/10">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div className="flex items-center gap-3">
+              <span className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-foreground bg-coral">
+                <Target className="size-4" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <h2 className="font-heading text-base font-bold">Recover missed words</h2>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {data.mistakes.length} word{data.mistakes.length === 1 ? '' : 's'} from this test need another try.
+                </p>
+              </div>
+            </div>
+            <Button asChild variant="outline" className="shrink-0 bg-card">
+              <Link href={`/review/weak?test=${encodeURIComponent(testId)}`}>Start recovery</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button asChild variant="outline" className="flex-1">
           <Link href="/mock-tests"><ArrowLeft className="size-4" aria-hidden /> Back to Mock Tests</Link>

@@ -10,9 +10,9 @@ import {
 import { buildDailyPlan, type DailyPlan } from '@/lib/daily-plan'
 import { computeStreak } from '@/lib/streak'
 import {
-  buildReviewQueue,
   DAILY_CHALLENGE_LIMIT,
-  DEFAULT_REVIEW_QUEUE_LIMIT,
+  getDueWords,
+  getWeakWords,
 } from '@/lib/review-scheduler'
 import { todayISO } from '@/lib/date'
 import { prepareQuizQuestion } from '@/lib/quiz-randomizer'
@@ -60,7 +60,9 @@ export async function buildTodayPlan(
     ? await repositories.books.getBook(profile.current_book_id)
     : null
   const allProgress = await repositories.wordProgress.getAllProgress(userId)
-  const dueReviewQueue = buildReviewQueue(allProgress, { limit: DEFAULT_REVIEW_QUEUE_LIMIT })
+  const dueReviewQueue = getDueWords(allProgress)
+  const dueWordIds = new Set(dueReviewQueue.map((progress) => progress.word_id))
+  const weakWordCount = getWeakWords(allProgress).filter((progress) => !dueWordIds.has(progress.word_id)).length
   const levels = currentBook ? await repositories.levels.getLevelsForBook(currentBook.id) : []
   const levelProgress = currentBook
     ? await repositories.wordProgress.getLevelProgress(userId, currentBook.id)
@@ -72,6 +74,7 @@ export async function buildTodayPlan(
     currentBook,
     today,
     dueReviewQueue,
+    weakWordCount,
     levels,
     levelProgress,
   })

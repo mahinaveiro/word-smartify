@@ -10,7 +10,8 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { StatTile } from '@/features/shared/stat-tile'
 import { useToast } from '@/components/ui/toast'
-import { useReviewSession } from './use-review-session'
+import { useReviewSession, type ReviewMode } from './use-review-session'
+import { useMockTest } from '@/hooks/use-data'
 import { useQuizEngine } from '@/hooks/use-quiz-engine'
 import { useActions, type QuizAnswerResult } from '@/hooks/use-actions'
 import { QuizCard } from '@/features/session/quiz-card'
@@ -20,10 +21,18 @@ import { trackProductEvent } from '@/lib/product-analytics'
 
 type Phase = 'quiz' | 'summary'
 
-export function ReviewView() {
+export function ReviewView({ mode = 'scheduled', sourceTestId }: { mode?: ReviewMode; sourceTestId?: string }) {
   const router = useRouter()
   const { toast } = useToast()
-  const { data: cards, isLoading, error, mutate } = useReviewSession()
+  const mockTestQuery = useMockTest(sourceTestId ?? null)
+  const targetWordIds = sourceTestId
+    ? mockTestQuery.data
+      ? [...new Set(mockTestQuery.data.mistakes.map((mistake) => mistake.question.word_id))]
+      : mockTestQuery.isLoading
+        ? undefined
+        : []
+    : undefined
+  const { data: cards, isLoading, error, mutate } = useReviewSession(undefined, mode, targetWordIds)
   const { recordQuizAnswer, recordSessionProgress, revalidateUser } = useActions()
 
   const [phase, setPhase] = useState<Phase>('quiz')
@@ -41,10 +50,10 @@ export function ReviewView() {
 
   useEffect(() => {
     if (!reviewStarted.current && cards && cards.length > 0) {
-      trackProductEvent('review_started', { words: cards.length })
+      trackProductEvent(mode === 'weak' || mode === 'mock_recovery' ? 'weak_drill_started' : 'review_started', { words: cards.length, source: mode })
       reviewStarted.current = true
     }
-  }, [cards])
+  }, [cards, mode])
 
   const total = cards?.length ?? 0
   const card = cards?.[index]
@@ -56,7 +65,19 @@ export function ReviewView() {
     return { correct, xp }
   }, [results])
 
-  if (isLoading) return <ReviewSkeleton />
+  if (isLoading || (mode === 'mock_recovery' && mockTestQuery.isLoading)) return <ReviewSkeleton />
+
+  if (mockTestQuery.error) {
+    return (
+      <div className="mx-auto flex min-h-dvh max-w-lg items-center px-4">
+        <ErrorState
+          title="Recovery drill couldn't be loaded"
+          description="Your mock-test result is safe. Try opening the recovery drill again."
+          onRetry={() => mockTestQuery.mutate()}
+        />
+      </div>
+    )
+  }
 
   if (error) {
     return (
@@ -83,8 +104,8 @@ export function ReviewView() {
       <div className="mx-auto flex min-h-dvh max-w-lg items-center px-4">
         <EmptyState
           icon={Trophy}
-          title="Nothing due right now"
-          description="You're all caught up. Come back later, or keep learning new words."
+          title={mode === 'mock_recovery' ? 'No missed words to recover' : mode === 'weak' ? 'No weak words right now' : 'Nothing due right now'}
+          description={mode === 'mock_recovery' ? 'This mock test has no incorrect answered words to drill.' : mode === 'weak' ? 'Your recent recall is holding up. Keep learning, and this drill will fill when needed.' : "You're all caught up. Come back later, or keep learning new words."}
           action={
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button variant="outline" onClick={() => router.push('/dashboard')}>
@@ -156,7 +177,7 @@ export function ReviewView() {
       if (resultsRef.current.some((result) => result.goalJustCompleted)) {
         toast({ title: 'Daily goal complete!', description: `+${XP.DAILY_GOAL} XP bonus earned.`, tone: 'success' })
       }
-      trackProductEvent('review_completed', {
+      trackProductEvent(mode === 'weak' || mode === 'mock_recovery' ? 'weak_drill_completed' : 'review_completed', {
         words: total,
         correct: resultsRef.current.filter((result) => result.correct).length,
       })
@@ -189,7 +210,7 @@ export function ReviewView() {
       </div>
 
       <p className="mt-3 text-center font-heading text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        Review · {phase === 'quiz' ? 'Quiz' : 'Summary'}
+        {mode === 'mock_recovery' ? 'Mock-test recovery' : mode === 'weak' ? 'Weak-word drill' : 'Review'} · {phase === 'quiz' ? 'Quiz' : 'Summary'}
       </p>
 
       <div className="flex flex-1 flex-col justify-center py-6">

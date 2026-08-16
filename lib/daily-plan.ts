@@ -19,6 +19,7 @@ export interface DailyPlan {
   }
   review: {
     due: number
+    weak: number
   }
   challenge: {
     available: boolean
@@ -54,39 +55,48 @@ export function buildDailyPlan(input: {
   currentBook: Book | null
   today: DailyProgress | null
   dueReviewQueue: UserWordProgress[]
+  weakWordCount: number
   levels: Level[]
   levelProgress: Record<string, LevelProgressRollup>
 }): DailyPlan {
   const nextLevel = pickNextLearningLevel(input.levels, input.levelProgress)
   const newWordsRemaining = Math.max(0, input.dailyGoal - (input.today?.new_words_completed ?? 0))
   const dayComplete = (input.today?.new_words_completed ?? 0) >= input.dailyGoal
-  const nextAction = input.dueReviewQueue.length > 0
+  const dueCount = input.dueReviewQueue.length
+  const nextAction = dueCount > 0
     ? {
         title: 'Review due words',
-        detail: `${input.dueReviewQueue.length} word${input.dueReviewQueue.length === 1 ? '' : 's'} ready for recall practice.`,
+        detail: `${dueCount} word${dueCount === 1 ? '' : 's'} ready for recall practice.`,
         href: '/review',
         action: 'Start review',
       }
-    : newWordsRemaining > 0 && nextLevel
+    : input.weakWordCount > 0
       ? {
-          title: 'Learn new words',
-          detail: `${newWordsRemaining} word${newWordsRemaining === 1 ? '' : 's'} left in today\'s goal.`,
-          href: `/session/${nextLevel.id}`,
-          action: 'Start learning',
+          title: 'Recover weak words',
+          detail: `${input.weakWordCount} word${input.weakWordCount === 1 ? '' : 's'} need another retrieval attempt.`,
+          href: '/review/weak',
+          action: 'Start weak drill',
         }
-      : !(input.today?.challenge_completed ?? false)
+      : newWordsRemaining > 0 && nextLevel
         ? {
-            title: 'Take today\'s challenge',
-            detail: 'A short mixed quiz to keep your recall active.',
-            href: '/challenge',
-            action: 'Start challenge',
+            title: 'Learn new words',
+            detail: `${newWordsRemaining} word${newWordsRemaining === 1 ? '' : 's'} left in today\'s goal.`,
+            href: `/session/${nextLevel.id}`,
+            action: 'Start learning',
           }
-        : {
-            title: 'Keep exploring',
-            detail: 'Your plan is clear. Browse the next level when you are ready.',
-            href: nextLevel ? `/session/${nextLevel.id}` : '/learn',
-            action: nextLevel ? 'Open next level' : 'Open Learn',
-          }
+        : !(input.today?.challenge_completed ?? false)
+          ? {
+              title: 'Take today\'s challenge',
+              detail: 'A short mixed quiz to keep your recall active.',
+              href: '/challenge',
+              action: 'Start challenge',
+            }
+          : {
+              title: 'Keep exploring',
+              detail: 'Your plan is clear. Browse the next level when you are ready.',
+              href: nextLevel ? `/session/${nextLevel.id}` : '/learn',
+              action: nextLevel ? 'Open next level' : 'Open Learn',
+            }
   return {
     date: input.date,
     goal: input.dailyGoal,
@@ -96,7 +106,7 @@ export function buildDailyPlan(input: {
       newWordsCompleted: input.today?.new_words_completed ?? 0,
       reviewsCompleted: input.today?.reviews_completed ?? 0,
     },
-    review: { due: input.dueReviewQueue.length },
+    review: { due: dueCount, weak: input.weakWordCount },
     challenge: {
       available: !(input.today?.challenge_completed ?? false),
       completed: input.today?.challenge_completed ?? false,

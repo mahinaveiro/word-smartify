@@ -9,6 +9,8 @@ export type ProductEvent =
   | 'learning_session_completed'
   | 'review_started'
   | 'review_completed'
+  | 'weak_drill_started'
+  | 'weak_drill_completed'
   | 'answer_submitted'
   | 'mock_test_started'
   | 'mock_test_completed'

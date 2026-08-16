@@ -28,6 +28,7 @@ export function DashboardView() {
     if (!trackedDashboardView.current && profile && stats && plan) {
       trackProductEvent('dashboard_viewed', {
         due_reviews: plan.review.due,
+        weak_words: plan.review.weak,
         new_words_remaining: plan.newLearning.remaining,
         daily_goal: plan.goal,
         streak: stats.current_streak,
@@ -111,10 +112,14 @@ export function DashboardView() {
               <PlanItem
                 icon={Target}
                 title="Reviews"
-                detail={`${plan.review.due} ready · ${plan.progress.reviewsCompleted} done today`}
-                done={plan.review.due === 0}
-                href="/review"
-                action="Open reviews"
+                detail={plan.review.due > 0
+                  ? `${plan.review.due} due · ${plan.review.weak} weak`
+                  : plan.review.weak > 0
+                    ? `${plan.review.weak} need another try`
+                    : `${plan.progress.reviewsCompleted} done today`}
+                done={plan.review.due === 0 && plan.review.weak === 0}
+                href={plan.review.due > 0 ? '/review' : plan.review.weak > 0 ? '/review/weak' : '/review'}
+                action={plan.review.due > 0 ? 'Open reviews' : plan.review.weak > 0 ? 'Start weak drill' : 'Open reviews'}
                 accent="coral"
               />
               <PlanItem
