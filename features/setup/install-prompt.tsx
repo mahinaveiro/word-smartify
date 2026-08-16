@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Download, MoreVertical, Share } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
@@ -10,75 +10,124 @@ interface InstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
 }
 
-const INSTALL_FLAG = 'word-smartify:show-install-prompt'
+const INSTALL_SEEN_KEY = 'word-smartify:install-prompt-seen'
 
-export function InstallPrompt() {
+type DeviceType = 'android' | 'ios' | 'desktop'
+
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches || Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
+}
+
+function getDeviceType(): DeviceType {
+  const userAgent = window.navigator.userAgent
+  if (/android/i.test(userAgent)) return 'android'
+  if (/iPad|iPhone|iPod/i.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return 'ios'
+  return 'desktop'
+}
+
+function hasSeenPrompt() {
+  try {
+    return window.localStorage.getItem(INSTALL_SEEN_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function markPromptSeen() {
+  try {
+    window.localStorage.setItem(INSTALL_SEEN_KEY, '1')
+  } catch {
+    // Storage can be unavailable in private browsing; the prompt still works for this session.
+  }
+}
+
+export function InstallPrompt({ enabled, onDone }: { enabled: boolean; onDone: () => void }) {
   const [open, setOpen] = useState(false)
   const [installEvent, setInstallEvent] = useState<InstallPromptEvent | null>(null)
+  const [device, setDevice] = useState<DeviceType>('desktop')
+  const enabledRef = useRef(enabled)
 
-  const close = useCallback(() => {
+  const finish = useCallback(() => {
     setOpen(false)
-    if (typeof window !== 'undefined') window.sessionStorage.removeItem(INSTALL_FLAG)
-  }, [])
+    markPromptSeen()
+    onDone()
+  }, [onDone])
 
   useEffect(() => {
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
-    if (isStandalone) return
+    enabledRef.current = enabled
+  }, [enabled])
 
-    const shouldPrompt = window.sessionStorage.getItem(INSTALL_FLAG) === '1'
+  useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault()
       setInstallEvent(event as InstallPromptEvent)
-      if (shouldPrompt) setOpen(true)
     }
-    const onAppInstalled = () => close()
+    const onAppInstalled = () => {
+      if (enabledRef.current) finish()
+    }
 
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt)
     window.addEventListener('appinstalled', onAppInstalled)
-    const fallbackTimer = shouldPrompt && !('BeforeInstallPromptEvent' in window)
-      ? window.setTimeout(() => setOpen(true), 0)
-      : null
 
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
       window.removeEventListener('appinstalled', onAppInstalled)
-      if (fallbackTimer !== null) window.clearTimeout(fallbackTimer)
     }
-  }, [close])
+  }, [finish])
 
-  async function install() {
-    if (!installEvent) {
-      close()
+  useEffect(() => {
+    if (!enabled) return
+
+    if (isStandalone() || hasSeenPrompt()) {
+      onDone()
       return
     }
+
+    markPromptSeen()
+    const timer = window.setTimeout(() => {
+      setDevice(getDeviceType())
+      setOpen(true)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [enabled, onDone])
+
+  async function install() {
+    if (!installEvent) return
     await installEvent.prompt()
     await installEvent.userChoice
-    close()
+    finish()
   }
 
-  const isStandalone = typeof window !== 'undefined' && (window.matchMedia('(display-mode: standalone)').matches || Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone))
-  if (isStandalone) return null
+  if (!open) return null
+
+  const isIos = device === 'ios'
+  const title = isIos ? 'Add Word Smartify to Home Screen' : 'Install Word Smartify'
+  const description = isIos ? 'Keep your study plan one tap away.' : 'Get a faster, focused study experience.'
 
   return (
     <Modal
       open={open}
-      onClose={close}
-      title="Install Word Smartify"
-      description="Keep your learning plan one tap away."
+      onClose={finish}
+      title={title}
+      description={description}
       footer={(
         <>
-          <Button variant="ghost" onClick={close}>Maybe later</Button>
-          {installEvent ? <Button onClick={() => void install()}><Download className="size-4" /> Install app</Button> : null}
+          <Button variant="ghost" onClick={finish}>Maybe later</Button>
+          {installEvent && !isIos ? <Button onClick={() => void install()}><Download className="size-4" aria-hidden /> Install app</Button> : null}
         </>
       )}
     >
-      {installEvent ? (
-        <p className="text-sm leading-relaxed text-muted-foreground">Install the app for a faster, focused study experience with an icon on your home screen.</p>
+      {isIos ? (
+        <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+          <p>Tap <Share className="inline size-4 text-foreground" aria-hidden /> <strong className="text-foreground">Share</strong> in your browser.</p>
+          <p>Choose <strong className="text-foreground">Add to Home Screen</strong>, then tap <strong className="text-foreground">Add</strong>.</p>
+        </div>
+      ) : installEvent ? (
+        <p className="text-sm leading-relaxed text-muted-foreground">Install the app for quick access, a cleaner study screen, and a home-screen icon.</p>
       ) : (
         <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
-          <p>On Android, open the browser menu and choose <strong className="text-foreground">Install app</strong> or <strong className="text-foreground">Add to Home screen</strong>.</p>
-          <p>On iPhone or iPad, tap <Share className="inline size-4 text-foreground" /> <strong className="text-foreground">Share</strong>, then choose <strong className="text-foreground">Add to Home Screen</strong>.</p>
-          <p className="flex items-center gap-1 text-xs"><MoreVertical className="size-4" /> The exact menu label can vary by browser.</p>
+          <p>{device === 'android' ? 'Tap the browser menu' : 'Use the install icon in your browser address bar or menu'} and choose <strong className="text-foreground">Install app</strong> or <strong className="text-foreground">Add to Home screen</strong>.</p>
+          <p className="flex items-center gap-1 text-xs"><MoreVertical className="size-4 shrink-0" aria-hidden /> The exact label can vary by browser.</p>
         </div>
       )}
     </Modal>

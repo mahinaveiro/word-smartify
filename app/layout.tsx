@@ -6,7 +6,6 @@ import { ToastProvider } from '@/components/ui/toast'
 import { RepositoryProvider } from '@/repositories/provider'
 import { AuthProvider } from '@/features/auth/auth-provider'
 import { PageTitleManager } from '@/components/shell/page-title-manager'
-import { InstallPrompt } from '@/features/setup/install-prompt'
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -137,7 +136,7 @@ export default function RootLayout({
     >
       <body className="min-h-dvh antialiased">
         <PageTitleManager />
-        <InstallPrompt />
+
         <AuthProvider>
           <RepositoryProvider>
             <ToastProvider>{children}</ToastProvider>

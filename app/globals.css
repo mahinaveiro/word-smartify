@@ -293,3 +293,24 @@
     animation-duration: 650ms;
   }
 }
+
+@keyframes cookie-consent-slide-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 1rem, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.cookie-consent-enter {
+  animation: cookie-consent-slide-in 280ms var(--ease-brutal) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cookie-consent-enter {
+    animation: none;
+  }
+}

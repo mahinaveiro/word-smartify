@@ -53,7 +53,6 @@ export function SetupView() {
       await profileQuery.mutate(updated, false)
       await revalidateUser()
       toast({ title: 'Your plan is ready', description: 'Your daily learning plan has been set up.', tone: 'success' })
-      window.sessionStorage.setItem('word-smartify:show-install-prompt', '1')
       router.replace('/dashboard')
     } catch {
       toast({ title: 'Setup could not be saved', description: 'Your choices are unchanged. Try again.', tone: 'error' })

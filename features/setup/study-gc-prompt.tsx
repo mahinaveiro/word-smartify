@@ -9,14 +9,17 @@ function sessionKey(userId: string) {
   return `study-gc-invite-seen:${userId}`
 }
 
-export function StudyGcPrompt({ userId, joined }: { userId: string; joined: boolean }) {
+export function StudyGcPrompt({ userId, joined, onDone }: { userId: string; joined: boolean; onDone: () => void }) {
   const { updateProfile, revalidateUser } = useActions()
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (joined) return
+    if (joined) {
+      onDone()
+      return
+    }
 
     let shouldOpen = true
     try {
@@ -26,15 +29,19 @@ export function StudyGcPrompt({ userId, joined }: { userId: string; joined: bool
       shouldOpen = true
     }
 
-    if (!shouldOpen) return
+    if (!shouldOpen) {
+      onDone()
+      return
+    }
     const timer = window.setTimeout(() => setOpen(true), 0)
     return () => window.clearTimeout(timer)
-  }, [joined, userId])
+  }, [joined, onDone, userId])
 
   const handleLater = useCallback(() => {
     setOpen(false)
     setError(null)
-  }, [])
+    onDone()
+  }, [onDone])
 
   const handleJoin = useCallback(async () => {
     if (saving) return
@@ -45,12 +52,13 @@ export function StudyGcPrompt({ userId, joined }: { userId: string; joined: bool
       await updateProfile({ study_gc_joined: true })
       await revalidateUser()
       setOpen(false)
+      onDone()
     } catch {
       setError('We could not save your choice. Please try again.')
     } finally {
       setSaving(false)
     }
-  }, [revalidateUser, saving, updateProfile])
+  }, [onDone, revalidateUser, saving, updateProfile])
 
   return (
     <Modal
