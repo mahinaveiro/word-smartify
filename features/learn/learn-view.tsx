@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import { Lock, Check } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
