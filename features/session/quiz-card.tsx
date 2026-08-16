@@ -87,12 +87,16 @@ export function QuizCard({
               key={option}
               type="button"
               disabled={revealed}
-              onPointerDown={() => {
+              onTouchStart={() => {
                 if (option === question.correct_answer) vibrateForCorrectAnswer()
+              }}
+              onPointerDown={(event) => {
+                // Touch browsers use touchstart above; this covers mouse and pen input without double-pulsing.
+                if (event.pointerType !== 'touch' && option === question.correct_answer) vibrateForCorrectAnswer()
               }}
               onClick={(event) => {
                 setExplanationForQuestion(null)
-                // Pointer taps vibrate on pointer-down; detail 0 covers keyboard activation.
+                // Keyboard activation has no touchstart/pointerdown event, so keep its direct haptic path.
                 if (event.detail === 0 && option === question.correct_answer) vibrateForCorrectAnswer()
                 onSelect(option)
               }}

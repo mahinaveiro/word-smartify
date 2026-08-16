@@ -20,13 +20,12 @@ function isEditableTarget(target: EventTarget | null) {
 }
 
 function vibrateForCorrectAnswer() {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') return
-  if (!window.isSecureContext) return
+  if (typeof navigator === 'undefined') return
   const vibrate = navigator.vibrate
   if (typeof vibrate !== 'function') return
   try {
-    // A short two-pulse pattern is easier to feel than a single 55ms pulse on Android.
-    vibrate.call(navigator, [35, 24, 65])
+    // A direct single pulse is more consistently honored by Android touch browsers than a delayed pattern.
+    vibrate.call(navigator, 90)
   } catch {
     // Some browsers expose Vibration API but reject calls from unsupported contexts.
   }

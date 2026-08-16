@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Lock, Check } from 'lucide-react'
+import { ArrowRight, BookOpen, Lock, Check } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
@@ -93,6 +93,22 @@ export function LearnView() {
               ))}
             </div>
           )}
+
+          <Link
+            href="/library"
+            className="press flex items-center justify-between gap-4 rounded-md border-2 border-foreground bg-foreground px-4 py-3 text-primary-foreground shadow-brutal-sm transition-colors hover:bg-foreground/90"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="grid size-9 shrink-0 place-items-center rounded-md border-2 border-primary-foreground/30 bg-primary-foreground/10">
+                <BookOpen className="size-5" aria-hidden />
+              </span>
+              <span className="min-w-0">
+                <span className="block font-heading text-sm font-bold">Library</span>
+                <span className="block truncate text-xs font-medium text-primary-foreground/70">Browse meanings and save words.</span>
+              </span>
+            </span>
+            <ArrowRight className="size-5 shrink-0" aria-hidden />
+          </Link>
       </>
     </div>
   )
