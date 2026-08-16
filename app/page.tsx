@@ -196,7 +196,10 @@ export default function LandingPage() {
       <footer className="border-t-2 border-foreground px-4 py-6 md:px-8">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>Word Smartify — a study companion for the Word Smart series.</p>
-          <Link className="font-semibold text-foreground underline-offset-4 hover:underline" href="/demo"><LockKeyhole className="mr-1 inline size-4" />Try the demo</Link>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            <Link className="font-semibold text-foreground underline-offset-4 hover:underline" href="/iba-english">IBA English practice</Link>
+            <Link className="font-semibold text-foreground underline-offset-4 hover:underline" href="/demo"><LockKeyhole className="mr-1 inline size-4" />Try the demo</Link>
+          </div>
         </div>
       </footer>
     </div>
