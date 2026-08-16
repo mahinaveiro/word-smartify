@@ -18,11 +18,22 @@ type Mode = 'signin' | 'signup'
 
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+function GoogleMark() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
+      <path fill="#4285F4" d="M21.35 12.27c0-.79-.07-1.55-.23-2.27H12v4.3h5.22a4.46 4.46 0 0 1-1.94 2.93v2.43h3.14c1.84-1.69 2.93-4.18 2.93-7.39Z" />
+      <path fill="#34A853" d="M12 21.6c2.63 0 4.84-.87 6.45-2.35l-3.14-2.43c-.87.58-1.98.92-3.31.92-2.54 0-4.69-1.72-5.46-4.02H3.29v2.5A9.74 9.74 0 0 0 12 21.6Z" />
+      <path fill="#FBBC05" d="M6.54 12.8a5.86 5.86 0 0 1 0-3.6V6.7H3.29a9.7 9.7 0 0 0 0 8.6l3.25-2.5Z" />
+      <path fill="#EA4335" d="M12 5.18c1.43 0 2.72.49 3.73 1.45l2.8-2.8C16.84 2.25 14.63 1.4 12 1.4a9.74 9.74 0 0 0-8.71 5.3l3.25 2.5C7.31 6.9 9.46 5.18 12 5.18Z" />
+    </svg>
+  )
+}
+
 export function AuthView() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
-  const { signIn, signUp } = useAuth()
+  const { signIn, signInWithGoogle, signUp } = useAuth()
 
   const next = safeNext(searchParams.get('next'))
   const initialMode: Mode = searchParams.get('mode') === 'signup' ? 'signup' : 'signin'
@@ -32,6 +43,7 @@ export function AuthView() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({})
 
   function switchMode(m: Mode) {
@@ -52,6 +64,16 @@ export function AuthView() {
     }
     setErrors(errs)
     return Object.keys(errs).length === 0
+  }
+
+  async function handleGoogleSignIn() {
+    setGoogleLoading(true)
+    try {
+      await signInWithGoogle()
+    } catch (err) {
+      handleError(err)
+      setGoogleLoading(false)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -135,7 +157,26 @@ export function AuthView() {
         )
       }
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+      <div className="flex flex-col gap-4">
+        <Button
+          type="button"
+          variant="outline"
+          size="block"
+          onClick={handleGoogleSignIn}
+          loading={googleLoading}
+          disabled={loading || googleLoading}
+        >
+          <GoogleMark />
+          Continue with Google
+        </Button>
+        <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          <span className="h-px flex-1 bg-border" />
+          <span>or</span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4" noValidate>
         {mode === 'signup' ? (
           <Field label="Name" htmlFor="name" error={errors.name}>
             <Input

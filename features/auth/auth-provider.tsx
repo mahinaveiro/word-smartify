@@ -9,6 +9,7 @@ interface AuthContextValue {
   loading: boolean
   error: boolean
   signIn: (email: string, password: string) => Promise<AuthUser>
+  signInWithGoogle: () => Promise<void>
   signUp: (input: SignUpInput) => Promise<SignUpResult>
   signOut: () => Promise<void>
   resendConfirmation: (email: string) => Promise<{ confirmationToken?: string }>
@@ -75,6 +76,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [auth],
   )
 
+  const signInWithGoogle = useCallback(() => auth.signInWithGoogle(), [auth])
+
   const signUp = useCallback((input: SignUpInput) => auth.signUp(input), [auth])
 
   const signOut = useCallback(async () => {
@@ -97,6 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       error,
       signIn,
+      signInWithGoogle,
       signUp,
       signOut,
       resendConfirmation: (email: string) => auth.resendConfirmation(email),
@@ -110,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       refresh,
     }),
-    [user, loading, error, signIn, signUp, signOut, confirmEmail, auth, refresh],
+    [user, loading, error, signIn, signInWithGoogle, signUp, signOut, confirmEmail, auth, refresh],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

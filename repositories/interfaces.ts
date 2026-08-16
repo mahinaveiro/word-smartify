@@ -171,6 +171,8 @@ export interface AuthRepository {
   signUp(input: SignUpInput): Promise<SignUpResult>
   /** Verifies credentials and opens a session. */
   signIn(email: string, password: string): Promise<AuthUser>
+  /** Starts Google OAuth; the browser is redirected to Google and back to the app. */
+  signInWithGoogle(): Promise<void>
   signOut(): Promise<void>
   /** Re-issues the confirmation token (local returns it to simulate the email). */
   resendConfirmation(email: string): Promise<{ confirmationToken?: string }>

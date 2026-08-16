@@ -4,11 +4,24 @@ import { AuthError, type AuthUser, type SignUpInput, type SignUpResult } from '@
 import type { AuthRepository } from './interfaces'
 import { getPublicSiteUrl } from '@/lib/supabase/config'
 import { toAuthError } from '@/lib/supabase/errors'
+import { validateAvatarUrl } from '@/lib/profile'
+
+function metadataString(user: User, ...keys: string[]) {
+  for (const key of keys) {
+    const value = user.user_metadata?.[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return null
+}
 
 function displayNameFrom(user: User) {
-  const metadataName = user.user_metadata?.display_name
-  if (typeof metadataName === 'string' && metadataName.trim()) return metadataName.trim()
-  return user.email?.split('@')[0] ?? 'Learner'
+  return metadataString(user, 'display_name', 'full_name', 'name') ?? user.email?.split('@')[0] ?? 'Learner'
+}
+
+function avatarUrlFrom(user: User) {
+  const candidate = metadataString(user, 'avatar_url', 'picture')
+  if (!candidate || validateAvatarUrl(candidate)) return null
+  return candidate
 }
 
 function toAuthUser(user: User): AuthUser {
@@ -24,16 +37,21 @@ function toAuthUser(user: User): AuthUser {
 type Client = SupabaseClient<Database>
 
 async function provisionUserRows(client: Client, user: User, displayName = displayNameFrom(user)) {
-  const profile = await client.from('profiles').select('id').eq('id', user.id).maybeSingle()
+  const googleAvatarUrl = avatarUrlFrom(user)
+  const profile = await client.from('profiles').select('id, avatar_url').eq('id', user.id).maybeSingle()
   if (profile.error) throw new Error(profile.error.message)
   if (!profile.data) {
     const inserted = await client.from('profiles').insert({
       id: user.id,
       display_name: displayName,
       avatar_id: 'avatar_01',
+      avatar_url: googleAvatarUrl,
       daily_goal: 10,
     })
     if (inserted.error && inserted.error.code !== '23505') throw new Error(inserted.error.message)
+  } else if (googleAvatarUrl && !profile.data.avatar_url?.trim()) {
+    const updated = await client.from('profiles').update({ avatar_url: googleAvatarUrl }).eq('id', user.id)
+    if (updated.error) throw new Error(updated.error.message)
   }
 
   const stats = await client.from('user_stats').select('user_id').eq('user_id', user.id).maybeSingle()
@@ -93,6 +111,16 @@ export class SupabaseAuthRepository implements AuthRepository {
     if (!result.data.user) throw toAuthError(new Error('Missing user after sign-in.'), 'We could not sign you in.')
     await provisionUserRows(this.client, result.data.user)
     return toAuthUser(result.data.user)
+  }
+
+  async signInWithGoogle(): Promise<void> {
+    const result = await this.client.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${getPublicSiteUrl()}/auth/confirm?next=/dashboard`,
+      },
+    })
+    if (result.error) throw toAuthError(result.error, 'We could not start Google sign-in.')
   }
 
   async signOut(): Promise<void> {
