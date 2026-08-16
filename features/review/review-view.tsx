@@ -187,6 +187,8 @@ export function ReviewView() {
               selected={quiz.selected}
               onSelect={chooseAnswer}
               revealed={quiz.revealed}
+              canNext={quiz.revealed && !finishing && !answerError}
+              onNext={next}
             />
             {answerError ? (
               <ErrorState
@@ -233,7 +235,7 @@ export function ReviewView() {
             disabled={!quiz.revealed || finishing || answerError}
             loading={finishing}
           >
-            {index < total - 1 ? 'Next word' : 'Finish'}
+            {index < total - 1 ? 'Next question' : 'Finish'}
             <ArrowRight className="size-5" aria-hidden />
           </Button>
         ) : (

@@ -165,7 +165,14 @@ export function ChallengeView() {
       <div className="flex flex-1 flex-col justify-center py-6">
         {!done && card ? (
           <>
-            <QuizCard question={card.question} selected={quiz.selected} onSelect={chooseAnswer} revealed={quiz.revealed} />
+            <QuizCard
+              question={card.question}
+              selected={quiz.selected}
+              onSelect={chooseAnswer}
+              revealed={quiz.revealed}
+              canNext={quiz.revealed && !finishing && !answerError}
+              onNext={next}
+            />
             {answerError ? (
               <ErrorState
                 className="mt-5 py-6"
@@ -201,7 +208,8 @@ export function ChallengeView() {
       <div className="mt-auto">
         {!done ? (
           <Button size="lg" className="w-full" onClick={next} disabled={!quiz.revealed || finishing || answerError} loading={finishing}>
-            {index < total - 1 ? 'Next word' : 'Finish challenge'} <ArrowRight className="size-5" aria-hidden />
+            {index < total - 1 ? 'Next question' : 'Finish challenge'}
+ <ArrowRight className="size-5" aria-hidden />
           </Button>
         ) : <Button size="lg" className="w-full" onClick={() => router.push('/dashboard')}>Back to dashboard</Button>}
       </div>

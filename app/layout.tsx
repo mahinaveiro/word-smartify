@@ -5,6 +5,8 @@ import './globals.css'
 import { ToastProvider } from '@/components/ui/toast'
 import { RepositoryProvider } from '@/repositories/provider'
 import { AuthProvider } from '@/features/auth/auth-provider'
+import { PageTitleManager } from '@/components/shell/page-title-manager'
+import { InstallPrompt } from '@/features/setup/install-prompt'
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -68,6 +70,8 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${dmSans.variable} ${notoSansBengali.variable} bg-background`}
     >
       <body className="min-h-dvh antialiased">
+        <PageTitleManager />
+        <InstallPrompt />
         <AuthProvider>
           <RepositoryProvider>
             <ToastProvider>{children}</ToastProvider>

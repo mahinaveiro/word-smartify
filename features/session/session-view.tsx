@@ -191,6 +191,8 @@ export function SessionView({ levelId }: { levelId: string }) {
               selected={quiz.selected}
               onSelect={chooseAnswer}
               revealed={quiz.revealed}
+              canNext={quiz.revealed && !finishing && !answerError}
+              onNext={nextQuiz}
             />
             {answerError ? (
               <ErrorState

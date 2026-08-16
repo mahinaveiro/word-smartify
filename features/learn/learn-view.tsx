@@ -2,26 +2,22 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Lock, Search, Check, LibraryBig, ArrowRight } from 'lucide-react'
+import { Lock, Check, LibraryBig, ArrowRight } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { useBooks, useLevelsForBook, useLevelProgress } from '@/hooks/use-data'
 import type { Level } from '@/types/database'
 import type { LevelProgressSummary } from '@/repositories/interfaces'
-import { WordSearchResults } from './word-search'
 
 export function LearnView() {
   const booksQuery = useBooks()
   const { data: books } = booksQuery
   const [activeBook, setActiveBook] = useState<string | null>(null)
-  const [query, setQuery] = useState('')
-
   const bookId = activeBook ?? books?.[0]?.id ?? null
   const levelsQuery = useLevelsForBook(bookId)
   const progressQuery = useLevelProgress(bookId)
@@ -73,21 +69,7 @@ export function LearnView() {
         </Button>
       </Card>
 
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search all 1,888 words…"
-          className="pl-9"
-          aria-label="Search words"
-        />
-      </div>
-
-      {query.trim() ? (
-        <WordSearchResults query={query.trim()} />
-      ) : (
-        <>
+      <>
           {/* Book tabs */}
           <div className="flex gap-2" role="tablist" aria-label="Books">
             {books ? (
@@ -131,8 +113,7 @@ export function LearnView() {
               ))}
             </div>
           )}
-        </>
-      )}
+      </>
     </div>
   )
 }
@@ -146,7 +127,8 @@ function LevelGrid({
 }) {
   // A level unlocks when the previous one is fully learned (first is always open).
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+    <div className="overflow-x-auto pb-2 md:overflow-visible">
+      <div className="grid min-w-max auto-cols-[7.5rem] grid-flow-col grid-rows-2 gap-2 md:min-w-0 md:grid-flow-row md:grid-rows-none md:grid-cols-4 md:gap-3 lg:grid-cols-5 xl:grid-cols-6">
       {levels.map((level, index) => {
         const p = progress?.[level.id]
         const learned = p?.learned ?? 0
@@ -176,6 +158,7 @@ function LevelGrid({
           />
         )
       })}
+      </div>
     </div>
   )
 }
@@ -226,7 +209,7 @@ function LevelCard({
   )
 
   const base =
-    'flex h-24 flex-col rounded-md border-2 border-foreground p-3 text-left'
+    'flex h-20 w-28 flex-col rounded-md border-2 border-foreground p-2.5 text-left md:h-24 md:w-auto md:p-3'
 
   if (locked) {
     return (

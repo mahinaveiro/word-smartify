@@ -5,7 +5,8 @@ import type { QuizQuestion } from '@/types/database'
 import { cn } from '@/lib/utils'
 import { IconButton } from '@/components/ui/icon-button'
 import { CorrectAnswerCelebration } from './correct-answer-celebration'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useQuizKeyboardControls, vibrateForCorrectAnswer } from '@/hooks/use-quiz-keyboard-controls'
 
 export function QuizCard({
   question,
@@ -13,18 +14,49 @@ export function QuizCard({
   onSelect,
   revealed,
   secure = false,
+  canNext = false,
+  onNext,
+  canPrevious = false,
+  onPrevious,
 }: {
   question: QuizQuestion
   selected: string | null
   onSelect: (option: string) => void
   revealed: boolean
   secure?: boolean
+  canNext?: boolean
+  onNext?: () => void
+  canPrevious?: boolean
+  onPrevious?: () => void
 }) {
   const [explanationForQuestion, setExplanationForQuestion] = useState<string | null>(null)
   const options = question.options ?? []
   const explanationOpen = revealed && explanationForQuestion === question.id
   const canRevealExplanation = revealed && Boolean(question.explanation)
   const answeredCorrectly = revealed && selected === question.correct_answer
+
+  useQuizKeyboardControls({
+    enabled: true,
+    options,
+    correctAnswer: question.correct_answer,
+    canAnswer: !revealed,
+    onAnswer: onSelect,
+    canNext: canNext && Boolean(onNext),
+    onNext: onNext ?? (() => undefined),
+    canPrevious: canPrevious && Boolean(onPrevious),
+    onPrevious: onPrevious ?? (() => undefined),
+  })
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key.toLowerCase() !== 'e' || !canRevealExplanation || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return
+      event.preventDefault()
+      setExplanationForQuestion(explanationOpen ? null : question.id)
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [canRevealExplanation, explanationOpen, question.id])
 
   return (
     <div
@@ -57,6 +89,7 @@ export function QuizCard({
               disabled={revealed}
               onClick={() => {
                 setExplanationForQuestion(null)
+                if (option === question.correct_answer) vibrateForCorrectAnswer()
                 onSelect(option)
               }}
               aria-pressed={isSelected}
@@ -69,7 +102,12 @@ export function QuizCard({
                 state === 'dim' && 'bg-card opacity-55',
               )}
             >
-              <span className="text-pretty">{option}</span>
+              <span className="flex min-w-0 items-center gap-3 text-pretty">
+                <span className="grid size-7 shrink-0 place-items-center rounded-sm border border-current/40 text-xs font-bold uppercase opacity-70">
+                  {String.fromCharCode(97 + options.indexOf(option))}
+                </span>
+                <span>{option}</span>
+              </span>
               {revealed && isCorrect ? (
                 <Check className="size-5 shrink-0 animate-in zoom-in-75 duration-micro" strokeWidth={3} aria-hidden />
               ) : revealed && isSelected && !isCorrect ? (

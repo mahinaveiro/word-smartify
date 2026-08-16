@@ -166,11 +166,9 @@ export function SettingsView() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <PageHeader
-        eyebrow="Preferences"
         title="Settings"
-        description="Manage your profile and learning preferences."
         actions={(
           <Button type="button" variant="ghost" size="sm" onClick={() => router.back()}>
             <ArrowLeft className="size-4" aria-hidden />
@@ -188,7 +186,6 @@ export function SettingsView() {
               <Avatar name={name || profile.display_name} avatarId={avatarId} avatarUrl={avatarUrl || null} size="lg" />
               <div className="min-w-0 flex-1">
                 <p className="font-heading text-sm font-semibold">Avatar</p>
-                <p className="text-xs text-muted-foreground">Use a preset color or add an external image URL.</p>
               </div>
             </div>
 
@@ -217,12 +214,9 @@ export function SettingsView() {
 
       {/* Daily goal */}
       <section>
-        <SectionHeader title="Daily goal" />
+        <SectionHeader title="Learning plan" />
         <Card>
           <CardContent className="p-5">
-            <p className="mb-3 text-sm text-muted-foreground">
-              Number of new words to complete each day to keep your streak.
-            </p>
             <div className="flex flex-wrap gap-2.5" role="group" aria-label="Daily goal">
               {GOAL_OPTIONS.map((g) => {
                 const active = g === dailyGoal
@@ -251,9 +245,6 @@ export function SettingsView() {
         <SectionHeader title="Active book" />
         <Card>
           <CardContent className="flex flex-col gap-2.5 p-5">
-            <p className="mb-1 text-sm text-muted-foreground">
-              Choose which book powers your dashboard and levels.
-            </p>
             {booksQuery.error ? (
               <ErrorState
                 className="py-6"
@@ -337,7 +328,7 @@ export function SettingsView() {
         <SectionHeader title="Danger zone" />
         <Card className="border-coral">
           <CardContent className="flex flex-col gap-3 p-5">
-            <p className="text-sm text-muted-foreground">Deleting your account permanently removes your profile, progress, daily history, and mock tests from this local device.</p>
+            <p className="text-sm text-muted-foreground">Permanently delete your account and all saved progress.</p>
             <Button variant="destructive" className="self-start" onClick={() => { setDeletePhrase(''); setDeleteOpen(true) }}>
               <Trash2 className="size-4" aria-hidden /> Delete account
             </Button>

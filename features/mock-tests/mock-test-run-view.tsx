@@ -318,6 +318,13 @@ export function MockTestRunView({ testId }: { testId: string }) {
               onSelect={choose}
               revealed={false}
               secure
+              canNext={!submitting}
+              onNext={() => {
+                if (index < data.questions.length - 1) setIndex((value) => value + 1)
+                else setSubmitOpen(true)
+              }}
+              canPrevious={index > 0 && !submitting}
+              onPrevious={() => setIndex((value) => Math.max(0, value - 1))}
             />
             {runError ? (
               <ErrorState
@@ -345,7 +352,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
             if (index < data.questions.length - 1) setIndex((value) => value + 1)
             else setSubmitOpen(true)
           }} disabled={submitting}>
-            {index < data.questions.length - 1 ? 'Next' : 'Review & submit'}
+            {index < data.questions.length - 1 ? 'Next' : 'Submit'}
             <ArrowRight className="size-4" aria-hidden />
           </Button>
         </div>
@@ -354,7 +361,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
       <Modal
         open={submitOpen}
         onClose={() => { if (!submitting) setSubmitOpen(false) }}
-        title="Submit test?"
+        title="Submit mock test?"
         description={
           unanswered > 0
             ? `You still have ${unanswered} unanswered question${unanswered === 1 ? '' : 's'}.`
@@ -370,7 +377,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
               Continue test
             </Button>
             <Button variant={unanswered > 0 ? 'outline' : 'primary'} onClick={submitTest} loading={submitting}>
-              Submit test
+              Submit
             </Button>
           </>
         )}
