@@ -128,6 +128,14 @@ export function QuizCard({
 
       {!secure ? (
         <div className="relative z-50 flex min-h-10 items-center justify-end">
+          {explanationOpen && question.explanation ? (
+            <button
+              type="button"
+              aria-label="Close explanation"
+              className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm"
+              onClick={() => setExplanationForQuestion(null)}
+            />
+          ) : null}
           <IconButton
             label={explanationOpen ? 'Hide explanation' : canRevealExplanation ? 'Show explanation' : question.explanation ? 'Answer first to show explanation' : 'No explanation available'}
             variant={explanationOpen ? 'accent' : 'solid'}
@@ -139,26 +147,21 @@ export function QuizCard({
           >
             <Lightbulb className={cn(canRevealExplanation && !explanationOpen && 'animate-pulse')} aria-hidden />
           </IconButton>
+          {explanationOpen && question.explanation ? (
+            <div
+              id={`quiz-explanation-${question.id}`}
+              role="dialog"
+              aria-modal="true"
+              className="absolute bottom-[calc(100%+0.75rem)] right-0 w-[min(22rem,calc(100vw-2rem))] rounded-md border-2 border-foreground bg-muted p-4 text-left text-sm leading-relaxed shadow-brutal animate-in fade-in slide-in-from-bottom-2 duration-normal sm:p-5"
+            >
+              <span
+                aria-hidden
+                className="absolute -bottom-2 right-4 size-4 rotate-45 border-b-2 border-r-2 border-foreground bg-muted"
+              />
+              {question.explanation}
+            </div>
+          ) : null}
         </div>
-      ) : null}
-
-      {explanationOpen && question.explanation ? (
-        <>
-          <button
-            type="button"
-            aria-label="Close explanation"
-            className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm"
-            onClick={() => setExplanationForQuestion(null)}
-          />
-          <div
-            id={`quiz-explanation-${question.id}`}
-            role="dialog"
-            aria-modal="true"
-            className="fixed inset-x-4 bottom-6 z-50 mx-auto max-w-2xl rounded-md border-2 border-foreground bg-muted p-4 text-sm leading-relaxed shadow-brutal animate-in fade-in slide-in-from-bottom-2 duration-normal sm:bottom-8 sm:p-5"
-          >
-            {question.explanation}
-          </div>
-        </>
       ) : null}
 
       {answeredCorrectly ? <CorrectAnswerCelebration /> : null}
