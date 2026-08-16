@@ -1,7 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, BookOpen, Check, Clock, ListChecks, Target, X, Zap } from 'lucide-react'
+import { ArrowLeft, BookOpen, Check, Clock, ListChecks, Loader2, Share2, Target, X, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -12,9 +13,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/features/shared/stat-tile'
 import { useMockTest } from '@/hooks/use-data'
 import { formatDuration } from '@/lib/date'
+import { trackProductEvent } from '@/lib/product-analytics'
+import { buildMockTestSharePayload, shareMockTestResult } from '@/lib/mock-test-share'
 
 export function MockTestResultView({ testId }: { testId: string }) {
   const { data, error, isLoading, mutate } = useMockTest(testId)
+  const [isSharing, setIsSharing] = useState(false)
+  const [shareMessage, setShareMessage] = useState<string | null>(null)
 
   if (isLoading) return <MockTestResultSkeleton />
   if (error) {
@@ -45,6 +50,29 @@ export function MockTestResultView({ testId }: { testId: string }) {
     )
   }
 
+  const shareData = {
+    correct: data.correct,
+    total: data.test.total_questions,
+    score: data.test.score,
+    mistakes: data.mistakes.length,
+  }
+
+  async function handleShare() {
+    setIsSharing(true)
+    setShareMessage(null)
+    try {
+      const result = await shareMockTestResult(buildMockTestSharePayload(shareData))
+      if (result !== 'cancelled') {
+        trackProductEvent('mock_test_shared', { method: result })
+        setShareMessage(result === 'shared' ? 'Share sheet opened.' : 'Result copied. Paste it into WhatsApp or Messenger.')
+      }
+    } catch {
+      setShareMessage('Couldn’t share this result. Try again.')
+    } finally {
+      setIsSharing(false)
+    }
+  }
+
   return (
     <div className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6">
       <PageHeader
@@ -64,13 +92,28 @@ export function MockTestResultView({ testId }: { testId: string }) {
                 Raw score {formatRawScore(data.rawScore)} · {data.test.score}%
               </p>
             </div>
-            <p className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Zap className="size-4 text-coral" aria-hidden /> +{data.earnedXp} XP
-            </p>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                <Zap className="size-4 text-coral" aria-hidden /> +{data.earnedXp} XP
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="bg-card"
+                onClick={handleShare}
+                disabled={isSharing}
+                aria-label="Share mock-test result"
+              >
+                {isSharing ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Share2 className="size-4" aria-hidden />}
+                <span className="hidden sm:inline">Share result</span>
+              </Button>
+            </div>
           </div>
           <div className="h-3 overflow-hidden rounded-full border-2 border-foreground bg-card">
             <div className="h-full bg-mint" style={{ width: `${Math.max(0, Math.min(100, data.test.score))}%` }} />
           </div>
+          {shareMessage ? <p className="text-xs font-semibold text-muted-foreground" role="status" aria-live="polite">{shareMessage}</p> : null}
         </CardContent>
       </Card>
 
