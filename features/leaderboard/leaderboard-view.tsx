@@ -19,7 +19,7 @@ import type { LeaderboardMode } from '@/types/database'
 
 export function LeaderboardView() {
   const [mode, setMode] = useState<LeaderboardMode>('all_time')
-  const { data, error, isLoading, mutate } = useLeaderboard(mode, 20)
+  const { data, error, isLoading, mutate } = useLeaderboard(mode, 10)
   const meId = useAuth().user?.id ?? null
 
   if (isLoading) return <LeaderboardSkeleton />
@@ -48,8 +48,10 @@ export function LeaderboardView() {
 
   const top3 = data.entries.filter((entry) => entry.rank <= 3).slice(0, 3)
   const currentUser = data.current_user
-  const currentUserIsOutsideTop = Boolean(currentUser && currentUser.rank > 3)
-  const rest = data.entries.filter((entry) => entry.rank > 3 && entry.profile.id !== currentUser?.profile.id)
+  const currentUserIsOutsideTop = Boolean(currentUser && currentUser.rank > 10)
+  const rest = data.entries.filter(
+    (entry) => entry.rank > 3 && (!currentUserIsOutsideTop || entry.profile.id !== currentUser?.profile.id),
+  )
   const podium = [top3[1], top3[0], top3[2]].filter(Boolean)
 
   return (
@@ -81,7 +83,14 @@ export function LeaderboardView() {
           const height = rank === 1 ? 'h-28' : rank === 2 ? 'h-20' : 'h-16'
           const medal = rank === 1 ? 'bg-mint text-mint-foreground' : rank === 2 ? 'bg-muted text-foreground' : 'bg-coral text-coral-foreground'
           return (
-            <Link key={entry.profile.id} href={`/profile/${entry.profile.id}`} className="flex flex-col items-center gap-2 rounded-md p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Link
+              key={entry.profile.id}
+              href={`/profile/${entry.profile.id}`}
+              className={cn(
+                'flex flex-col items-center gap-2 rounded-md p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                isMe && 'ring-4 ring-mint ring-offset-2 ring-offset-background',
+              )}
+            >
               <Avatar name={entry.profile.display_name} avatarId={entry.profile.avatar_id} avatarUrl={entry.profile.avatar_url} size={rank === 1 ? 'lg' : 'md'} />
               <div className="text-center">
                 <p className={cn('max-w-[8rem] truncate font-heading text-sm font-bold', isMe && 'text-mint-foreground')}>
@@ -113,7 +122,7 @@ function LeaderboardRow({ entry, mode, meId }: { entry: NonNullable<ReturnType<t
   const isMe = entry.profile.id === meId
   return (
     <Link href={`/profile/${entry.profile.id}`} className="block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring">
-      <Card className={cn(isMe && 'border-mint bg-mint/20')}>
+      <Card className={cn(isMe && 'border-4 border-mint bg-mint/20 shadow-[4px_4px_0_hsl(var(--foreground))]')}>
         <div className="flex items-center gap-3 p-3">
           <span className="w-6 text-center font-heading text-sm font-bold tabular-nums text-muted-foreground">{entry.rank}</span>
           <Avatar name={entry.profile.display_name} avatarId={entry.profile.avatar_id} avatarUrl={entry.profile.avatar_url} size="sm" />
