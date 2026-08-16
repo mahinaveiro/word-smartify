@@ -127,7 +127,7 @@ export function QuizCard({
       </div>
 
       {!secure ? (
-        <div className="relative z-50 flex min-h-10 items-center justify-end">
+        <div className="relative flex min-h-10 items-center justify-end">
           {explanationOpen && question.explanation ? (
             <button
               type="button"
@@ -136,32 +136,33 @@ export function QuizCard({
               onClick={() => setExplanationForQuestion(null)}
             />
           ) : null}
-          <IconButton
-            label={explanationOpen ? 'Hide explanation' : canRevealExplanation ? 'Show explanation' : question.explanation ? 'Answer first to show explanation' : 'No explanation available'}
-            variant={explanationOpen ? 'accent' : 'solid'}
-            className="relative z-50"
-            size="sm"
-            disabled={!canRevealExplanation}
-            aria-expanded={explanationOpen}
-            aria-controls={`quiz-explanation-${question.id}`}
-            onClick={() => setExplanationForQuestion(explanationOpen ? null : question.id)}
-          >
-            <Lightbulb className={cn(canRevealExplanation && !explanationOpen && 'animate-pulse')} aria-hidden />
-          </IconButton>
-          {explanationOpen && question.explanation ? (
-            <div
-              id={`quiz-explanation-${question.id}`}
-              role="dialog"
-              aria-modal="true"
-              className="relative z-50 absolute bottom-[calc(100%+0.75rem)] right-0 w-[min(22rem,calc(100vw-2rem))] rounded-md border-2 border-foreground bg-muted p-4 text-left text-sm leading-relaxed shadow-brutal quiz-explanation-pop sm:p-5"
+          <div className="relative z-50">
+            <IconButton
+              label={explanationOpen ? 'Hide explanation' : canRevealExplanation ? 'Show explanation' : question.explanation ? 'Answer first to show explanation' : 'No explanation available'}
+              variant={explanationOpen ? 'accent' : 'solid'}
+              size="sm"
+              disabled={!canRevealExplanation}
+              aria-expanded={explanationOpen}
+              aria-controls={`quiz-explanation-${question.id}`}
+              onClick={() => setExplanationForQuestion(explanationOpen ? null : question.id)}
             >
-              <span
-                aria-hidden
-                className="absolute -bottom-2 right-4 size-4 rotate-45 border-b-2 border-r-2 border-foreground bg-muted"
-              />
-              {question.explanation}
-            </div>
-          ) : null}
+              <Lightbulb className={cn(canRevealExplanation && !explanationOpen && 'animate-pulse')} aria-hidden />
+            </IconButton>
+            {explanationOpen && question.explanation ? (
+              <div
+                id={`quiz-explanation-${question.id}`}
+                role="dialog"
+                aria-modal="true"
+                className="absolute bottom-[calc(100%+0.75rem)] right-0 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-md border-2 border-foreground bg-muted p-4 text-left text-sm leading-relaxed shadow-brutal quiz-explanation-pop sm:p-5"
+              >
+                <span
+                  aria-hidden
+                  className="absolute -bottom-2 right-3 size-4 rotate-45 border-b-2 border-r-2 border-foreground bg-muted"
+                />
+                {question.explanation}
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
