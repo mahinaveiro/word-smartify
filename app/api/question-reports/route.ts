@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'This question is no longer available.' }, { status: 404 })
   }
 
-  const { data: report, error: reportError } = await supabase
+  const { error: reportError } = await supabase
     .from('question_reports')
     .insert({
       user_id: authData.user.id,
@@ -86,10 +86,8 @@ export async function POST(request: Request) {
       options: question.options,
       correct_answer: question.correct_answer,
     })
-    .select('id')
-    .single()
 
-  if (reportError || !report) {
+  if (reportError) {
     console.error('Question report insert failed', reportError)
     return NextResponse.json({ error: 'Your report could not be saved. Please try again.' }, { status: 500 })
   }
@@ -119,7 +117,6 @@ export async function POST(request: Request) {
         ${optionsHtml}
         <p><strong>Stored answer:</strong> ${escapeHtml(question.correct_answer)}</p>
         ${noteHtml}
-        <p><strong>Report ID:</strong> ${escapeHtml(report.id)}</p>
       `,
     })
 
