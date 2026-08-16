@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -19,6 +19,8 @@ import {
 import { PageHeader } from '@/components/ui/page-header'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
+import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
@@ -32,7 +34,6 @@ import {
   useLevel,
   useLevelsForBook,
   useLibrarySearch,
-  useQuizForWord,
   useSavedWord,
   useSavedWords,
   useWord,
@@ -379,16 +380,48 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
   const levelQuery = useLevel(wordQuery.data?.level_id ?? null)
   const wordsQuery = useWordsForLevel(wordQuery.data?.level_id ?? null)
   const savedQuery = useSavedWord(wordId)
-  const quizQuery = useQuizForWord(wordId)
   const { saveWord, removeSavedWord, addToReview } = useActions()
   const [feedback, setFeedback] = useState<string | null>(null)
   const [busy, setBusy] = useState<'save' | 'review' | null>(null)
   const [testMe, setTestMe] = useState(false)
-  const question = quizQuery.data?.[0] ?? null
-  const quiz = useQuizEngine(question)
+  const tryMeQuestion = useMemo(() => {
+    const currentWord = wordQuery.data
+    const levelWords = wordsQuery.data
+    if (!currentWord || !levelWords) return null
 
-  if (wordQuery.error || levelQuery.error || wordsQuery.error || savedQuery.error || quizQuery.error) {
-    return <ErrorState title="Word details couldn't be loaded" description="Try opening the word again." onRetry={() => void Promise.all([wordQuery.mutate(), levelQuery.mutate(), wordsQuery.mutate(), savedQuery.mutate(), quizQuery.mutate()])} />
+    const candidates = levelWords.filter((candidate) => candidate.id !== currentWord.id && candidate.english_meaning.trim())
+    if (candidates.length < 4) return null
+
+    const targetIndex = Math.abs(currentWord.book_word_number) % candidates.length
+    const target = candidates[targetIndex]
+    const distractors = candidates.filter((candidate) => candidate.id !== target.id).slice(0, 3)
+    if (distractors.length < 3) return null
+
+    return {
+      id: `try-me-${currentWord.id}-${target.id}`,
+      word_id: target.id,
+      question_type: 'meaning' as const,
+      question: `Which word means “${target.english_meaning}”?`,
+      options: [target.word, ...distractors.map((candidate) => candidate.word)],
+      correct_answer: target.word,
+      explanation: `${target.word} means “${target.english_meaning}.”`,
+      difficulty: target.difficulty,
+      created_at: target.created_at,
+    }
+  }, [wordQuery.data, wordsQuery.data])
+  const quiz = useQuizEngine(tryMeQuestion)
+
+  useEffect(() => {
+    if (!testMe || !quiz.revealed) return
+    const timeout = window.setTimeout(() => {
+      setTestMe(false)
+      quiz.reset()
+    }, 1400)
+    return () => window.clearTimeout(timeout)
+  }, [quiz.revealed, quiz.reset, testMe])
+
+  if (wordQuery.error || levelQuery.error || wordsQuery.error || savedQuery.error) {
+    return <ErrorState title="Word details couldn't be loaded" description="Try opening the word again." onRetry={() => void Promise.all([wordQuery.mutate(), levelQuery.mutate(), wordsQuery.mutate(), savedQuery.mutate()])} />
   }
   if (!wordQuery.data || !levelQuery.data || !wordsQuery.data || savedQuery.data == null) return <LoadingRows count={6} />
 
@@ -397,6 +430,12 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
   const previous = index > 0 ? wordsQuery.data[index - 1] : null
   const next = index >= 0 && index < wordsQuery.data.length - 1 ? wordsQuery.data[index + 1] : null
   const resolvedBookSlug = bookSlug ?? null
+
+  const closeTestMe = () => {
+    setTestMe(false)
+    quiz.reset()
+    setFeedback(null)
+  }
 
   const toggleSave = async () => {
     setBusy('save')
@@ -447,63 +486,71 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-3 sm:gap-5">
       <LibraryBreadcrumb items={[...(resolvedBookSlug ? [{ label: resolvedBookSlug, href: `/library/${resolvedBookSlug}` }] : []), { label: word.word }]} />
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-2">
         <Button asChild variant="ghost" size="sm"><Link href={resolvedBookSlug ? `/library/${resolvedBookSlug}/level/${levelQuery.data.level_number}` : '/library/dictionary'}><ArrowLeft className="size-4" aria-hidden /> Back</Link></Button>
-        <span className="text-sm text-muted-foreground">Curriculum word {word.book_word_number}</span>
+        <span className="text-xs text-muted-foreground">Word {word.book_word_number}</span>
       </div>
 
-      <Card className="flex flex-col gap-6 overflow-hidden bg-card p-5 sm:p-6">
-        <div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Word detail</p>
-            <h1 className="mt-2 font-heading text-4xl font-black tracking-tight sm:text-5xl">{word.word}</h1>
-            {word.pronunciation ? <p className="mt-2 font-mono text-sm text-muted-foreground">{word.pronunciation}</p> : null}
-          </div>
-          <Badge variant="neutral">Level {levelQuery.data.level_number}</Badge>
+      <Card className="relative flex flex-col gap-3 overflow-hidden bg-card p-4 sm:gap-5 sm:p-6">
+        <div className="absolute left-3 top-3 z-10 sm:left-4 sm:top-4">
+          <IconButton
+            label={savedQuery.data ? 'Remove from saved words' : 'Save word'}
+            variant={savedQuery.data ? 'accent' : 'solid'}
+            size="sm"
+            onClick={() => void toggleSave()}
+            disabled={busy === 'save'}
+          >
+            {savedQuery.data ? <Check aria-hidden /> : <Bookmark aria-hidden />}
+          </IconButton>
+        </div>
+        <div className="absolute right-3 top-3 z-10 sm:right-4 sm:top-4">
+          <IconButton label="Share word" variant="solid" size="sm" onClick={() => void share()}>
+            <Share2 aria-hidden />
+          </IconButton>
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <DetailSection title="Meaning"><p className="text-lg leading-relaxed">{word.english_meaning}</p>{word.bangla_meaning ? <p className="mt-2 text-sm text-muted-foreground">{word.bangla_meaning}</p> : null}</DetailSection>
-          <DetailSection title="Example"><p className="leading-relaxed text-muted-foreground">{word.example_sentence || 'No example sentence has been added yet.'}</p></DetailSection>
-          <DetailSection title="Mnemonic"><p className="leading-relaxed text-muted-foreground">{word.mnemonic || 'No mnemonic has been added yet.'}</p></DetailSection>
+        <div className="min-w-0 px-10 pt-1 sm:px-12">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Word detail</p>
+          <h1 className="mt-1 break-words font-heading text-3xl font-black tracking-tight sm:text-5xl">{word.word}</h1>
+          {word.pronunciation ? <p className="mt-1 font-mono text-xs text-muted-foreground sm:text-sm">{word.pronunciation}</p> : null}
+          <Badge className="mt-2" variant="neutral">Level {levelQuery.data.level_number}</Badge>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+          <DetailSection title="Meaning"><p className="text-base leading-snug sm:text-lg">{word.english_meaning}</p>{word.bangla_meaning ? <p className="mt-1.5 text-xs text-muted-foreground sm:text-sm">{word.bangla_meaning}</p> : null}</DetailSection>
+          <DetailSection title="Example"><p className="text-sm leading-snug text-muted-foreground sm:text-base">{word.example_sentence || 'No example sentence yet.'}</p></DetailSection>
+          <DetailSection title="Mnemonic"><p className="text-sm leading-snug text-muted-foreground sm:text-base">{word.mnemonic || 'No mnemonic yet.'}</p></DetailSection>
           <DetailSection title="Related words">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {(word.synonyms ?? []).map((item) => <Badge key={`syn-${item}`} variant="neutral">{item}</Badge>)}
               {(word.antonyms ?? []).map((item) => <Badge key={`ant-${item}`} variant="coral">{item}</Badge>)}
-              {!word.synonyms?.length && !word.antonyms?.length ? <span className="text-sm text-muted-foreground">No related words listed.</span> : null}
+              {!word.synonyms?.length && !word.antonyms?.length ? <span className="text-sm text-muted-foreground">None listed.</span> : null}
             </div>
           </DetailSection>
         </div>
 
-        <div className="flex flex-wrap gap-2 border-t-2 border-foreground pt-5">
-          <Button type="button" variant={savedQuery.data ? 'accent' : 'outline'} size="sm" onClick={() => void toggleSave()} loading={busy === 'save'}>
-            {savedQuery.data ? <Check className="size-4" aria-hidden /> : <Bookmark className="size-4" aria-hidden />}
-            {savedQuery.data ? 'Saved' : 'Save word'}
-          </Button>
+        <div className="grid grid-cols-2 gap-2 border-t-2 border-foreground pt-3 sm:gap-3 sm:pt-4">
           <Button type="button" variant="outline" size="sm" onClick={() => void review()} loading={busy === 'review'}><Sparkles className="size-4" aria-hidden /> Add to Review</Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => { setTestMe((value) => !value); setFeedback(null) }}><Clipboard className="size-4" aria-hidden /> {testMe ? 'Close Test Me' : 'Test Me'}</Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => void share()}><Share2 className="size-4" aria-hidden /> Share</Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => { setTestMe(true); setFeedback(null) }}><Clipboard className="size-4" aria-hidden /> Try Me</Button>
         </div>
-        {feedback ? <p role="status" className="text-sm font-semibold text-muted-foreground">{feedback}</p> : null}
+        {feedback ? <p role="status" className="text-xs font-semibold text-muted-foreground">{feedback}</p> : null}
       </Card>
 
-      {testMe ? (
-        <Card className="flex flex-col gap-5 overflow-hidden bg-muted/45 p-5 sm:p-6">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Test Me</p>
-            <h2 className="mt-1 font-heading text-xl font-bold">Check this word once</h2>
-            <p className="mt-1 text-sm text-muted-foreground">This quick check uses the shared quiz evaluator and stays on this word page.</p>
-          </div>
-          {!quizQuery.data?.length ? <EmptyState title="Quiz unavailable" description="There is no quiz question for this word yet." /> : question ? (
-            <>
-              <QuizCard question={question} selected={quiz.selected} onSelect={(option) => { const event = quiz.submit(option); if (event) setFeedback(event.isCorrect ? 'Correct.' : `Not quite. The answer is ${question.correct_answer}.`) }} revealed={quiz.revealed} />
-              {quiz.revealed ? <Button type="button" variant="outline" size="sm" className="w-fit" onClick={() => { quiz.reset(); setFeedback(null) }}>Try again</Button> : null}
-            </>
-          ) : null}
-        </Card>
-      ) : null}
+      <Modal open={testMe} onClose={closeTestMe} title={`Try Me: ${word.word}`} description="Choose the word that matches the meaning." className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
+        {!tryMeQuestion ? <EmptyState title="Quiz unavailable" description="This level needs more words for a quick test." /> : (
+          <QuizCard
+            question={tryMeQuestion}
+            selected={quiz.selected}
+            onSelect={(option) => {
+              const event = quiz.submit(option)
+              if (event) setFeedback(event.isCorrect ? 'Correct.' : `Not quite. The answer is ${tryMeQuestion.correct_answer}.`)
+            }}
+            revealed={quiz.revealed}
+          />
+        )}
+      </Modal>
 
       <div className="flex items-center justify-between gap-3">
         {previous ? <Button asChild variant="outline" size="sm"><Link href={libraryWordHref(previous.id, resolvedBookSlug)}><ArrowLeft className="size-4" aria-hidden /> Previous</Link></Button> : <span />}
@@ -515,8 +562,8 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
 
 function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-md border-2 border-foreground bg-muted/30 p-4">
-      <h2 className="mb-2 font-heading text-sm font-bold uppercase tracking-[0.12em]">{title}</h2>
+    <section className="rounded-md border-2 border-foreground bg-muted/30 p-3 sm:p-4">
+      <h2 className="mb-1.5 font-heading text-[0.68rem] font-bold uppercase tracking-[0.12em] sm:text-sm">{title}</h2>
       {children}
     </section>
   )
