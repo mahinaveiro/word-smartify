@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, ArrowRight, Trophy, Zap, Sparkles, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -18,6 +18,7 @@ import { QuizCard } from './quiz-card'
 import { useQuizEngine } from '@/hooks/use-quiz-engine'
 import type { QuizAnswerEvent } from '@/lib/quiz-engine'
 import { XP } from '@/lib/xp'
+import { trackProductEvent } from '@/lib/product-analytics'
 
 type Phase = 'flashcards' | 'quiz' | 'summary'
 
@@ -41,6 +42,14 @@ export function SessionView({ levelId }: { levelId: string }) {
   const pendingSavesRef = useRef(new Set<Promise<QuizAnswerResult>>())
   const failedSavesRef = useRef(new Set<string>())
   const resultsRef = useRef<QuizAnswerResult[]>([])
+  const sessionStarted = useRef(false)
+
+  useEffect(() => {
+    if (!sessionStarted.current && cards && cards.length > 0) {
+      trackProductEvent('learning_session_started', { words: cards.length })
+      sessionStarted.current = true
+    }
+  }, [cards])
 
   const total = cards?.length ?? 0
   const card = cards?.[index]
@@ -150,6 +159,10 @@ export function SessionView({ levelId }: { levelId: string }) {
       if (resultsRef.current.some((result) => result.goalJustCompleted)) {
         toast({ title: 'Daily goal complete!', description: `+${XP.DAILY_GOAL} XP bonus earned.`, tone: 'success' })
       }
+      trackProductEvent('learning_session_completed', {
+        words: total,
+        correct: resultsRef.current.filter((result) => result.correct).length,
+      })
       setPhase('summary')
     } catch {
       finishRecorded.current = false

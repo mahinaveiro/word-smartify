@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { ArrowRight, BookOpen, CircleCheckBig, Flame, Sparkles, Target, Trophy, Zap } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -10,6 +11,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { GoalRing } from '@/features/shared/goal-ring'
 import { StatTile } from '@/features/shared/stat-tile'
 import { useBookProgress, useDailyPlan, useProfile, useStats } from '@/hooks/use-data'
+import { trackProductEvent } from '@/lib/product-analytics'
 
 export function DashboardView() {
   const profileQuery = useProfile()
@@ -20,6 +22,19 @@ export function DashboardView() {
   const { data: stats } = statsQuery
   const { data: plan } = planQuery
   const { data: bookProgress } = bookProgressQuery
+  const trackedDashboardView = useRef(false)
+
+  useEffect(() => {
+    if (!trackedDashboardView.current && profile && stats && plan) {
+      trackProductEvent('dashboard_viewed', {
+        due_reviews: plan.review.due,
+        new_words_remaining: plan.newLearning.remaining,
+        daily_goal: plan.goal,
+        streak: stats.current_streak,
+      })
+      trackedDashboardView.current = true
+    }
+  }, [plan, profile, stats])
 
   const queries = [profileQuery, statsQuery, planQuery, bookProgressQuery]
   if (queries.some((query) => query.isLoading)) return <DashboardSkeleton />
@@ -151,17 +166,18 @@ export function DashboardView() {
           <CardContent className="flex flex-col gap-4 p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Next move</p>
-                <h2 className="font-heading text-xl font-bold">{level?.title ?? 'Explore your library'}</h2>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recommended next</p>
+                <h2 className="font-heading text-xl font-bold">{plan.nextAction.title}</h2>
               </div>
               <ArrowRight className="size-6 text-coral" aria-hidden />
             </div>
-            <p className="text-sm text-muted-foreground">
-              {level ? `${level.word_count} words are waiting in your next level.` : 'Review your progress or browse a new level.'}
-            </p>
+            <p className="text-sm text-muted-foreground">{plan.nextAction.detail}</p>
             <Button asChild size="sm" className="self-start">
-              <Link href={level ? `/session/${level.id}` : '/learn'}>
-                {level ? 'Open next level' : 'Open Learn'} <ArrowRight className="size-4" aria-hidden />
+              <Link
+                href={plan.nextAction.href}
+                onClick={() => trackProductEvent('today_action_opened', { action: plan.nextAction.title })}
+              >
+                {plan.nextAction.action} <ArrowRight className="size-4" aria-hidden />
               </Link>
             </Button>
           </CardContent>
@@ -201,7 +217,12 @@ function PlanItem({
         <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{detail}</p>
       </div>
       <Button asChild variant="ghost" size="sm" className="mt-2 justify-start px-0 shadow-none">
-        <Link href={href}>{action} <ArrowRight className="size-3.5" aria-hidden /></Link>
+        <Link
+          href={href}
+          onClick={() => trackProductEvent('today_action_opened', { action: title })}
+        >
+          {action} <ArrowRight className="size-3.5" aria-hidden />
+        </Link>
       </Button>
     </div>
   )

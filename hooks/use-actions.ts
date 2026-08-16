@@ -4,6 +4,7 @@ import { useCallback } from 'react'
 import { useSWRConfig } from 'swr'
 import { repositories } from '@/repositories'
 import { useAuth } from '@/features/auth/auth-provider'
+import { trackProductEvent } from '@/lib/product-analytics'
 import {
   completeDailyChallenge as completeChallenge,
   finalizeSession,
@@ -58,8 +59,10 @@ export function useActions() {
   }, [mutate])
 
   const recordQuizAnswer = useCallback(
-    (wordId: string, correct: boolean, mode: QuizMode = 'learning') =>
-      recordAnswer(requireUserId(), wordId, correct, mode),
+    (wordId: string, correct: boolean, mode: QuizMode = 'learning') => {
+      trackProductEvent('answer_submitted', { mode, correct })
+      return recordAnswer(requireUserId(), wordId, correct, mode)
+    },
     [requireUserId],
   )
 

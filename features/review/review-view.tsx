@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, ArrowRight, Trophy, Zap, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,7 @@ import { useActions, type QuizAnswerResult } from '@/hooks/use-actions'
 import { QuizCard } from '@/features/session/quiz-card'
 import type { QuizAnswerEvent } from '@/lib/quiz-engine'
 import { XP } from '@/lib/xp'
+import { trackProductEvent } from '@/lib/product-analytics'
 
 type Phase = 'quiz' | 'summary'
 
@@ -36,6 +37,14 @@ export function ReviewView() {
   const pendingSavesRef = useRef(new Set<Promise<QuizAnswerResult>>())
   const failedSavesRef = useRef(new Set<string>())
   const resultsRef = useRef<QuizAnswerResult[]>([])
+  const reviewStarted = useRef(false)
+
+  useEffect(() => {
+    if (!reviewStarted.current && cards && cards.length > 0) {
+      trackProductEvent('review_started', { words: cards.length })
+      reviewStarted.current = true
+    }
+  }, [cards])
 
   const total = cards?.length ?? 0
   const card = cards?.[index]
@@ -147,6 +156,10 @@ export function ReviewView() {
       if (resultsRef.current.some((result) => result.goalJustCompleted)) {
         toast({ title: 'Daily goal complete!', description: `+${XP.DAILY_GOAL} XP bonus earned.`, tone: 'success' })
       }
+      trackProductEvent('review_completed', {
+        words: total,
+        correct: resultsRef.current.filter((result) => result.correct).length,
+      })
       setPhase('summary')
     } catch {
       finishRecorded.current = false

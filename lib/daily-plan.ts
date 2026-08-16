@@ -26,6 +26,12 @@ export interface DailyPlan {
   }
   xpEarned: number
   dayComplete: boolean
+  nextAction: {
+    title: string
+    detail: string
+    href: string
+    action: string
+  }
 }
 
 export interface LevelProgressRollup {
@@ -53,6 +59,34 @@ export function buildDailyPlan(input: {
 }): DailyPlan {
   const nextLevel = pickNextLearningLevel(input.levels, input.levelProgress)
   const newWordsRemaining = Math.max(0, input.dailyGoal - (input.today?.new_words_completed ?? 0))
+  const dayComplete = (input.today?.new_words_completed ?? 0) >= input.dailyGoal
+  const nextAction = input.dueReviewQueue.length > 0
+    ? {
+        title: 'Review due words',
+        detail: `${input.dueReviewQueue.length} word${input.dueReviewQueue.length === 1 ? '' : 's'} ready for recall practice.`,
+        href: '/review',
+        action: 'Start review',
+      }
+    : newWordsRemaining > 0 && nextLevel
+      ? {
+          title: 'Learn new words',
+          detail: `${newWordsRemaining} word${newWordsRemaining === 1 ? '' : 's'} left in today\'s goal.`,
+          href: `/session/${nextLevel.id}`,
+          action: 'Start learning',
+        }
+      : !(input.today?.challenge_completed ?? false)
+        ? {
+            title: 'Take today\'s challenge',
+            detail: 'A short mixed quiz to keep your recall active.',
+            href: '/challenge',
+            action: 'Start challenge',
+          }
+        : {
+            title: 'Keep exploring',
+            detail: 'Your plan is clear. Browse the next level when you are ready.',
+            href: nextLevel ? `/session/${nextLevel.id}` : '/learn',
+            action: nextLevel ? 'Open next level' : 'Open Learn',
+          }
   return {
     date: input.date,
     goal: input.dailyGoal,
@@ -68,6 +102,7 @@ export function buildDailyPlan(input: {
       completed: input.today?.challenge_completed ?? false,
     },
     xpEarned: input.today?.xp_earned ?? 0,
-    dayComplete: (input.today?.new_words_completed ?? 0) >= input.dailyGoal,
+    dayComplete,
+    nextAction,
   }
 }
