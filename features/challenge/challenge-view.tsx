@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { ArrowRight, Sparkles, Trophy, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
-import { BackButton } from '@/components/ui/back-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
@@ -61,7 +60,7 @@ export function ChallengeView() {
           icon={Sparkles}
           title="Couldn&apos;t load your challenge"
           description="Try loading the challenge again."
-          action={<div className="flex items-center gap-2"><BackButton onClick={() => router.push('/dashboard')} label="Back to dashboard" /><Button onClick={() => mutate()}>Retry</Button></div>}
+          action={<div className="flex gap-2"><Button variant="outline" onClick={() => router.push('/dashboard')}>Back</Button><Button onClick={() => mutate()}>Retry</Button></div>}
         />
       </div>
     )
@@ -73,7 +72,7 @@ export function ChallengeView() {
           icon={Sparkles}
           title="Build your challenge first"
           description="Explore a fresh set of real Word Smart vocabulary with a short daily quiz."
-          action={<BackButton onClick={() => router.push('/dashboard')} label="Back to dashboard" />}
+          action={<Button onClick={() => router.push('/dashboard')}>Back to dashboard</Button>}
         />
       </div>
     )
@@ -212,7 +211,7 @@ export function ChallengeView() {
             {index < total - 1 ? 'Next question' : 'Finish challenge'}
  <ArrowRight className="size-5" aria-hidden />
           </Button>
-        ) : <div className="flex justify-center"><BackButton onClick={() => router.push('/dashboard')} label="Back to dashboard" /></div>}
+        ) : <Button size="lg" className="w-full" onClick={() => router.push('/dashboard')}>Back to dashboard</Button>}
       </div>
     </div>
   )

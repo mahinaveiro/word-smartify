@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Check, Minus, X } from 'lucide-react'
+import { ArrowLeft, Check, Minus, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -30,7 +30,7 @@ export function MockTestReviewView({ testId }: { testId: string }) {
       <EmptyState
         title="Test not found"
         description="This mock test is no longer available on this device."
-        action={<BackButton href="/mock-tests" label="Back to mock tests" />}
+        action={<Button asChild><Link href="/mock-tests">Back to Mock Tests</Link></Button>}
       />
     )
   }
@@ -48,9 +48,7 @@ export function MockTestReviewView({ testId }: { testId: string }) {
     <div className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6">
       <PageHeader
         title="Review mistakes"
-        actions={(
-          <BackButton href={`/mock-tests/${testId}/result`} label="Back to result" />
-        )}
+        leading={<BackButton href={`/mock-tests/${testId}/result`} label="Back to result" />}
       />
 
       <div className="flex flex-col gap-3">
@@ -95,10 +93,12 @@ export function MockTestReviewView({ testId }: { testId: string }) {
         })}
       </div>
 
-      <div className="flex items-center justify-between gap-3 sm:justify-end">
-        <BackButton href={`/mock-tests/${testId}/result`} label="Back to result" />
-        <Button asChild className="flex-1 sm:flex-none">
-          <Link href="/mock-tests">Mock tests</Link>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Button asChild variant="outline" className="flex-1">
+          <Link href={`/mock-tests/${testId}/result`}><ArrowLeft className="size-4" aria-hidden /> Back to Result</Link>
+        </Button>
+        <Button asChild className="flex-1">
+          <Link href="/mock-tests">Back to Mock Tests</Link>
         </Button>
       </div>
     </div>

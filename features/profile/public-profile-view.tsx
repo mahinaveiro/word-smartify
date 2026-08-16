@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Award, BarChart3, BookOpen, ExternalLink, Flame, Medal, MessageCircle, Send, Target, Trophy } from 'lucide-react'
+import { ArrowLeft, Award, BarChart3, BookOpen, ExternalLink, Flame, Medal, MessageCircle, Send, Target, Trophy } from 'lucide-react'
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -41,8 +41,10 @@ export function PublicProfileView({ userId }: { userId: string }) {
   if (!profile) {
     return (
       <div className="flex flex-col gap-4">
-        <BackButton href="/leaderboard" label="Back to leaderboard" className="-mb-2 self-start" />
-        <EmptyState title="Profile not found" description="This learner profile is no longer available." action={<BackButton href="/leaderboard" label="Back to leaderboard" />} />
+        <Button asChild variant="ghost" className="self-start px-0">
+          <Link href="/leaderboard"><ArrowLeft className="size-4" aria-hidden /> Back to leaderboard</Link>
+        </Button>
+        <EmptyState title="Profile not found" description="This learner profile is no longer available." action={<Button asChild><Link href="/leaderboard">Back to leaderboard</Link></Button>} />
       </div>
     )
   }
@@ -51,9 +53,7 @@ export function PublicProfileView({ userId }: { userId: string }) {
     <div className="flex flex-col gap-6">
       <PageHeader
         title={<OwnerDisplayName userId={profile.id} name={profile.display_name} className="text-balance" />}
-        actions={
-          <BackButton href="/leaderboard" label="Back to leaderboard" />
-        }
+        leading={<BackButton href="/leaderboard" label="Back to leaderboard" />}
       />
 
       <Card>

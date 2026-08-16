@@ -68,6 +68,18 @@ export async function proxy(request: NextRequest) {
   // client-provided session object for authorization decisions.
   const { data: claimsData } = await supabase.auth.getClaims()
 
+  const isGuestEntryPath = request.nextUrl.pathname === '/' || request.nextUrl.pathname === '/auth'
+
+  if (isGuestEntryPath && claimsData?.claims?.sub) {
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = '/dashboard'
+    redirectUrl.search = ''
+
+    const redirectResponse = NextResponse.redirect(redirectUrl)
+    response.cookies.getAll().forEach(({ name, value }) => redirectResponse.cookies.set(name, value))
+    return redirectResponse
+  }
+
   if (isProtectedPath(request.nextUrl.pathname) && !claimsData?.claims?.sub) {
     const redirectUrl = request.nextUrl.clone()
     redirectUrl.pathname = '/auth'

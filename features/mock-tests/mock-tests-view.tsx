@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { PageHeader } from '@/components/ui/page-header'
+import { BackButton } from '@/components/ui/back-button'
 import { SectionHeader } from '@/components/ui/section-header'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
@@ -54,7 +55,7 @@ export function MockTestsView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Mock Tests" />
+      <PageHeader title="Mock Tests" leading={<BackButton href="/dashboard" label="Back to dashboard" />} />
 
       <Card>
         <CardContent className="flex flex-col gap-4 p-5 sm:p-6">

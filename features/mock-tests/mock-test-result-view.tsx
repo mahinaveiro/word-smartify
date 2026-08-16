@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { BookOpen, Check, Clock, ListChecks, Target, X, Zap } from 'lucide-react'
+import { ArrowLeft, BookOpen, Check, Clock, ListChecks, Target, X, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -31,7 +31,7 @@ export function MockTestResultView({ testId }: { testId: string }) {
       <EmptyState
         title="Result not found"
         description="This mock test is no longer available on this device."
-        action={<BackButton href="/mock-tests" label="Back to mock tests" />}
+        action={<Button asChild><Link href="/mock-tests">Back to Mock Tests</Link></Button>}
       />
     )
   }
@@ -49,9 +49,7 @@ export function MockTestResultView({ testId }: { testId: string }) {
     <div className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6">
       <PageHeader
         title="Mock test result"
-        actions={
-          <BackButton href="/mock-tests" label="Back to mock tests" />
-        }
+        leading={<BackButton href="/mock-tests" label="Back to mock tests" />}
       />
 
       <Card>
@@ -105,11 +103,11 @@ export function MockTestResultView({ testId }: { testId: string }) {
       </Card>
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="flex flex-1 justify-center sm:justify-start">
-          <BackButton href="/mock-tests" label="Back to mock tests" />
-        </div>
+        <Button asChild variant="outline" className="flex-1">
+          <Link href="/mock-tests"><ArrowLeft className="size-4" aria-hidden /> Back to Mock Tests</Link>
+        </Button>
         <Button asChild className="flex-1">
-          <Link href="/dashboard">Dashboard</Link>
+          <Link href="/dashboard">Back to Dashboard</Link>
         </Button>
       </div>
     </div>

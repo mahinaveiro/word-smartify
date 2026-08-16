@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { BackButton } from '@/components/ui/back-button'
 import { Input, Field } from '@/components/ui/input'
 import { AuthShell } from './auth-shell'
 import { useAuth } from './auth-provider'
@@ -43,7 +42,13 @@ export function ForgotPasswordView() {
         title="Check your email"
         subtitle={`If an account exists for ${email.trim()}, we've sent a link to reset your password.`}
         footer={
-          <BackButton onClick={() => router.push('/auth')} />
+          <button
+            type="button"
+            onClick={() => router.push('/auth')}
+            className="font-semibold underline underline-offset-4"
+          >
+            Back to sign in
+          </button>
         }
       >
         <p className="text-center text-sm text-muted-foreground">
@@ -58,7 +63,13 @@ export function ForgotPasswordView() {
       title="Reset your password"
       subtitle="Enter your email and we'll send you a link to choose a new password."
       footer={
-        <BackButton onClick={() => router.push('/auth')} />
+        <button
+          type="button"
+          onClick={() => router.push('/auth')}
+          className="font-semibold underline underline-offset-4"
+        >
+          Back to sign in
+        </button>
       }
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>

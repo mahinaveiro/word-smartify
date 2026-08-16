@@ -33,7 +33,7 @@ export function LevelDetail({ levelId }: { levelId: string }) {
     )
   }
   if (!level || !words) {
-    return <EmptyState title="Level not found" description="This level is no longer available." action={<BackButton href="/learn" />} />
+    return <EmptyState title="Level not found" description="This level is no longer available." action={<Link href="/learn">Back to Learn</Link>} />
   }
 
   const statusByWord = new Map<string, WordStatus>()

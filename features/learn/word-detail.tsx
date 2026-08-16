@@ -32,7 +32,7 @@ export function WordDetail({ wordId }: { wordId: string }) {
     )
   }
   if (!word) {
-    return <EmptyState title="Word not found" description="This word is no longer available." action={<BackButton onClick={() => router.back()} />} />
+    return <EmptyState title="Word not found" description="This word is no longer available." action={<button type="button" onClick={() => router.back()} className="font-heading text-sm font-bold underline underline-offset-4">Go back</button>} />
   }
 
   const status = progress?.status ?? 'new'

@@ -5,7 +5,6 @@ import { ArrowLeft, ArrowRight, Clock, ShieldAlert, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { BackButton } from '@/components/ui/back-button'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
@@ -249,7 +248,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
       <EmptyState
         title="Test not found"
         description="This mock test is no longer available on this device."
-        action={<BackButton href="/mock-tests" label="Back to mock tests" />}
+        action={<Button asChild><Link href="/mock-tests">Back to Mock Tests</Link></Button>}
       />
     )
   }

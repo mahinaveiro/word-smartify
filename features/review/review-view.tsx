@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { X, ArrowRight, Trophy, Zap, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
-import { BackButton } from '@/components/ui/back-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
@@ -68,7 +67,9 @@ export function ReviewView() {
           description="We could not load your review queue. Please try again."
           action={
             <div className="flex flex-col gap-2 sm:flex-row">
-              <BackButton onClick={() => router.push('/dashboard')} />
+              <Button variant="outline" onClick={() => router.push('/dashboard')}>
+                Back to dashboard
+              </Button>
               <Button onClick={() => mutate()}>Retry</Button>
             </div>
           }
@@ -86,7 +87,9 @@ export function ReviewView() {
           description="You're all caught up. Come back later, or keep learning new words."
           action={
             <div className="flex flex-col gap-2 sm:flex-row">
-              <BackButton onClick={() => router.push('/dashboard')} />
+              <Button variant="outline" onClick={() => router.push('/dashboard')}>
+                Back to dashboard
+              </Button>
               <Button onClick={() => router.push('/learn')}>Go to Learn</Button>
             </div>
           }
@@ -249,9 +252,9 @@ export function ReviewView() {
             <ArrowRight className="size-5" aria-hidden />
           </Button>
         ) : (
-          <div className="flex justify-center">
-            <BackButton onClick={close} />
-          </div>
+          <Button size="lg" className="w-full" onClick={close}>
+            Back to dashboard
+          </Button>
         )}
       </div>
     </div>

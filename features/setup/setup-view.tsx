@@ -6,7 +6,6 @@ import { ArrowRight, BookOpen, Check } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { BackButton } from '@/components/ui/back-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 import { useBooks, useProfile } from '@/hooks/use-data'
@@ -133,7 +132,7 @@ export function SetupView() {
               })}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
-              <BackButton onClick={() => setStep(1)} label="Back to book selection" disabled={saving} />
+              <Button variant="ghost" onClick={() => setStep(1)} disabled={saving}>Back</Button>
               <Button onClick={finishSetup} disabled={!dailyGoal || !selectedBook || saving} loading={saving}>
                 Finish setup <Check className="size-4" aria-hidden />
               </Button>
