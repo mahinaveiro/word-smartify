@@ -107,7 +107,6 @@ export function ProfileView() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Your account"
         title="Profile"
         actions={
           <Button asChild variant="outline" size="sm">

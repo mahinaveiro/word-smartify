@@ -54,13 +54,11 @@ export function LeaderboardView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        eyebrow="Compete"
-        title="Leaderboard"
-        description={mode === 'weekly' ? `Saturday–Friday competition · ${formatWeekPeriod({ start: data.week_start, end: data.week_end })}` : 'Ranked by total XP. Keep your streak alive to climb.'}
-      />
+      <PageHeader title="Leaderboard" />
 
-      <div className="grid grid-cols-2 gap-2 rounded-md border-2 border-foreground bg-card p-1 shadow-brutal-sm" role="tablist" aria-label="Leaderboard mode">
+      <div className="flex flex-col gap-2">
+        {mode === 'weekly' ? <p className="text-xs font-medium text-muted-foreground">{formatWeekPeriod({ start: data.week_start, end: data.week_end })}</p> : null}
+        <div className="grid grid-cols-2 gap-2 rounded-md border-2 border-foreground bg-card p-1 shadow-brutal-sm" role="tablist" aria-label="Leaderboard mode">
         {(['all_time', 'weekly'] as const).map((nextMode) => (
           <button
             key={nextMode}
@@ -73,6 +71,7 @@ export function LeaderboardView() {
             {nextMode === 'all_time' ? 'All Time' : 'This Week'}
           </button>
         ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-3 items-end gap-2 sm:gap-3">

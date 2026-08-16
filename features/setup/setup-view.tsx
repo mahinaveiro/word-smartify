@@ -64,11 +64,7 @@ export function SetupView() {
 
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-2xl flex-col justify-center gap-6 py-8">
-      <PageHeader
-        eyebrow={`Account setup · Step ${step} of 2`}
-        title={step === 1 ? 'Set your daily goal' : 'Choose your starting book'}
-        description={step === 1 ? 'Choose how many new words you want to learn each day. You can change this later in Settings.' : 'Your book powers the dashboard, daily plan, and level progression.'}
-      />
+      <PageHeader title={step === 1 ? 'Set your daily goal' : 'Choose your starting book'} />
 
       {step === 1 ? (
         <Card>

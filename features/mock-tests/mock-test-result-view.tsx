@@ -47,9 +47,7 @@ export function MockTestResultView({ testId }: { testId: string }) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6">
       <PageHeader
-        eyebrow="Assessment complete"
         title="Mock test result"
-        description="A clear look at what you knew and what to review next."
         actions={
           <Button asChild variant="outline" size="sm">
             <Link href="/mock-tests"><ArrowLeft className="size-4" aria-hidden /> Mock Tests</Link>

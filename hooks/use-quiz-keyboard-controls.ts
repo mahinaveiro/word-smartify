@@ -20,10 +20,16 @@ function isEditableTarget(target: EventTarget | null) {
 }
 
 function vibrateForCorrectAnswer() {
-  if (typeof navigator === 'undefined' || typeof window === 'undefined') return
-  if (!('vibrate' in navigator) || navigator.maxTouchPoints < 1) return
-  if (window.matchMedia('(pointer: fine)').matches) return
-  navigator.vibrate([18, 28, 18])
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return
+  if (!window.isSecureContext) return
+  const vibrate = navigator.vibrate
+  if (typeof vibrate !== 'function') return
+  try {
+    // A short two-pulse pattern is easier to feel than a single 55ms pulse on Android.
+    vibrate.call(navigator, [35, 24, 65])
+  } catch {
+    // Some browsers expose Vibration API but reject calls from unsupported contexts.
+  }
 }
 
 export function useQuizKeyboardControls({

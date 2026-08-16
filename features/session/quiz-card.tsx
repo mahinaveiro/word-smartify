@@ -87,9 +87,13 @@ export function QuizCard({
               key={option}
               type="button"
               disabled={revealed}
-              onClick={() => {
-                setExplanationForQuestion(null)
+              onPointerDown={() => {
                 if (option === question.correct_answer) vibrateForCorrectAnswer()
+              }}
+              onClick={(event) => {
+                setExplanationForQuestion(null)
+                // Pointer taps vibrate on pointer-down; detail 0 covers keyboard activation.
+                if (event.detail === 0 && option === question.correct_answer) vibrateForCorrectAnswer()
                 onSelect(option)
               }}
               aria-pressed={isSelected}

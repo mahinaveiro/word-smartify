@@ -54,11 +54,7 @@ export function MockTestsView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        eyebrow="Assessment"
-        title="Mock Tests"
-        description="Test your vocabulary under exam-like conditions."
-      />
+      <PageHeader title="Mock Tests" />
 
       <Card>
         <CardContent className="flex flex-col gap-4 p-5 sm:p-6">

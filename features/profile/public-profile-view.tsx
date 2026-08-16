@@ -51,7 +51,6 @@ export function PublicProfileView({ userId }: { userId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Learner profile"
         title={<OwnerDisplayName userId={profile.id} name={profile.display_name} className="text-balance" />}
         actions={
           <Button asChild variant="outline" size="sm">

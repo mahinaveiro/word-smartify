@@ -90,18 +90,14 @@ export function LibraryLandingView() {
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
-      <PageHeader
-        eyebrow="Reference"
-        title="Library"
-        description="Browse the full Word Smart curriculum, look up any word, and keep a private shelf of words worth revisiting."
-      />
+      <PageHeader title="Library" />
 
       <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
         <Card className="flex min-w-0 flex-col justify-between gap-3 overflow-hidden bg-mint/40 p-3.5 sm:gap-5 sm:p-6">
           <div className="min-w-0">
             <Badge variant="mint">Dictionary</Badge>
             <h2 className="mt-2 font-heading text-lg font-bold sm:mt-3 sm:text-xl">Search the whole vocabulary</h2>
-            <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground sm:mt-2 sm:text-sm">Find words by spelling, meaning, book, level, or first letter.</p>
+            <p className="mt-1.5 line-clamp-1 text-xs text-muted-foreground sm:mt-2 sm:text-sm">Search the vocabulary.</p>
           </div>
           <Button asChild variant="primary" size="sm" className="w-fit">
             <Link href="/library/dictionary">
@@ -114,7 +110,7 @@ export function LibraryLandingView() {
           <div className="min-w-0">
             <Badge variant="coral">Private shelf</Badge>
             <h2 className="mt-2 font-heading text-lg font-bold sm:mt-3 sm:text-xl">Saved words</h2>
-            <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground sm:mt-2 sm:text-sm">Bookmark words from Library and revisit them later.</p>
+            <p className="mt-1.5 line-clamp-1 text-xs text-muted-foreground sm:mt-2 sm:text-sm">Keep words for review.</p>
           </div>
           <Button asChild variant="outline" size="sm" className="w-fit">
             <Link href="/library/saved">
@@ -153,7 +149,7 @@ function BookCard({ book }: { book: Book }) {
           </span>
           <div className="min-w-0 flex-1">
             <h3 className="break-words font-heading text-lg font-bold">{book.name}</h3>
-            <p className="mt-1 line-clamp-1 break-words text-xs text-muted-foreground sm:line-clamp-2 sm:text-sm">{book.description || 'A structured Word Smart vocabulary collection.'}</p>
+            <p className="mt-1 line-clamp-1 break-words text-xs text-muted-foreground sm:text-sm">{book.description || 'Word Smart vocabulary.'}</p>
             <p className="mt-2 text-[0.68rem] font-semibold uppercase tracking-[0.15em] text-muted-foreground sm:mt-3 sm:text-xs">{book.word_count.toLocaleString()} words</p>
           </div>
         </div>
@@ -184,7 +180,7 @@ export function LibraryBookView({ bookSlug }: { bookSlug: string }) {
   return (
     <div className="flex flex-col gap-6">
       <LibraryBreadcrumb items={[{ label: book.name }]} />
-      <PageHeader eyebrow="Book View" title={book.name} description={book.description || 'Browse this book in curriculum order.'} />
+      <PageHeader title={book.name} />
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="accent" size="sm">
           <Link href={`/library/${book.slug}/dictionary`}>
@@ -249,7 +245,7 @@ export function LibraryLevelView({ bookSlug, levelNumber }: { bookSlug: string; 
   return (
     <div className="flex flex-col gap-6">
       <LibraryBreadcrumb items={[{ label: book.name, href: `/library/${book.slug}` }, { label: `Level ${level.level_number}` }]} />
-      <PageHeader eyebrow={`Level ${level.level_number}`} title={level.title} description={`${wordsQuery.data.length} words in order. Open a word to study its details.`} />
+      <PageHeader title={level.title} />
       <div className="grid gap-2">
         {wordsQuery.data.map((word, index) => (
           <WordRow key={word.id} word={word} bookSlug={book.slug} number={index + 1} />
@@ -307,7 +303,7 @@ export function LibraryDictionaryView({ bookSlug }: { bookSlug?: string }) {
   return (
     <div className="flex flex-col gap-6">
       <LibraryBreadcrumb items={[...(activeBook ? [{ label: activeBook.name, href: `/library/${activeBook.slug}` }] : []), { label: 'Dictionary' }]} />
-      <PageHeader eyebrow="Dictionary View" title="Search the vocabulary" description="Search words, meanings, synonyms, antonyms, books, levels, or first letters." />
+      <PageHeader title="Search the vocabulary" />
 
       <Card className="flex flex-col gap-4 overflow-hidden bg-muted/45 p-4 sm:p-5">
         <div className="relative">
@@ -368,7 +364,7 @@ export function LibrarySavedView() {
   return (
     <div className="flex flex-col gap-6">
       <LibraryBreadcrumb items={[{ label: 'Saved words' }]} />
-      <PageHeader eyebrow="Private shelf" title="Saved words" description="Your bookmarked vocabulary, kept separate from everyone else’s shelf." />
+      <PageHeader title="Saved words" />
       {!query.data?.items.length ? <EmptyState title="No saved words yet" description="Open a word in Library and use Save word to build your private shelf." /> : (
         <div className="grid gap-2">
           {query.data.items.map((saved) => <WordRow key={saved.id} word={saved.word} />)}

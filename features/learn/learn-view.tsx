@@ -1,11 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
-import { Lock, Check, LibraryBig, ArrowRight } from 'lucide-react'
+import { Lock, Check } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -48,26 +45,8 @@ export function LearnView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        eyebrow="Vocabulary"
-        title="Learn"
-        description="Work through levels of 10 words. Master each word by getting its quizzes right."
-      />
+      <PageHeader title="Learn" />
 
-      <Card className="flex min-w-0 flex-col items-start justify-between gap-4 overflow-hidden bg-mint/35 p-4 sm:flex-row sm:items-center sm:p-5">
-        <div className="flex min-w-0 flex-1 items-start gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-md border-2 border-foreground bg-primary text-primary-foreground shadow-brutal-sm">
-            <LibraryBig className="size-5" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <p className="font-heading font-bold">Need a reference view?</p>
-            <p className="mt-1 text-sm text-muted-foreground">Browse every Word Smart word, search meanings, and save words for later.</p>
-          </div>
-        </div>
-        <Button asChild variant="outline" size="sm" className="shrink-0">
-          <Link href="/library">Open Library <ArrowRight className="size-4" aria-hidden /></Link>
-        </Button>
-      </Card>
 
       <>
           {/* Book tabs */}

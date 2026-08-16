@@ -67,7 +67,7 @@ export function ProgressView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Insights" title="Progress" description="Track your streak, mastery, and daily momentum." />
+      <PageHeader title="Progress" />
       {totalTracked === 0 ? (
         <EmptyState
           icon={BookOpen}
