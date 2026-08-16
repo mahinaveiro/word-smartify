@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { MailCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { BackButton } from '@/components/ui/back-button'
 import { useToast } from '@/components/ui/toast'
 import { AuthShell } from './auth-shell'
 import { useAuth } from './auth-provider'
@@ -41,13 +42,7 @@ export function CheckEmailView() {
           : 'We sent you a confirmation link. Click it to activate your account.'
       }
       footer={
-        <button
-          type="button"
-          onClick={() => router.push(`/auth?next=${encodeURIComponent(next)}`)}
-          className="font-semibold underline underline-offset-4"
-        >
-          Back to sign in
-        </button>
+        <BackButton onClick={() => router.push(`/auth?next=${encodeURIComponent(next)}`)} />
       }
     >
       <div className="flex flex-col gap-4">

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { X, ArrowRight, Trophy, Zap, Sparkles, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
+import { BackButton } from '@/components/ui/back-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -78,7 +79,7 @@ export function SessionView({ levelId }: { levelId: string }) {
   if (!cards || total === 0) {
     return (
       <div className="mx-auto flex min-h-dvh max-w-lg items-center px-4">
-        <EmptyState title="No words to study" description="This level does not have any words available yet." action={<Button onClick={close}>Back to level</Button>} />
+        <EmptyState title="No words to study" description="This level does not have any words available yet." action={<BackButton onClick={close} label="Back to level" />} />
       </div>
     )
   }
@@ -248,13 +249,11 @@ export function SessionView({ levelId }: { levelId: string }) {
             <ArrowRight className="size-5" aria-hidden />
           </Button>
         ) : (
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button size="lg" variant="outline" className="flex-1" onClick={() => router.push('/dashboard')}>
+          <div className="flex items-center justify-between gap-3 sm:justify-end">
+            <Button size="lg" variant="outline" className="flex-1 sm:flex-none" onClick={() => router.push('/dashboard')}>
               Home
             </Button>
-            <Button size="lg" className="flex-1" onClick={close}>
-              Back to level
-            </Button>
+            <BackButton onClick={close} label="Back to level" />
           </div>
         )}
       </div>

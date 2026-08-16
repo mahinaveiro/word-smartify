@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
+import { BackButton } from '@/components/ui/back-button'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
@@ -59,15 +60,8 @@ function LoadingRows({ count = 5 }: { count?: number }) {
   )
 }
 
-function LibraryBackButton({ href, label = 'Back' }: { href: string; label?: string }) {
-  return (
-    <Button asChild variant="ghost" size="sm" className="w-fit px-0 shadow-none">
-      <Link href={href}>
-        <ArrowLeft className="size-4" aria-hidden />
-        {label}
-      </Link>
-    </Button>
-  )
+function LibraryBackButton({ href, label = 'Go back' }: { href: string; label?: string }) {
+  return <BackButton href={href} label={label} className="-mb-2" />
 }
 
 type FilterOption = { value: string | null; label: string }
@@ -560,7 +554,7 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
   return (
     <div className="flex flex-col gap-3 sm:gap-5">
       <div className="flex items-center justify-between gap-2">
-        <Button asChild variant="ghost" size="sm"><Link href={resolvedBookSlug ? `/library/${resolvedBookSlug}/level/${levelQuery.data.level_number}` : '/library/dictionary'}><ArrowLeft className="size-4" aria-hidden /> Back</Link></Button>
+        <BackButton href={resolvedBookSlug ? `/library/${resolvedBookSlug}/level/${levelQuery.data.level_number}` : '/library/dictionary'} label="Back to previous page" />
         <span className="text-xs text-muted-foreground">Word {word.book_word_number}</span>
       </div>
 

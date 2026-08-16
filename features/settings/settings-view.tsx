@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Check, KeyRound, Save, BookOpen, LogOut, Trash2 } from 'lucide-react'
+import { Check, KeyRound, Save, BookOpen, LogOut, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
+import { BackButton } from '@/components/ui/back-button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Field } from '@/components/ui/input'
@@ -170,10 +171,7 @@ export function SettingsView() {
       <PageHeader
         title="Settings"
         actions={(
-          <Button type="button" variant="ghost" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="size-4" aria-hidden />
-            Back
-          </Button>
+          <BackButton onClick={() => router.back()} />
         )}
       />
 

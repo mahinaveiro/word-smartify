@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CheckCircle2, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { BackButton } from '@/components/ui/back-button'
 import { AuthShell } from './auth-shell'
 import { useAuth } from './auth-provider'
 import { safeNext } from '@/lib/safe-redirect'
@@ -46,13 +47,7 @@ export function VerifiedView() {
         title="Link expired or invalid"
         subtitle="This confirmation link is no longer valid. Sign in to request a new one."
         footer={
-          <button
-            type="button"
-            onClick={() => router.push('/auth')}
-            className="font-semibold underline underline-offset-4"
-          >
-            Back to sign in
-          </button>
+          <BackButton onClick={() => router.push('/auth')} />
         }
       >
         <div className="flex justify-center">

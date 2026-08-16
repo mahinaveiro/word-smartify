@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, Check, Minus, X } from 'lucide-react'
+import { Check, Minus, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { PageHeader } from '@/components/ui/page-header'
+import { BackButton } from '@/components/ui/back-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMockTest } from '@/hooks/use-data'
 
@@ -29,7 +30,7 @@ export function MockTestReviewView({ testId }: { testId: string }) {
       <EmptyState
         title="Test not found"
         description="This mock test is no longer available on this device."
-        action={<Button asChild><Link href="/mock-tests">Back to Mock Tests</Link></Button>}
+        action={<BackButton href="/mock-tests" label="Back to mock tests" />}
       />
     )
   }
@@ -48,9 +49,7 @@ export function MockTestReviewView({ testId }: { testId: string }) {
       <PageHeader
         title="Review mistakes"
         actions={(
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/mock-tests/${testId}/result`}><ArrowLeft className="size-4" aria-hidden /> Result</Link>
-          </Button>
+          <BackButton href={`/mock-tests/${testId}/result`} label="Back to result" />
         )}
       />
 
@@ -96,12 +95,10 @@ export function MockTestReviewView({ testId }: { testId: string }) {
         })}
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <Button asChild variant="outline" className="flex-1">
-          <Link href={`/mock-tests/${testId}/result`}><ArrowLeft className="size-4" aria-hidden /> Back to Result</Link>
-        </Button>
-        <Button asChild className="flex-1">
-          <Link href="/mock-tests">Back to Mock Tests</Link>
+      <div className="flex items-center justify-between gap-3 sm:justify-end">
+        <BackButton href={`/mock-tests/${testId}/result`} label="Back to result" />
+        <Button asChild className="flex-1 sm:flex-none">
+          <Link href="/mock-tests">Mock tests</Link>
         </Button>
       </div>
     </div>

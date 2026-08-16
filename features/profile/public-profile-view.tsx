@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, Award, BarChart3, BookOpen, ExternalLink, Flame, Medal, MessageCircle, Send, Target, Trophy } from 'lucide-react'
+import { Award, BarChart3, BookOpen, ExternalLink, Flame, Medal, MessageCircle, Send, Target, Trophy } from 'lucide-react'
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { PageHeader } from '@/components/ui/page-header'
+import { BackButton } from '@/components/ui/back-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/features/shared/stat-tile'
 import { Avatar } from '@/features/shared/avatar'
@@ -40,10 +41,8 @@ export function PublicProfileView({ userId }: { userId: string }) {
   if (!profile) {
     return (
       <div className="flex flex-col gap-4">
-        <Button asChild variant="ghost" className="self-start px-0">
-          <Link href="/leaderboard"><ArrowLeft className="size-4" aria-hidden /> Back to leaderboard</Link>
-        </Button>
-        <EmptyState title="Profile not found" description="This learner profile is no longer available." action={<Button asChild><Link href="/leaderboard">Back to leaderboard</Link></Button>} />
+        <BackButton href="/leaderboard" label="Back to leaderboard" className="-mb-2 self-start" />
+        <EmptyState title="Profile not found" description="This learner profile is no longer available." action={<BackButton href="/leaderboard" label="Back to leaderboard" />} />
       </div>
     )
   }
@@ -53,9 +52,7 @@ export function PublicProfileView({ userId }: { userId: string }) {
       <PageHeader
         title={<OwnerDisplayName userId={profile.id} name={profile.display_name} className="text-balance" />}
         actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/leaderboard"><ArrowLeft className="size-4" aria-hidden /> Leaderboard</Link>
-          </Button>
+          <BackButton href="/leaderboard" label="Back to leaderboard" />
         }
       />
 

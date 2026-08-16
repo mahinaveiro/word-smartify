@@ -2,11 +2,12 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Play, RotateCcw } from 'lucide-react'
+import { Play, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
+import { BackButton } from '@/components/ui/back-button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { WordStatusBadge } from '@/features/shared/word-status'
 import { useLevel, useWordsForLevel, useAllProgress } from '@/hooks/use-data'
@@ -32,7 +33,7 @@ export function LevelDetail({ levelId }: { levelId: string }) {
     )
   }
   if (!level || !words) {
-    return <EmptyState title="Level not found" description="This level is no longer available." action={<Link href="/learn">Back to Learn</Link>} />
+    return <EmptyState title="Level not found" description="This level is no longer available." action={<BackButton href="/learn" />} />
   }
 
   const statusByWord = new Map<string, WordStatus>()
@@ -44,12 +45,7 @@ export function LevelDetail({ levelId }: { levelId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link
-          href="/learn"
-          className="press mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" aria-hidden /> All levels
-        </Link>
+        <BackButton href="/learn" className="-mb-2" />
         <div className="flex items-end justify-between gap-4">
           <div>
             <p className="font-heading text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">

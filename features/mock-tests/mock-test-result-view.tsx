@@ -1,12 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, BookOpen, Check, Clock, ListChecks, Target, X, Zap } from 'lucide-react'
+import { BookOpen, Check, Clock, ListChecks, Target, X, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { PageHeader } from '@/components/ui/page-header'
+import { BackButton } from '@/components/ui/back-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/features/shared/stat-tile'
 import { useMockTest } from '@/hooks/use-data'
@@ -30,7 +31,7 @@ export function MockTestResultView({ testId }: { testId: string }) {
       <EmptyState
         title="Result not found"
         description="This mock test is no longer available on this device."
-        action={<Button asChild><Link href="/mock-tests">Back to Mock Tests</Link></Button>}
+        action={<BackButton href="/mock-tests" label="Back to mock tests" />}
       />
     )
   }
@@ -49,9 +50,7 @@ export function MockTestResultView({ testId }: { testId: string }) {
       <PageHeader
         title="Mock test result"
         actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/mock-tests"><ArrowLeft className="size-4" aria-hidden /> Mock Tests</Link>
-          </Button>
+          <BackButton href="/mock-tests" label="Back to mock tests" />
         }
       />
 
@@ -106,11 +105,11 @@ export function MockTestResultView({ testId }: { testId: string }) {
       </Card>
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        <Button asChild variant="outline" className="flex-1">
-          <Link href="/mock-tests"><ArrowLeft className="size-4" aria-hidden /> Back to Mock Tests</Link>
-        </Button>
+        <div className="flex flex-1 justify-center sm:justify-start">
+          <BackButton href="/mock-tests" label="Back to mock tests" />
+        </div>
         <Button asChild className="flex-1">
-          <Link href="/dashboard">Back to Dashboard</Link>
+          <Link href="/dashboard">Dashboard</Link>
         </Button>
       </div>
     </div>

@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Eye, EyeOff, Lightbulb, Quote } from 'lucide-react'
+import { Eye, EyeOff, Lightbulb, Quote } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
+import { BackButton } from '@/components/ui/back-button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { WordStatusBadge } from '@/features/shared/word-status'
 import { useWord, useWordProgress } from '@/hooks/use-data'
@@ -31,19 +32,14 @@ export function WordDetail({ wordId }: { wordId: string }) {
     )
   }
   if (!word) {
-    return <EmptyState title="Word not found" description="This word is no longer available." action={<button type="button" onClick={() => router.back()} className="font-heading text-sm font-bold underline underline-offset-4">Go back</button>} />
+    return <EmptyState title="Word not found" description="This word is no longer available." action={<BackButton onClick={() => router.back()} />} />
   }
 
   const status = progress?.status ?? 'new'
 
   return (
     <div className="flex flex-col gap-5">
-      <button
-        onClick={() => router.back()}
-        className="press inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" aria-hidden /> Back
-      </button>
+      <BackButton onClick={() => router.back()} className="-mb-2 self-start" />
 
       <Card>
         <CardContent className="p-6">
