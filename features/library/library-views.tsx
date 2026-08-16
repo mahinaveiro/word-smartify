@@ -41,7 +41,7 @@ import {
 } from '@/hooks/use-data'
 import { useActions } from '@/hooks/use-actions'
 import { useQuizEngine } from '@/hooks/use-quiz-engine'
-import type { Book, Chapter, DictionarySearchFilters, Level, Word } from '@/types/database'
+import type { Book, DictionarySearchFilters, Level, Word } from '@/types/database'
 import { QuizCard } from '@/features/session/quiz-card'
 
 function libraryWordHref(wordId: string, bookSlug?: string | null) {
@@ -58,25 +58,14 @@ function LoadingRows({ count = 5 }: { count?: number }) {
   )
 }
 
-function LibraryBreadcrumb({ items }: { items: Array<{ label: string; href?: string }> }) {
+function LibraryBackButton({ href, label = 'Back' }: { href: string; label?: string }) {
   return (
-    <nav aria-label="Library breadcrumb" className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
-      <Link href="/library" className="font-semibold hover:text-foreground">
-        Library
+    <Button asChild variant="ghost" size="sm" className="w-fit px-0 shadow-none">
+      <Link href={href}>
+        <ArrowLeft className="size-4" aria-hidden />
+        {label}
       </Link>
-      {items.map((item, index) => (
-        <span key={`${item.label}-${index}`} className="inline-flex items-center gap-1">
-          <ChevronRight className="size-3.5" aria-hidden />
-          {item.href ? (
-            <Link href={item.href} className="font-semibold hover:text-foreground">
-              {item.label}
-            </Link>
-          ) : (
-            <span className="font-semibold text-foreground">{item.label}</span>
-          )}
-        </span>
-      ))}
-    </nav>
+    </Button>
   )
 }
 
@@ -180,8 +169,15 @@ export function LibraryBookView({ bookSlug }: { bookSlug: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <LibraryBreadcrumb items={[{ label: book.name }]} />
-      <PageHeader title={book.name} />
+      <LibraryBackButton href="/library" label="Back to library" />
+      <PageHeader
+        title={
+          <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span>{book.name}</span>
+            <span className="text-sm font-semibold text-muted-foreground sm:text-base">{levelsQuery.data.length} levels</span>
+          </span>
+        }
+      />
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="accent" size="sm">
           <Link href={`/library/${book.slug}/dictionary`}>
@@ -189,33 +185,11 @@ export function LibraryBookView({ bookSlug }: { bookSlug: string }) {
             Search this book
           </Link>
         </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/library">All books</Link>
-        </Button>
       </div>
 
-      <div className="flex flex-col gap-4">
-        {chaptersQuery.data.map((chapter) => (
-          <ChapterSection key={chapter.id} chapter={chapter} levels={levelsByChapter.get(chapter.id) ?? []} bookSlug={book.slug} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function ChapterSection({ chapter, levels, bookSlug }: { chapter: Chapter; levels: Level[]; bookSlug: string }) {
-  return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-end justify-between gap-3 border-b-2 border-foreground pb-2">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Chapter {chapter.chapter_number}</p>
-          <h2 className="font-heading text-xl font-bold">{chapter.title}</h2>
-        </div>
-        <span className="text-sm text-muted-foreground">{levels.length} levels</span>
-      </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {levels.map((level) => (
-          <Link key={level.id} href={`/library/${bookSlug}/level/${level.level_number}`} className="group block min-w-0">
+        {chaptersQuery.data.flatMap((chapter) => levelsByChapter.get(chapter.id) ?? []).map((level) => (
+          <Link key={level.id} href={`/library/${book.slug}/level/${level.level_number}`} className="group block min-w-0">
             <Card className="flex min-w-0 items-center justify-between gap-3 overflow-hidden p-4 transition-transform duration-normal group-hover:-translate-y-0.5 sm:p-5">
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Level {level.level_number}</p>
@@ -227,7 +201,7 @@ function ChapterSection({ chapter, levels, bookSlug }: { chapter: Chapter; level
           </Link>
         ))}
       </div>
-    </section>
+    </div>
   )
 }
 
@@ -245,7 +219,7 @@ export function LibraryLevelView({ bookSlug, levelNumber }: { bookSlug: string; 
 
   return (
     <div className="flex flex-col gap-6">
-      <LibraryBreadcrumb items={[{ label: book.name, href: `/library/${book.slug}` }, { label: `Level ${level.level_number}` }]} />
+      <LibraryBackButton href={`/library/${book.slug}`} label={`Back to ${book.name}`} />
       <PageHeader title={level.title} />
       <div className="grid gap-2">
         {wordsQuery.data.map((word, index) => (
@@ -303,7 +277,7 @@ export function LibraryDictionaryView({ bookSlug }: { bookSlug?: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <LibraryBreadcrumb items={[...(activeBook ? [{ label: activeBook.name, href: `/library/${activeBook.slug}` }] : []), { label: 'Dictionary' }]} />
+      <LibraryBackButton href={activeBook ? `/library/${activeBook.slug}` : '/library'} label={activeBook ? `Back to ${activeBook.name}` : 'Back to library'} />
       <PageHeader title="Search the vocabulary" />
 
       <Card className="flex flex-col gap-4 overflow-hidden bg-muted/45 p-4 sm:p-5">
@@ -364,7 +338,7 @@ export function LibrarySavedView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <LibraryBreadcrumb items={[{ label: 'Saved words' }]} />
+      <LibraryBackButton href="/library" label="Back to library" />
       <PageHeader title="Saved words" />
       {!query.data?.items.length ? <EmptyState title="No saved words yet" description="Open a word in Library and use Save word to build your private shelf." /> : (
         <div className="grid gap-2">
@@ -487,7 +461,6 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
 
   return (
     <div className="flex flex-col gap-3 sm:gap-5">
-      <LibraryBreadcrumb items={[...(resolvedBookSlug ? [{ label: resolvedBookSlug, href: `/library/${resolvedBookSlug}` }] : []), { label: word.word }]} />
       <div className="flex items-center justify-between gap-2">
         <Button asChild variant="ghost" size="sm"><Link href={resolvedBookSlug ? `/library/${resolvedBookSlug}/level/${levelQuery.data.level_number}` : '/library/dictionary'}><ArrowLeft className="size-4" aria-hidden /> Back</Link></Button>
         <span className="text-xs text-muted-foreground">Word {word.book_word_number}</span>
