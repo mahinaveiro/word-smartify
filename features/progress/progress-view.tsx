@@ -229,13 +229,17 @@ function ChartTip({
   dataKey = 'words',
 }: {
   active?: boolean
-  payload?: Array<{ payload: Record<string, number | string> }>
+  payload?: Array<{
+    value?: number | string
+    payload?: Record<string, number | string>
+  }>
   label?: string
   unit: string
   dataKey?: string
 }) {
   if (!active || !payload?.length) return null
-  const value = payload[0].payload[dataKey]
+  const entry = payload[0]
+  const value = entry.value ?? entry.payload?.[dataKey] ?? '—'
   return (
     <div className="rounded-md border-2 border-foreground bg-card px-3 py-2 text-xs shadow-brutal-sm">
       <p className="font-heading font-bold">{label}</p>
