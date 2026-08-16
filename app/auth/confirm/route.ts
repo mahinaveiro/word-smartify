@@ -9,7 +9,8 @@ export async function GET(request: NextRequest) {
   const code = requestUrl.searchParams.get('code')
   const tokenHash = requestUrl.searchParams.get('token_hash')
   const next = safeNext(requestUrl.searchParams.get('next'))
-  const destination = next === '/dashboard' ? '/auth/verified' : next
+  const isGoogleOAuth = requestUrl.searchParams.get('flow') === 'google' && Boolean(code)
+  const destination = isGoogleOAuth ? '/dashboard' : next === '/dashboard' ? '/auth/verified' : next
   const response = NextResponse.redirect(new URL(destination, requestUrl.origin))
 
   if (!code && !tokenHash) {

@@ -117,7 +117,7 @@ export class SupabaseAuthRepository implements AuthRepository {
     const result = await this.client.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${getPublicSiteUrl()}/auth/confirm?next=/dashboard`,
+        redirectTo: `${getPublicSiteUrl()}/auth/confirm?next=/dashboard&flow=google`,
       },
     })
     if (result.error) throw toAuthError(result.error, 'We could not start Google sign-in.')
