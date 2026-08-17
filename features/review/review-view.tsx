@@ -41,6 +41,7 @@ export function ReviewView({ mode = 'scheduled', sourceTestId }: { mode?: Review
   const [results, setResults] = useState<QuizAnswerResult[]>([])
   const [answerError, setAnswerError] = useState(false)
   const [pendingAnswer, setPendingAnswer] = useState<{ wordId: string; event: QuizAnswerEvent } | null>(null)
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({})
   const [finishError, setFinishError] = useState(false)
   const finishRecorded = useRef(false)
   const pendingSavesRef = useRef(new Set<Promise<QuizAnswerResult>>())
@@ -57,7 +58,11 @@ export function ReviewView({ mode = 'scheduled', sourceTestId }: { mode?: Review
 
   const total = cards?.length ?? 0
   const card = cards?.[index]
-  const quiz = useQuizEngine(phase === 'quiz' ? card?.question ?? null : null)
+  const selectedAnswer = card ? selectedAnswers[card.question.id] ?? null : null
+  const quiz = useQuizEngine(
+    phase === 'quiz' ? card?.question ?? null : null,
+    { initialSelected: selectedAnswer, initialRevealed: selectedAnswer !== null },
+  )
 
   const summary = useMemo(() => {
     const correct = results.filter((r) => r.correct).length
@@ -149,6 +154,7 @@ export function ReviewView({ mode = 'scheduled', sourceTestId }: { mode?: Review
     if (!card) return
     const event = quiz.submit(option)
     if (!event) return
+    setSelectedAnswers((previous) => ({ ...previous, [card.question.id]: event.selectedAnswer }))
     persistAnswer(card.word.id, event)
   }
 

@@ -30,6 +30,7 @@ export function ChallengeView() {
   const [localPhase, setLocalPhase] = useState<Phase>('quiz')
   const phase: Phase = daily?.challenge_completed ? 'summary' : localPhase
   const [index, setIndex] = useState(0)
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({})
   const [finishing, setFinishing] = useState(false)
   const [results, setResults] = useState<QuizAnswerResult[]>([])
   const answeredIds = useRef<string[]>([])
@@ -41,7 +42,11 @@ export function ChallengeView() {
 
   const total = cards?.length ?? 0
   const card = cards?.[index]
-  const quiz = useQuizEngine(phase === 'quiz' ? card?.question ?? null : null)
+  const selectedAnswer = card ? selectedAnswers[card.question.id] ?? null : null
+  const quiz = useQuizEngine(
+    phase === 'quiz' ? card?.question ?? null : null,
+    { initialSelected: selectedAnswer, initialRevealed: selectedAnswer !== null },
+  )
 
   if (isLoading) return <ChallengeSkeleton />
   if (dailyQuery.error) {
@@ -104,6 +109,7 @@ export function ChallengeView() {
     if (!card) return
     const event = quiz.submit(option)
     if (!event) return
+    setSelectedAnswers((previous) => ({ ...previous, [card.question.id]: event.selectedAnswer }))
     persistAnswer(card.word.id, event)
   }
 

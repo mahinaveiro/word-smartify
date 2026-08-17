@@ -465,6 +465,7 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
   const [busy, setBusy] = useState<'save' | 'review' | null>(null)
   const [testMe, setTestMe] = useState(false)
   const [tryMeQuestionIndex, setTryMeQuestionIndex] = useState(0)
+  const [tryMeAnswers, setTryMeAnswers] = useState<Record<string, string>>({})
   const tryMeAdvanceTimer = useRef<number | null>(null)
   const tryMeQuestions = useMemo(() => {
     const currentWord = wordQuery.data
@@ -482,7 +483,11 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
   const tryMeQuestion = tryMeQuestions.length
     ? tryMeQuestions[tryMeQuestionIndex % tryMeQuestions.length]
     : null
-  const quiz = useQuizEngine(tryMeQuestion)
+  const tryMeSelectedAnswer = tryMeQuestion ? tryMeAnswers[tryMeQuestion.id] ?? null : null
+  const quiz = useQuizEngine(
+    tryMeQuestion,
+    { initialSelected: tryMeSelectedAnswer, initialRevealed: tryMeSelectedAnswer !== null },
+  )
 
   useEffect(() => () => {
     if (tryMeAdvanceTimer.current !== null) window.clearTimeout(tryMeAdvanceTimer.current)
@@ -510,6 +515,7 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
     clearTryMeAdvanceTimer()
     setTestMe(false)
     quiz.reset()
+    setTryMeAnswers({})
     setFeedback(null)
   }
 
@@ -636,6 +642,7 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
             onSelect={(option) => {
               const event = quiz.submit(option)
               if (event) {
+                setTryMeAnswers((previous) => ({ ...previous, [tryMeQuestion.id]: event.selectedAnswer }))
                 setFeedback(event.isCorrect ? 'Correct.' : `Not quite. The answer is ${tryMeQuestion.correct_answer}.`)
                 scheduleNextTryMeQuestion()
               }

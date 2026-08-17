@@ -21,10 +21,11 @@ import { evaluateAnswer, type QuizAnswerEvent, type QuizPhase } from '@/lib/quiz
  */
 export function useQuizEngine(
   question: QuizQuestion | null,
-  options: { allowChange?: boolean; initialSelected?: string | null } = {},
+  options: { allowChange?: boolean; initialSelected?: string | null; initialRevealed?: boolean } = {},
 ) {
   const allowChange = options.allowChange ?? false
   const initialSelected = options.initialSelected ?? null
+  const initialRevealed = options.initialRevealed ?? false
   const [selected, setSelected] = useState<string | null>(null)
   const [phase, setPhase] = useState<QuizPhase>('answering')
   const answeredQuestionId = useRef<string | null>(null)
@@ -36,9 +37,10 @@ export function useQuizEngine(
     if (id === activeQuestionId.current) return
     activeQuestionId.current = id
     setSelected(initialSelected)
-    setPhase('answering')
-    answeredQuestionId.current = null
-  }, [question?.id, initialSelected])
+    const shouldLock = initialRevealed && !allowChange && initialSelected !== null
+    setPhase(shouldLock ? 'locked' : 'answering')
+    answeredQuestionId.current = shouldLock ? id : null
+  }, [allowChange, initialRevealed, initialSelected, question?.id])
 
   const submit = useCallback(
     (option: string): QuizAnswerEvent | null => {
