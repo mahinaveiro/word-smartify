@@ -265,26 +265,26 @@ export function ReviewView({ mode = 'scheduled', sourceTestId }: { mode?: Review
 
       <div className="mt-auto">
         {phase === 'quiz' ? (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Button
-              size="lg"
+              size="sm"
               variant="outline"
-              className="flex-1"
+              className="min-w-0 flex-1 px-3 text-sm"
               onClick={() => setIndex((value) => Math.max(0, value - 1))}
               disabled={index === 0 || finishing || Boolean(answerError)}
             >
-              <ArrowLeft className="size-5" aria-hidden />
+              <ArrowLeft className="size-4" aria-hidden />
               Previous
             </Button>
             <Button
-              size="lg"
-              className="flex-[1.35]"
+              size="sm"
+              className="min-w-0 flex-[1.35] px-3 text-sm"
               onClick={next}
               disabled={!quiz.revealed || finishing || answerError}
               loading={finishing}
             >
               {index < total - 1 ? 'Next question' : 'Finish'}
-              <ArrowRight className="size-5" aria-hidden />
+              <ArrowRight className="size-4" aria-hidden />
             </Button>
           </div>
         ) : (

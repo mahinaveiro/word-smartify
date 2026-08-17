@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 import { BackButton } from '@/components/ui/back-button'
+import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { WordStatusBadge } from '@/features/shared/word-status'
 import { useLevel, useWordsForLevel, useAllProgress } from '@/hooks/use-data'
@@ -44,19 +45,19 @@ export function LevelDetail({ levelId }: { levelId: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <BackButton href="/learn" className="-mb-2" />
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <p className="font-heading text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Level {level.level_number}
-            </p>
-            <h1 className="font-heading text-2xl font-bold sm:text-3xl">{level.title}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {words.length} words · {mastered} mastered
-            </p>
-          </div>
-        </div>
+      <div className="flex flex-col gap-1">
+        <PageHeader
+          leading={<BackButton href="/learn" />}
+          title={
+            <>
+              <span className="sm:hidden">Level {level.level_number}</span>
+              <span className="hidden sm:inline">{level.title}</span>
+            </>
+          }
+        />
+        <p className="pl-12 text-sm text-muted-foreground">
+          {words.length} words · {mastered} mastered
+        </p>
       </div>
 
       <Button size="lg" onClick={() => router.push(`/session/${levelId}`)} className="w-full sm:w-auto">

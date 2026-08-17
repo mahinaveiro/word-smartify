@@ -45,7 +45,7 @@ export function SessionView({ levelId }: { levelId: string }) {
   const sessionStarted = useRef(false)
 
   useEffect(() => {
-    if (phase !== 'flashcards' || !card) return
+    if (phase !== 'flashcards' || !cards?.[index]) return
 
     function onKeyDown(event: KeyboardEvent) {
       const target = event.target instanceof HTMLElement ? event.target : null
@@ -54,7 +54,7 @@ export function SessionView({ levelId }: { levelId: string }) {
 
       if (event.key === ' ' || event.code === 'Space') {
         event.preventDefault()
-        if (index < total - 1) {
+        if (index < cards.length - 1) {
           setIndex((value) => value + 1)
           setFlipped(false)
         } else {
@@ -82,7 +82,7 @@ export function SessionView({ levelId }: { levelId: string }) {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [card, index, phase, total])
+  }, [cards, index, phase])
 
   useEffect(() => {
     if (!sessionStarted.current && cards && cards.length > 0) {
@@ -275,46 +275,46 @@ export function SessionView({ levelId }: { levelId: string }) {
       {/* Footer actions */}
       <div className="mt-auto">
         {phase === 'flashcards' ? (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Button
-              size="lg"
+              size="sm"
               variant="outline"
-              className="flex-1"
+              className="min-w-0 flex-1 px-3 text-sm"
               onClick={() => {
                 setIndex((value) => Math.max(0, value - 1))
                 setFlipped(false)
               }}
               disabled={index === 0}
             >
-              <ArrowLeft className="size-5" aria-hidden />
+              <ArrowLeft className="size-4" aria-hidden />
               Previous
             </Button>
-            <Button size="lg" className="flex-[1.35]" onClick={nextFlashcard}>
+            <Button size="sm" className="min-w-0 flex-[1.35] px-3 text-sm" onClick={nextFlashcard}>
               {index < total - 1 ? 'Next word' : 'Start quiz'}
-              <ArrowRight className="size-5" aria-hidden />
+              <ArrowRight className="size-4" aria-hidden />
             </Button>
           </div>
         ) : phase === 'quiz' ? (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Button
-              size="lg"
+              size="sm"
               variant="outline"
-              className="flex-1"
+              className="min-w-0 flex-1 px-3 text-sm"
               onClick={() => setIndex((value) => Math.max(0, value - 1))}
               disabled={index === 0 || finishing || Boolean(answerError)}
             >
-              <ArrowLeft className="size-5" aria-hidden />
+              <ArrowLeft className="size-4" aria-hidden />
               Previous
             </Button>
             <Button
-              size="lg"
-              className="flex-[1.35]"
+              size="sm"
+              className="min-w-0 flex-[1.35] px-3 text-sm"
               onClick={nextQuiz}
               disabled={!quiz.revealed || finishing}
               loading={finishing}
             >
               {index < total - 1 ? 'Next question' : 'Finish'}
-              <ArrowRight className="size-5" aria-hidden />
+              <ArrowRight className="size-4" aria-hidden />
             </Button>
           </div>
         ) : (
