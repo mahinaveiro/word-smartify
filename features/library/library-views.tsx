@@ -39,6 +39,7 @@ import {
   useSavedWord,
   useSavedWords,
   useWord,
+  useQuizForWord,
   useWordsForLevel,
 } from '@/hooks/use-data'
 import { useActions } from '@/hooks/use-actions'
@@ -457,46 +458,35 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
   const wordQuery = useWord(wordId)
   const levelQuery = useLevel(wordQuery.data?.level_id ?? null)
   const wordsQuery = useWordsForLevel(wordQuery.data?.level_id ?? null)
+  const tryMeQuizQuery = useQuizForWord(wordId)
   const savedQuery = useSavedWord(wordId)
   const { saveWord, removeSavedWord, addToReview } = useActions()
   const [feedback, setFeedback] = useState<string | null>(null)
   const [busy, setBusy] = useState<'save' | 'review' | null>(null)
   const [testMe, setTestMe] = useState(false)
-  const tryMeQuestion = useMemo(() => {
+  const [tryMeQuestionIndex, setTryMeQuestionIndex] = useState(0)
+  const tryMeAdvanceTimer = useRef<number | null>(null)
+  const tryMeQuestions = useMemo(() => {
     const currentWord = wordQuery.data
-    const levelWords = wordsQuery.data
-    if (!currentWord || !levelWords) return null
+    if (!currentWord || !tryMeQuizQuery.data) return []
 
-    const candidates = levelWords.filter((candidate) => candidate.id !== currentWord.id && candidate.english_meaning.trim())
-    if (candidates.length < 4) return null
-
-    const targetIndex = Math.abs(currentWord.book_word_number) % candidates.length
-    const target = candidates[targetIndex]
-    const distractors = candidates.filter((candidate) => candidate.id !== target.id).slice(0, 3)
-    if (distractors.length < 3) return null
-
-    return {
-      id: `try-me-${currentWord.id}-${target.id}`,
-      word_id: target.id,
-      question_type: 'meaning' as const,
-      question: `Which word means “${target.english_meaning}”?`,
-      options: [target.word, ...distractors.map((candidate) => candidate.word)],
-      correct_answer: target.word,
-      explanation: `${target.word} means “${target.english_meaning}.”`,
-      difficulty: target.difficulty,
-      created_at: target.created_at,
-    }
-  }, [wordQuery.data, wordsQuery.data])
+    const wordKey = currentWord.word.trim().toLocaleLowerCase()
+    const eligibleTypes = new Set(['meaning_mcq', 'synonym_mcq', 'antonym_mcq', 'analogy_mcq', 'context_meaning_mcq'])
+    return tryMeQuizQuery.data.filter((question) => {
+      const correctAnswer = question.correct_answer.trim().toLocaleLowerCase()
+      return eligibleTypes.has(question.question_type)
+        && correctAnswer !== wordKey
+        && (question.options?.length ?? 0) >= 2
+    })
+  }, [tryMeQuizQuery.data, wordQuery.data])
+  const tryMeQuestion = tryMeQuestions.length
+    ? tryMeQuestions[tryMeQuestionIndex % tryMeQuestions.length]
+    : null
   const quiz = useQuizEngine(tryMeQuestion)
 
-  useEffect(() => {
-    if (!testMe || !quiz.revealed) return
-    const timeout = window.setTimeout(() => {
-      setTestMe(false)
-      quiz.reset()
-    }, 1400)
-    return () => window.clearTimeout(timeout)
-  }, [quiz.revealed, quiz.reset, testMe])
+  useEffect(() => () => {
+    if (tryMeAdvanceTimer.current !== null) window.clearTimeout(tryMeAdvanceTimer.current)
+  }, [])
 
   if (wordQuery.error || levelQuery.error || wordsQuery.error || savedQuery.error) {
     return <ErrorState title="Word details couldn't be loaded" description="Try opening the word again." onRetry={() => void Promise.all([wordQuery.mutate(), levelQuery.mutate(), wordsQuery.mutate(), savedQuery.mutate()])} />
@@ -509,10 +499,28 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
   const next = index >= 0 && index < wordsQuery.data.length - 1 ? wordsQuery.data[index + 1] : null
   const resolvedBookSlug = bookSlug ?? null
 
+  const clearTryMeAdvanceTimer = () => {
+    if (tryMeAdvanceTimer.current !== null) {
+      window.clearTimeout(tryMeAdvanceTimer.current)
+      tryMeAdvanceTimer.current = null
+    }
+  }
+
   const closeTestMe = () => {
+    clearTryMeAdvanceTimer()
     setTestMe(false)
     quiz.reset()
     setFeedback(null)
+  }
+
+  const scheduleNextTryMeQuestion = () => {
+    clearTryMeAdvanceTimer()
+    if (tryMeQuestions.length < 2) return
+    tryMeAdvanceTimer.current = window.setTimeout(() => {
+      setTryMeQuestionIndex((currentIndex) => (currentIndex + 1) % tryMeQuestions.length)
+      setFeedback(null)
+      tryMeAdvanceTimer.current = null
+    }, 900)
   }
 
   const toggleSave = async () => {
@@ -615,14 +623,21 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
         {feedback ? <p role="status" className="text-xs font-semibold text-muted-foreground">{feedback}</p> : null}
       </Card>
 
-      <Modal open={testMe} onClose={closeTestMe} title={`Try Me: ${word.word}`} description="Choose the word that matches the meaning." className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
-        {!tryMeQuestion ? <EmptyState title="Quiz unavailable" description="This level needs more words for a quick test." /> : (
+      <Modal open={testMe} onClose={closeTestMe} title={`Try Me: ${word.word}`} description="Practice a related question without giving away the word." className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
+        {tryMeQuizQuery.isLoading ? <LoadingRows count={4} /> : tryMeQuizQuery.error ? (
+          <ErrorState title="Try Me couldn't load" description="Try opening the word quiz again." onRetry={() => void tryMeQuizQuery.mutate()} />
+        ) : !tryMeQuestion ? (
+          <EmptyState title="No Try Me quiz available" description="This word does not have a related non-obvious question yet." />
+        ) : (
           <QuizCard
             question={tryMeQuestion}
             selected={quiz.selected}
             onSelect={(option) => {
               const event = quiz.submit(option)
-              if (event) setFeedback(event.isCorrect ? 'Correct.' : `Not quite. The answer is ${tryMeQuestion.correct_answer}.`)
+              if (event) {
+                setFeedback(event.isCorrect ? 'Correct.' : `Not quite. The answer is ${tryMeQuestion.correct_answer}.`)
+                scheduleNextTryMeQuestion()
+              }
             }}
             revealed={quiz.revealed}
             mode="library"
