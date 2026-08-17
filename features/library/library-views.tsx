@@ -10,7 +10,6 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  Clipboard,
   Filter,
   Search,
   Share2,
@@ -22,7 +21,6 @@ import { BackButton } from '@/components/ui/back-button'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
-import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
@@ -39,13 +37,10 @@ import {
   useSavedWord,
   useSavedWords,
   useWord,
-  useQuizForWord,
   useWordsForLevel,
 } from '@/hooks/use-data'
 import { useActions } from '@/hooks/use-actions'
-import { useQuizEngine } from '@/hooks/use-quiz-engine'
 import type { Book, DictionarySearchFilters, Level, Word } from '@/types/database'
-import { QuizCard } from '@/features/session/quiz-card'
 
 function libraryWordHref(wordId: string, bookSlug?: string | null) {
   return bookSlug ? `/library/${bookSlug}/word/${wordId}` : `/library/word/${wordId}`
@@ -458,35 +453,10 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
   const wordQuery = useWord(wordId)
   const levelQuery = useLevel(wordQuery.data?.level_id ?? null)
   const wordsQuery = useWordsForLevel(wordQuery.data?.level_id ?? null)
-  const tryMeQuizQuery = useQuizForWord(wordId)
   const savedQuery = useSavedWord(wordId)
   const { saveWord, removeSavedWord, addToReview } = useActions()
   const [feedback, setFeedback] = useState<string | null>(null)
   const [busy, setBusy] = useState<'save' | 'review' | null>(null)
-  const [testMe, setTestMe] = useState(false)
-  const [tryMeQuestionIndex, setTryMeQuestionIndex] = useState(0)
-  const [tryMeAnswers, setTryMeAnswers] = useState<Record<string, string>>({})
-  const tryMeQuestions = useMemo(() => {
-    const currentWord = wordQuery.data
-    if (!currentWord || !tryMeQuizQuery.data) return []
-
-    const wordKey = currentWord.word.trim().toLocaleLowerCase()
-    const eligibleTypes = new Set(['meaning_mcq', 'synonym_mcq', 'antonym_mcq', 'analogy_mcq', 'context_meaning_mcq'])
-    return tryMeQuizQuery.data.filter((question) => {
-      const correctAnswer = question.correct_answer.trim().toLocaleLowerCase()
-      return eligibleTypes.has(question.question_type)
-        && correctAnswer !== wordKey
-        && (question.options?.length ?? 0) >= 2
-    })
-  }, [tryMeQuizQuery.data, wordQuery.data])
-  const tryMeQuestion = tryMeQuestions.length
-    ? tryMeQuestions[tryMeQuestionIndex % tryMeQuestions.length]
-    : null
-  const tryMeSelectedAnswer = tryMeQuestion ? tryMeAnswers[tryMeQuestion.id] ?? null : null
-  const quiz = useQuizEngine(
-    tryMeQuestion,
-    { initialSelected: tryMeSelectedAnswer, initialRevealed: tryMeSelectedAnswer !== null },
-  )
 
   if (wordQuery.error || levelQuery.error || wordsQuery.error || savedQuery.error) {
     return <ErrorState title="Word details couldn't be loaded" description="Try opening the word again." onRetry={() => void Promise.all([wordQuery.mutate(), levelQuery.mutate(), wordsQuery.mutate(), savedQuery.mutate()])} />
@@ -498,13 +468,6 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
   const previous = index > 0 ? wordsQuery.data[index - 1] : null
   const next = index >= 0 && index < wordsQuery.data.length - 1 ? wordsQuery.data[index + 1] : null
   const resolvedBookSlug = bookSlug ?? null
-
-  const closeTestMe = () => {
-    setTestMe(false)
-    quiz.reset()
-    setTryMeAnswers({})
-    setFeedback(null)
-  }
 
   const toggleSave = async () => {
     setBusy('save')
@@ -601,72 +564,9 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
 
         <div className="grid grid-cols-2 gap-2 border-t-2 border-foreground pt-3 sm:gap-3 sm:pt-4">
           <Button type="button" variant="outline" size="sm" onClick={() => void review()} loading={busy === 'review'}><Sparkles className="size-4" aria-hidden /> Add to Review</Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => { setTestMe(true); setFeedback(null) }}><Clipboard className="size-4" aria-hidden /> Try Me</Button>
         </div>
         {feedback ? <p role="status" className="text-xs font-semibold text-muted-foreground">{feedback}</p> : null}
       </Card>
-
-      <Modal open={testMe} onClose={closeTestMe} className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
-        {tryMeQuizQuery.isLoading ? <LoadingRows count={4} /> : tryMeQuizQuery.error ? (
-          <ErrorState title="Try Me couldn't load" description="Try opening the word quiz again." onRetry={() => void tryMeQuizQuery.mutate()} />
-        ) : !tryMeQuestion ? (
-          <EmptyState title="No Try Me quiz available" description="This word does not have a related non-obvious question yet." />
-        ) : (
-          <>
-          <QuizCard
-            question={tryMeQuestion}
-            selected={quiz.selected}
-            onSelect={(option) => {
-              const event = quiz.submit(option)
-              if (event) {
-                setTryMeAnswers((previous) => ({ ...previous, [tryMeQuestion.id]: event.selectedAnswer }))
-                setFeedback(event.isCorrect ? 'Correct.' : `Not quite. The answer is ${tryMeQuestion.correct_answer}.`)
-              }
-            }}
-            revealed={quiz.revealed}
-            mode="library"
-            canNext={tryMeQuestionIndex < tryMeQuestions.length - 1 && quiz.revealed}
-            onNext={() => {
-              setTryMeQuestionIndex((value) => Math.min(tryMeQuestions.length - 1, value + 1))
-              setFeedback(null)
-            }}
-            canPrevious={tryMeQuestionIndex > 0 && quiz.revealed}
-            onPrevious={() => {
-              setTryMeQuestionIndex((value) => Math.max(0, value - 1))
-              setFeedback(null)
-            }}
-          />
-          <div className="mt-4 flex items-center justify-between gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setTryMeQuestionIndex((value) => Math.max(0, value - 1))
-                setFeedback(null)
-              }}
-              disabled={tryMeQuestionIndex === 0 || !quiz.revealed}
-            >
-              <ArrowLeft className="size-4" aria-hidden />
-              Previous
-            </Button>
-            <Button
-              type="button"
-              variant="solid"
-              size="sm"
-              onClick={() => {
-                setTryMeQuestionIndex((value) => Math.min(tryMeQuestions.length - 1, value + 1))
-                setFeedback(null)
-              }}
-              disabled={tryMeQuestionIndex >= tryMeQuestions.length - 1 || !quiz.revealed}
-            >
-              Next
-              <ArrowRight className="size-4" aria-hidden />
-            </Button>
-          </div>
-          </>
-        )}
-      </Modal>
 
       <div className="flex items-center justify-between gap-3">
         {previous ? <Button asChild variant="outline" size="sm"><Link href={libraryWordHref(previous.id, resolvedBookSlug)}><ArrowLeft className="size-4" aria-hidden /> Previous</Link></Button> : <span />}

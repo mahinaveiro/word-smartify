@@ -36,6 +36,7 @@ export function QuizCard({
   const [explanationForQuestion, setExplanationForQuestion] = useState<string | null>(null)
   const [celebrationQuestionId, setCelebrationQuestionId] = useState<string | null>(null)
   const celebratedQuestionIds = useRef<Set<string>>(new Set())
+  const celebrationTimeoutRef = useRef<number | null>(null)
   const options = question.options ?? []
   const explanationOpen = revealed && explanationForQuestion === question.id
   const canRevealExplanation = !secure && revealed && Boolean(question.explanation)
@@ -45,7 +46,12 @@ export function QuizCard({
   const handleSelect = (option: string) => {
     if (!revealed && option === question.correct_answer && !celebratedQuestionIds.current.has(question.id)) {
       celebratedQuestionIds.current.add(question.id)
+      if (celebrationTimeoutRef.current !== null) window.clearTimeout(celebrationTimeoutRef.current)
       setCelebrationQuestionId(question.id)
+      celebrationTimeoutRef.current = window.setTimeout(() => {
+        setCelebrationQuestionId((current) => (current === question.id ? null : current))
+        celebrationTimeoutRef.current = null
+      }, 1600)
     }
     onSelect(option)
   }
@@ -61,6 +67,12 @@ export function QuizCard({
     canPrevious: canPrevious && Boolean(onPrevious),
     onPrevious: onPrevious ?? (() => undefined),
   })
+
+  useEffect(() => {
+    return () => {
+      if (celebrationTimeoutRef.current !== null) window.clearTimeout(celebrationTimeoutRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
