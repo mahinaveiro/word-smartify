@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, ArrowRight, Trophy, Zap, Sparkles, BookOpen } from 'lucide-react'
+import { X, ArrowLeft, ArrowRight, Trophy, Zap, Sparkles, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -43,6 +43,46 @@ export function SessionView({ levelId }: { levelId: string }) {
   const failedSavesRef = useRef(new Set<string>())
   const resultsRef = useRef<QuizAnswerResult[]>([])
   const sessionStarted = useRef(false)
+
+  useEffect(() => {
+    if (phase !== 'flashcards' || !card) return
+
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target instanceof HTMLElement ? event.target : null
+      if (target?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName)) return
+      if (event.repeat) return
+
+      if (event.key === ' ' || event.code === 'Space') {
+        event.preventDefault()
+        if (index < total - 1) {
+          setIndex((value) => value + 1)
+          setFlipped(false)
+        } else {
+          setPhase('quiz')
+          setIndex(0)
+          setFlipped(false)
+        }
+        return
+      }
+
+      if (event.key === 'Backspace') {
+        event.preventDefault()
+        if (index > 0) {
+          setIndex((value) => Math.max(0, value - 1))
+          setFlipped(false)
+        }
+        return
+      }
+
+      if (event.key.toLowerCase() === 'f') {
+        event.preventDefault()
+        setFlipped((value) => !value)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [card, index, phase, total])
 
   useEffect(() => {
     if (!sessionStarted.current && cards && cards.length > 0) {
@@ -207,6 +247,8 @@ export function SessionView({ levelId }: { levelId: string }) {
               mode="learning"
               canNext={quiz.revealed && !finishing && !answerError}
               onNext={nextQuiz}
+              canPrevious={index > 0 && !finishing && !answerError}
+              onPrevious={() => setIndex((value) => Math.max(0, value - 1))}
             />
             {answerError ? (
               <ErrorState
@@ -233,21 +275,48 @@ export function SessionView({ levelId }: { levelId: string }) {
       {/* Footer actions */}
       <div className="mt-auto">
         {phase === 'flashcards' ? (
-          <Button size="lg" className="w-full" onClick={nextFlashcard}>
-            {index < total - 1 ? 'Next word' : 'Start quiz'}
-            <ArrowRight className="size-5" aria-hidden />
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              size="lg"
+              variant="outline"
+              className="flex-1"
+              onClick={() => {
+                setIndex((value) => Math.max(0, value - 1))
+                setFlipped(false)
+              }}
+              disabled={index === 0}
+            >
+              <ArrowLeft className="size-5" aria-hidden />
+              Previous
+            </Button>
+            <Button size="lg" className="flex-[1.35]" onClick={nextFlashcard}>
+              {index < total - 1 ? 'Next word' : 'Start quiz'}
+              <ArrowRight className="size-5" aria-hidden />
+            </Button>
+          </div>
         ) : phase === 'quiz' ? (
-          <Button
-            size="lg"
-            className="w-full"
-            onClick={nextQuiz}
-            disabled={!quiz.revealed || finishing}
-            loading={finishing}
-          >
-            {index < total - 1 ? 'Next question' : 'Finish'}
-            <ArrowRight className="size-5" aria-hidden />
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              size="lg"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setIndex((value) => Math.max(0, value - 1))}
+              disabled={index === 0 || finishing || Boolean(answerError)}
+            >
+              <ArrowLeft className="size-5" aria-hidden />
+              Previous
+            </Button>
+            <Button
+              size="lg"
+              className="flex-[1.35]"
+              onClick={nextQuiz}
+              disabled={!quiz.revealed || finishing}
+              loading={finishing}
+            >
+              {index < total - 1 ? 'Next question' : 'Finish'}
+              <ArrowRight className="size-5" aria-hidden />
+            </Button>
+          </div>
         ) : (
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button size="lg" variant="outline" className="flex-1" onClick={() => router.push('/dashboard')}>

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, Sparkles, Trophy, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Sparkles, Trophy, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -173,6 +173,8 @@ export function ChallengeView() {
               mode="challenge"
               canNext={quiz.revealed && !finishing && !answerError}
               onNext={next}
+              canPrevious={index > 0 && !finishing && !answerError}
+              onPrevious={() => setIndex((value) => Math.max(0, value - 1))}
             />
             {answerError ? (
               <ErrorState
@@ -208,10 +210,22 @@ export function ChallengeView() {
       </div>
       <div className="mt-auto">
         {!done ? (
-          <Button size="lg" className="w-full" onClick={next} disabled={!quiz.revealed || finishing || answerError} loading={finishing}>
-            {index < total - 1 ? 'Next question' : 'Finish challenge'}
- <ArrowRight className="size-5" aria-hidden />
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              size="lg"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setIndex((value) => Math.max(0, value - 1))}
+              disabled={index === 0 || finishing || Boolean(answerError)}
+            >
+              <ArrowLeft className="size-5" aria-hidden />
+              Previous
+            </Button>
+            <Button size="lg" className="flex-[1.35]" onClick={next} disabled={!quiz.revealed || finishing || answerError} loading={finishing}>
+              {index < total - 1 ? 'Next question' : 'Finish challenge'}
+              <ArrowRight className="size-5" aria-hidden />
+            </Button>
+          </div>
         ) : <Button size="lg" className="w-full" onClick={() => router.push('/dashboard')}>Back to dashboard</Button>}
       </div>
     </div>

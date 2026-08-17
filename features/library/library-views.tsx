@@ -623,12 +623,13 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
         {feedback ? <p role="status" className="text-xs font-semibold text-muted-foreground">{feedback}</p> : null}
       </Card>
 
-      <Modal open={testMe} onClose={closeTestMe} title={`Try Me: ${word.word}`} description="Practice a related question without giving away the word." className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
+      <Modal open={testMe} onClose={closeTestMe} className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
         {tryMeQuizQuery.isLoading ? <LoadingRows count={4} /> : tryMeQuizQuery.error ? (
           <ErrorState title="Try Me couldn't load" description="Try opening the word quiz again." onRetry={() => void tryMeQuizQuery.mutate()} />
         ) : !tryMeQuestion ? (
           <EmptyState title="No Try Me quiz available" description="This word does not have a related non-obvious question yet." />
         ) : (
+          <>
           <QuizCard
             question={tryMeQuestion}
             selected={quiz.selected}
@@ -641,7 +642,28 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
             }}
             revealed={quiz.revealed}
             mode="library"
+            canPrevious={tryMeQuestionIndex > 0 && quiz.revealed}
+            onPrevious={() => {
+              setTryMeQuestionIndex((value) => Math.max(0, value - 1))
+              setFeedback(null)
+            }}
           />
+          <div className="mt-4 flex justify-start">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setTryMeQuestionIndex((value) => Math.max(0, value - 1))
+                setFeedback(null)
+              }}
+              disabled={tryMeQuestionIndex === 0 || !quiz.revealed}
+            >
+              <ArrowLeft className="size-4" aria-hidden />
+              Previous
+            </Button>
+          </div>
+          </>
         )}
       </Modal>
 
