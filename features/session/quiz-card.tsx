@@ -6,7 +6,7 @@ import type { QuestionReportMode } from '@/types/question-reports'
 import { cn } from '@/lib/utils'
 import { IconButton } from '@/components/ui/icon-button'
 import { CorrectAnswerCelebration } from './correct-answer-celebration'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuizKeyboardControls, vibrateForCorrectAnswer } from '@/hooks/use-quiz-keyboard-controls'
 import { QuestionReportDialog } from './question-report-dialog'
 
@@ -34,17 +34,28 @@ export function QuizCard({
   mode?: QuestionReportMode
 }) {
   const [explanationForQuestion, setExplanationForQuestion] = useState<string | null>(null)
+  const [celebrationQuestionId, setCelebrationQuestionId] = useState<string | null>(null)
+  const celebratedQuestionIds = useRef<Set<string>>(new Set())
   const options = question.options ?? []
   const explanationOpen = revealed && explanationForQuestion === question.id
   const canRevealExplanation = !secure && revealed && Boolean(question.explanation)
   const answeredCorrectly = revealed && selected === question.correct_answer
+  const shouldCelebrateCorrectAnswer = answeredCorrectly && celebrationQuestionId === question.id
+
+  const handleSelect = (option: string) => {
+    if (!revealed && option === question.correct_answer && !celebratedQuestionIds.current.has(question.id)) {
+      celebratedQuestionIds.current.add(question.id)
+      setCelebrationQuestionId(question.id)
+    }
+    onSelect(option)
+  }
 
   useQuizKeyboardControls({
     enabled: true,
     options,
     correctAnswer: question.correct_answer,
     canAnswer: !revealed,
-    onAnswer: onSelect,
+    onAnswer: handleSelect,
     canNext: canNext && Boolean(onNext),
     onNext: onNext ?? (() => undefined),
     canPrevious: canPrevious && Boolean(onPrevious),
@@ -107,7 +118,7 @@ export function QuizCard({
                 setExplanationForQuestion(null)
                 // Keyboard activation has no touchstart/pointerdown event, so keep its direct haptic path.
                 if (event.detail === 0 && option === question.correct_answer) vibrateForCorrectAnswer()
-                onSelect(option)
+                handleSelect(option)
               }}
               aria-pressed={isSelected}
               className={cn(
@@ -177,7 +188,7 @@ export function QuizCard({
         ) : null}
       </div>
 
-      {answeredCorrectly ? <CorrectAnswerCelebration /> : null}
+      {shouldCelebrateCorrectAnswer ? <CorrectAnswerCelebration /> : null}
     </div>
   )
 }

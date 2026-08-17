@@ -466,7 +466,6 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
   const [testMe, setTestMe] = useState(false)
   const [tryMeQuestionIndex, setTryMeQuestionIndex] = useState(0)
   const [tryMeAnswers, setTryMeAnswers] = useState<Record<string, string>>({})
-  const tryMeAdvanceTimer = useRef<number | null>(null)
   const tryMeQuestions = useMemo(() => {
     const currentWord = wordQuery.data
     if (!currentWord || !tryMeQuizQuery.data) return []
@@ -489,10 +488,6 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
     { initialSelected: tryMeSelectedAnswer, initialRevealed: tryMeSelectedAnswer !== null },
   )
 
-  useEffect(() => () => {
-    if (tryMeAdvanceTimer.current !== null) window.clearTimeout(tryMeAdvanceTimer.current)
-  }, [])
-
   if (wordQuery.error || levelQuery.error || wordsQuery.error || savedQuery.error) {
     return <ErrorState title="Word details couldn't be loaded" description="Try opening the word again." onRetry={() => void Promise.all([wordQuery.mutate(), levelQuery.mutate(), wordsQuery.mutate(), savedQuery.mutate()])} />
   }
@@ -504,29 +499,11 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
   const next = index >= 0 && index < wordsQuery.data.length - 1 ? wordsQuery.data[index + 1] : null
   const resolvedBookSlug = bookSlug ?? null
 
-  const clearTryMeAdvanceTimer = () => {
-    if (tryMeAdvanceTimer.current !== null) {
-      window.clearTimeout(tryMeAdvanceTimer.current)
-      tryMeAdvanceTimer.current = null
-    }
-  }
-
   const closeTestMe = () => {
-    clearTryMeAdvanceTimer()
     setTestMe(false)
     quiz.reset()
     setTryMeAnswers({})
     setFeedback(null)
-  }
-
-  const scheduleNextTryMeQuestion = () => {
-    clearTryMeAdvanceTimer()
-    if (tryMeQuestions.length < 2) return
-    tryMeAdvanceTimer.current = window.setTimeout(() => {
-      setTryMeQuestionIndex((currentIndex) => (currentIndex + 1) % tryMeQuestions.length)
-      setFeedback(null)
-      tryMeAdvanceTimer.current = null
-    }, 900)
   }
 
   const toggleSave = async () => {
@@ -644,18 +621,22 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
               if (event) {
                 setTryMeAnswers((previous) => ({ ...previous, [tryMeQuestion.id]: event.selectedAnswer }))
                 setFeedback(event.isCorrect ? 'Correct.' : `Not quite. The answer is ${tryMeQuestion.correct_answer}.`)
-                scheduleNextTryMeQuestion()
               }
             }}
             revealed={quiz.revealed}
             mode="library"
+            canNext={tryMeQuestionIndex < tryMeQuestions.length - 1 && quiz.revealed}
+            onNext={() => {
+              setTryMeQuestionIndex((value) => Math.min(tryMeQuestions.length - 1, value + 1))
+              setFeedback(null)
+            }}
             canPrevious={tryMeQuestionIndex > 0 && quiz.revealed}
             onPrevious={() => {
               setTryMeQuestionIndex((value) => Math.max(0, value - 1))
               setFeedback(null)
             }}
           />
-          <div className="mt-4 flex justify-start">
+          <div className="mt-4 flex items-center justify-between gap-2">
             <Button
               type="button"
               variant="outline"
@@ -668,6 +649,19 @@ export function LibraryWordDetailView({ wordId, bookSlug }: { wordId: string; bo
             >
               <ArrowLeft className="size-4" aria-hidden />
               Previous
+            </Button>
+            <Button
+              type="button"
+              variant="solid"
+              size="sm"
+              onClick={() => {
+                setTryMeQuestionIndex((value) => Math.min(tryMeQuestions.length - 1, value + 1))
+                setFeedback(null)
+              }}
+              disabled={tryMeQuestionIndex >= tryMeQuestions.length - 1 || !quiz.revealed}
+            >
+              Next
+              <ArrowRight className="size-4" aria-hidden />
             </Button>
           </div>
           </>
