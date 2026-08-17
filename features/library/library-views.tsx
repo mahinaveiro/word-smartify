@@ -61,7 +61,7 @@ function LoadingRows({ count = 5 }: { count?: number }) {
 }
 
 function LibraryBackButton({ href, label = 'Go back' }: { href: string; label?: string }) {
-  return <BackButton href={href} label={label} className="-mb-2 md:hidden" />
+  return <BackButton href={href} label={label} className="md:hidden" />
 }
 
 type FilterOption = { value: string | null; label: string }
@@ -160,8 +160,7 @@ export function LibraryLandingView() {
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
-      <LibraryBackButton href="/dashboard" label="Back to home" />
-      <PageHeader title="Library" />
+      <PageHeader title="Library" leading={<LibraryBackButton href="/dashboard" label="Back to home" />} />
 
       <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
         <Card className="flex min-w-0 flex-col justify-between gap-3 overflow-hidden bg-mint/40 p-3.5 sm:gap-5 sm:p-6">
@@ -250,8 +249,8 @@ export function LibraryBookView({ bookSlug }: { bookSlug: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <LibraryBackButton href="/library" label="Back to library" />
       <PageHeader
+        leading={<LibraryBackButton href="/library" label="Back to library" />}
         title={
           <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <span>{book.name}</span>
@@ -300,8 +299,15 @@ export function LibraryLevelView({ bookSlug, levelNumber }: { bookSlug: string; 
 
   return (
     <div className="flex flex-col gap-6">
-      <LibraryBackButton href={`/library/${book.slug}`} label={`Back to ${book.name}`} />
-      <PageHeader title={level.title} />
+      <PageHeader
+        leading={<LibraryBackButton href={`/library/${book.slug}`} label={`Back to ${book.name}`} />}
+        title={
+          <>
+            <span className="sm:hidden">Level {level.level_number}</span>
+            <span className="hidden sm:inline">{level.title}</span>
+          </>
+        }
+      />
       <div className="grid gap-2">
         {wordsQuery.data.map((word, index) => (
           <WordRow key={word.id} word={word} bookSlug={book.slug} number={index + 1} />
@@ -358,8 +364,15 @@ export function LibraryDictionaryView({ bookSlug }: { bookSlug?: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <LibraryBackButton href={activeBook ? `/library/${activeBook.slug}` : '/library'} label={activeBook ? `Back to ${activeBook.name}` : 'Back to library'} />
-      <PageHeader title="Search the vocabulary" />
+      <PageHeader
+        leading={<LibraryBackButton href={activeBook ? `/library/${activeBook.slug}` : '/library'} label={activeBook ? `Back to ${activeBook.name}` : 'Back to library'} />}
+        title={
+          <>
+            <span className="sm:hidden">Dictionary</span>
+            <span className="hidden sm:inline">Search the vocabulary</span>
+          </>
+        }
+      />
 
         <Card className="relative z-20 flex flex-col gap-4 overflow-visible bg-muted/45 p-4 sm:p-5">
         <div className="relative">
@@ -430,8 +443,7 @@ export function LibrarySavedView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <LibraryBackButton href="/library" label="Back to library" />
-      <PageHeader title="Saved words" />
+      <PageHeader title="Saved words" leading={<LibraryBackButton href="/library" label="Back to library" />} />
       {!query.data?.items.length ? <EmptyState title="No saved words yet" description="Open a word in Library and use Save word to build your private shelf." /> : (
         <div className="grid gap-2">
           {query.data.items.map((saved) => <WordRow key={saved.id} word={saved.word} />)}
