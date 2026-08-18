@@ -14,7 +14,7 @@ import { QuizCard } from '@/features/session/quiz-card'
 import { useMockTest } from '@/hooks/use-data'
 import { formatDuration } from '@/lib/date'
 import { useAuth } from '@/features/auth/auth-provider'
-import { cancelMockTest, finalizeMockTest, saveMockTestAnswer } from '@/services/mock-test'
+import { cancelMockTest, finalizeMockTest, MOCK_TEST_QUESTION_SECONDS, saveMockTestAnswer } from '@/services/mock-test'
 import type { MockTestAnswer } from '@/types/database'
 import type { QuizAnswerEvent } from '@/lib/quiz-engine'
 import { useQuizEngine } from '@/hooks/use-quiz-engine'
@@ -137,17 +137,19 @@ export function MockTestRunView({ testId }: { testId: string }) {
   }, [cancelExam, data, enterFullscreen])
 
   const createdAt = data?.test.created_at
+  const totalDurationSeconds = data ? data.test.total_questions * MOCK_TEST_QUESTION_SECONDS : 0
+  const remainingSeconds = Math.max(0, totalDurationSeconds - elapsed)
 
   useEffect(() => {
     if (!createdAt) return
     const updateElapsed = () => {
       const createdAtMs = Date.parse(createdAt)
-      setElapsed(Math.max(0, Math.floor((Date.now() - createdAtMs) / 1000)))
+      setElapsed(Math.min(totalDurationSeconds, Math.max(0, Math.floor((Date.now() - createdAtMs) / 1000))))
     }
     updateElapsed()
     const timer = window.setInterval(updateElapsed, 1000)
     return () => window.clearInterval(timer)
-  }, [createdAt])
+  }, [createdAt, totalDurationSeconds])
 
   const answerMap = useMemo(
     () => ({ ...(data?.answerMap ?? {}), ...savedAnswerMap }),
@@ -306,7 +308,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
             Mock test
           </p>
           <span className="flex items-center gap-1 font-heading text-sm font-bold tabular-nums">
-            <Clock className="size-4" aria-hidden /> {formatDuration(elapsed)}
+            <Clock className="size-4" aria-hidden /> {formatDuration(remainingSeconds)}
           </span>
         </div>
 
