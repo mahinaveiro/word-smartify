@@ -31,6 +31,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'You must be signed in to report a question.' }, { status: 401 })
   }
 
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('display_name')
+    .eq('id', authData.user.id)
+    .maybeSingle()
+
+  if (profileError) {
+    console.warn('Question report profile lookup failed; using auth fallback', profileError)
+  }
+
+  const metadata = authData.user.user_metadata as Record<string, unknown> | undefined
+  const metadataName = [metadata?.full_name, metadata?.name].find(
+    (value): value is string => typeof value === 'string' && value.trim().length > 0,
+  )
+  const reporterEmail = authData.user.email || 'Email unavailable'
+  const reporterName =
+    (typeof profile?.display_name === 'string' && profile.display_name.trim()) ||
+    metadataName?.trim() ||
+    reporterEmail.split('@')[0] ||
+    'Unknown student'
+  const reporterUid = authData.user.id
+
   let body: unknown
   try {
     body = await request.json()
@@ -109,6 +131,11 @@ export async function POST(request: Request) {
       subject: `Word Smartify question report · ${category.replace('_', ' ')}`,
       html: `
         <h2>Question report</h2>
+        <h3>Reporter</h3>
+        <p><strong>Name:</strong> ${escapeHtml(reporterName)}</p>
+        <p><strong>Email:</strong> ${escapeHtml(reporterEmail)}</p>
+        <p><strong>UID:</strong> ${escapeHtml(reporterUid)}</p>
+        <hr />
         <p><strong>Reason:</strong> ${escapeHtml(category.replace('_', ' '))}</p>
         <p><strong>Mode:</strong> ${escapeHtml(mode)}</p>
         <p><strong>Question ID:</strong> ${escapeHtml(question.id)}</p>
