@@ -9,13 +9,15 @@ function sessionKey(userId: string) {
   return `study-gc-invite-seen:${userId}`
 }
 
-export function StudyGcPrompt({ userId, joined, onDone }: { userId: string; joined: boolean; onDone: () => void }) {
+export function StudyGcPrompt({ enabled = true, userId, joined, onDone }: { enabled?: boolean; userId: string; joined: boolean; onDone: () => void }) {
   const { updateProfile, revalidateUser } = useActions()
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!enabled) return
+
     if (joined) {
       onDone()
       return
@@ -35,7 +37,7 @@ export function StudyGcPrompt({ userId, joined, onDone }: { userId: string; join
     }
     const timer = window.setTimeout(() => setOpen(true), 0)
     return () => window.clearTimeout(timer)
-  }, [joined, onDone, userId])
+  }, [enabled, joined, onDone, userId])
 
   const handleLater = useCallback(() => {
     setOpen(false)
@@ -62,7 +64,7 @@ export function StudyGcPrompt({ userId, joined, onDone }: { userId: string; join
 
   return (
     <Modal
-      open={open && !joined}
+      open={open && enabled && !joined}
       onClose={handleLater}
       title="Join our study gc"
       description="Stay close to the community and share what you are learning."

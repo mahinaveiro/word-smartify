@@ -14,11 +14,13 @@ export function BadgeCongratulationsModal({
   awards,
   isLoading,
   onDone,
+  skipAcknowledgement = false,
 }: {
   enabled: boolean
   awards: PendingBadgeAward[]
   isLoading: boolean
   onDone: () => void
+  skipAcknowledgement?: boolean
 }) {
   const { acknowledgeBadgeAwards } = useActions()
   const [saving, setSaving] = useState(false)
@@ -45,14 +47,16 @@ export function BadgeCongratulationsModal({
     setSaving(true)
     setError(null)
     try {
-      await acknowledgeBadgeAwards(awardIds)
+      if (!skipAcknowledgement) {
+        await acknowledgeBadgeAwards(awardIds)
+      }
       onDone()
     } catch {
       setError('Your reward is safe, but we could not mark it as seen. Please try again.')
     } finally {
       setSaving(false)
     }
-  }, [acknowledgeBadgeAwards, awardIds, onDone, saving])
+  }, [acknowledgeBadgeAwards, awardIds, onDone, saving, skipAcknowledgement])
 
   return (
     <Modal
