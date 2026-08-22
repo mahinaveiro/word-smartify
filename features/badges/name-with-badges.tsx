@@ -16,12 +16,14 @@ const badgeSizeClasses = {
 export function NameWithBadges({
   userId,
   name,
+  mobileName,
   badges = [],
   className,
   badgeSize = 'md',
 }: {
   userId?: UUID | null
   name: string
+  mobileName?: string
   badges?: DisplayBadge[]
   className?: string
   badgeSize?: keyof typeof badgeSizeClasses
@@ -37,7 +39,8 @@ export function NameWithBadges({
   return (
     <>
       <span className={cn('inline-flex min-w-0 max-w-full items-center gap-1', className)}>
-        <span className="min-w-0 truncate">{name}</span>
+        <span className="hidden min-w-0 truncate sm:inline">{name}</span>
+        <span className="min-w-0 truncate sm:hidden">{mobileName ?? name}</span>
         {allBadges.length ? (
           <span className="inline-flex shrink-0 items-center gap-0.5" aria-label={`${name}'s badges`}>
             {allBadges.map((badge) => (

@@ -100,7 +100,12 @@ export function LeaderboardView() {
                 <div className="text-center">
                   <p className={cn('max-w-[8rem] truncate font-heading text-sm font-bold', isMe && 'text-mint-foreground')}>
                     <span className="pointer-events-auto">
-                      <OwnerDisplayName userId={entry.profile.id} name={isMe ? 'You' : entry.profile.display_name} badges={entry.profile.badges} />
+                      <OwnerDisplayName
+                        userId={entry.profile.id}
+                        name={isMe ? 'You' : entry.profile.display_name}
+                        mobileName={isMe ? 'You' : firstName(entry.profile.display_name)}
+                        badges={entry.profile.badges}
+                      />
                     </span>
                   </p>
                   <p className="text-xs tabular-nums text-muted-foreground">{scoreFor(entry, mode).toLocaleString()} {mode === 'weekly' ? 'XP this week' : 'XP'}</p>
@@ -142,7 +147,12 @@ function LeaderboardRow({ entry, mode, meId }: { entry: NonNullable<ReturnType<t
           <div className="min-w-0 flex-1">
             <p className="truncate font-medium">
               <span className="pointer-events-auto">
-                <OwnerDisplayName userId={entry.profile.id} name={isMe ? 'You' : entry.profile.display_name} badges={entry.profile.badges} />
+                <OwnerDisplayName
+                  userId={entry.profile.id}
+                  name={isMe ? 'You' : entry.profile.display_name}
+                  mobileName={isMe ? 'You' : firstName(entry.profile.display_name)}
+                  badges={entry.profile.badges}
+                />
               </span>
             </p>
             <p className="flex items-center gap-1 text-xs text-muted-foreground"><Flame className="size-3" aria-hidden />{entry.stats.current_streak} day streak</p>
@@ -155,6 +165,10 @@ function LeaderboardRow({ entry, mode, meId }: { entry: NonNullable<ReturnType<t
       </Card>
     </div>
   )
+}
+
+function firstName(name: string) {
+  return name.trim().split(/\s+/)[0] || name
 }
 
 function scoreFor(entry: NonNullable<ReturnType<typeof useLeaderboard>['data']>['entries'][number], mode: LeaderboardMode) {

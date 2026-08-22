@@ -15,15 +15,17 @@ export function isOwnerUserId(userId: string | null | undefined) {
 export function OwnerDisplayName({
   userId,
   name,
+  mobileName,
   className,
   badges,
   badgeSize = 'md',
 }: {
   userId: UUID | null | undefined
   name: string
+  mobileName?: string
   className?: string
   badges?: DisplayBadge[]
   badgeSize?: 'sm' | 'md' | 'lg'
 }) {
-  return <NameWithBadges userId={userId} name={name} badges={badges} className={className} badgeSize={badgeSize} />
+  return <NameWithBadges userId={userId} name={name} mobileName={mobileName} badges={badges} className={className} badgeSize={badgeSize} />
 }
