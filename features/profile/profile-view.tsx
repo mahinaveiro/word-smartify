@@ -27,6 +27,7 @@ import { StatTile } from '@/features/shared/stat-tile'
 import {
   useBookProgress,
   useBooks,
+  useMyDisplayBadges,
   useMockTests,
   useProfile,
   useProgressSummary,
@@ -50,12 +51,14 @@ export function ProfileView() {
   const bookProgressQuery = useBookProgress()
   const booksQuery = useBooks()
   const testsQuery = useMockTests()
+  const badgesQuery = useMyDisplayBadges()
   const { data: profile } = profileQuery
   const { data: stats } = statsQuery
   const { data: progressSummary } = progressQuery
   const { data: bookProgress } = bookProgressQuery
   const { data: books } = booksQuery
   const { data: tests } = testsQuery
+  const { data: badges } = badgesQuery
 
   useEffect(() => {
     if (!profile) return
@@ -77,7 +80,7 @@ export function ProfileView() {
     ]
   }, [stats])
 
-  const queries = [profileQuery, statsQuery, progressQuery, bookProgressQuery, booksQuery, testsQuery]
+  const queries = [profileQuery, statsQuery, progressQuery, bookProgressQuery, booksQuery, testsQuery, badgesQuery]
   if (queries.some((query) => query.isLoading)) return <ProfileSkeleton />
   if (queries.some((query) => query.error)) {
     return (
@@ -120,7 +123,7 @@ export function ProfileView() {
         <CardContent className="flex flex-col items-center gap-4 p-6 text-center sm:flex-row sm:text-left">
           <Avatar name={profile.display_name} avatarId={profile.avatar_id} avatarUrl={profile.avatar_url} size="xl" />
           <div className="min-w-0 flex-1 text-center sm:text-left">
-            <h2 className="font-heading text-2xl font-bold"><OwnerDisplayName userId={profile.id} name={profile.display_name} /></h2>
+            <h2 className="font-heading text-2xl font-bold"><OwnerDisplayName userId={profile.id} name={profile.display_name} badges={badges ?? []} /></h2>
             <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
               <Badge variant="mint" className="gap-1 px-2.5 py-1 text-sm"><Trophy className="size-3.5" aria-hidden /> Level {progressSummary.level.level}</Badge>
               <Badge variant="coral" className="gap-1 px-2.5 py-1 text-sm"><Flame className="size-3.5" aria-hidden /> {stats.current_streak} day streak</Badge>

@@ -83,23 +83,31 @@ export function LeaderboardView() {
           const height = rank === 1 ? 'h-28' : rank === 2 ? 'h-20' : 'h-16'
           const medal = rank === 1 ? 'bg-mint text-mint-foreground' : rank === 2 ? 'bg-muted text-foreground' : 'bg-coral text-coral-foreground'
           return (
-            <Link
+            <div
               key={entry.profile.id}
-              href={`/profile/${entry.profile.id}`}
               className={cn(
-                'flex flex-col items-center gap-2 rounded-md p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'relative flex flex-col items-center gap-2 rounded-md p-1',
                 isMe && 'ring-4 ring-mint ring-offset-2 ring-offset-background',
               )}
             >
-              <Avatar name={entry.profile.display_name} avatarId={entry.profile.avatar_id} avatarUrl={entry.profile.avatar_url} size={rank === 1 ? 'lg' : 'md'} />
-              <div className="text-center">
-                <p className={cn('max-w-[8rem] truncate font-heading text-sm font-bold', isMe && 'text-mint-foreground')}>
-                  <OwnerDisplayName userId={entry.profile.id} name={isMe ? 'You' : entry.profile.display_name} />
-                </p>
-                <p className="text-xs tabular-nums text-muted-foreground">{scoreFor(entry, mode).toLocaleString()} {mode === 'weekly' ? 'XP this week' : 'XP'}</p>
+              <Link
+                href={`/profile/${entry.profile.id}`}
+                aria-label={`Open ${entry.profile.display_name}'s profile`}
+                className="absolute inset-0 z-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <div className="relative z-10 flex w-full flex-col items-center gap-2 pointer-events-none">
+                <Avatar name={entry.profile.display_name} avatarId={entry.profile.avatar_id} avatarUrl={entry.profile.avatar_url} size={rank === 1 ? 'lg' : 'md'} />
+                <div className="text-center">
+                  <p className={cn('max-w-[8rem] truncate font-heading text-sm font-bold', isMe && 'text-mint-foreground')}>
+                    <span className="pointer-events-auto">
+                      <OwnerDisplayName userId={entry.profile.id} name={isMe ? 'You' : entry.profile.display_name} badges={entry.profile.badges} />
+                    </span>
+                  </p>
+                  <p className="text-xs tabular-nums text-muted-foreground">{scoreFor(entry, mode).toLocaleString()} {mode === 'weekly' ? 'XP this week' : 'XP'}</p>
+                </div>
+                <div className={cn('flex w-full items-start justify-center rounded-t-md border-2 border-foreground pt-2 font-heading text-xl font-bold shadow-brutal-sm', height, medal)}>{rank}</div>
               </div>
-              <div className={cn('flex w-full items-start justify-center rounded-t-md border-2 border-foreground pt-2 font-heading text-xl font-bold shadow-brutal-sm', height, medal)}>{rank}</div>
-            </Link>
+            </div>
           )
         })}
       </div>
@@ -121,14 +129,21 @@ export function LeaderboardView() {
 function LeaderboardRow({ entry, mode, meId }: { entry: NonNullable<ReturnType<typeof useLeaderboard>['data']>['entries'][number]; mode: LeaderboardMode; meId: string | null }) {
   const isMe = entry.profile.id === meId
   return (
-    <Link href={`/profile/${entry.profile.id}`} className="block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring">
-      <Card className={cn(isMe && 'border-4 border-mint bg-mint/20 shadow-[4px_4px_0_hsl(var(--foreground))]')}>
+    <div className="relative rounded-lg">
+      <Link
+        href={`/profile/${entry.profile.id}`}
+        aria-label={`Open ${entry.profile.display_name}'s profile`}
+        className="absolute inset-0 z-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      />
+      <Card className={cn('relative z-10 pointer-events-none', isMe && 'border-4 border-mint bg-mint/20 shadow-[4px_4px_0_hsl(var(--foreground))]')}>
         <div className="flex items-center gap-3 p-3">
           <span className="w-6 text-center font-heading text-sm font-bold tabular-nums text-muted-foreground">{entry.rank}</span>
           <Avatar name={entry.profile.display_name} avatarId={entry.profile.avatar_id} avatarUrl={entry.profile.avatar_url} size="sm" />
           <div className="min-w-0 flex-1">
             <p className="truncate font-medium">
-              <OwnerDisplayName userId={entry.profile.id} name={isMe ? 'You' : entry.profile.display_name} />
+              <span className="pointer-events-auto">
+                <OwnerDisplayName userId={entry.profile.id} name={isMe ? 'You' : entry.profile.display_name} badges={entry.profile.badges} />
+              </span>
             </p>
             <p className="flex items-center gap-1 text-xs text-muted-foreground"><Flame className="size-3" aria-hidden />{entry.stats.current_streak} day streak</p>
           </div>
@@ -138,7 +153,7 @@ function LeaderboardRow({ entry, mode, meId }: { entry: NonNullable<ReturnType<t
           </span>
         </div>
       </Card>
-    </Link>
+    </div>
   )
 }
 

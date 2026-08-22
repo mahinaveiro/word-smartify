@@ -93,6 +93,21 @@ export function usePublicProfile(userId: string | null) {
   )
 }
 
+export function useMyDisplayBadges() {
+  const uid = useOptionalUserId()
+  return useSWR(uid ? ['display-badges', uid] : null, async () => {
+    const badgeMap = await repo.badges.getDisplayBadgesForUsers([uid as string])
+    return badgeMap[uid as string] ?? []
+  })
+}
+
+export function usePendingBadgeAwards() {
+  const uid = useOptionalUserId()
+  return useSWR(uid ? ['pending-badge-awards', uid] : null, () => repo.badges.getPendingAwards(uid as string), {
+    revalidateOnFocus: false,
+  })
+}
+
 export function useLeaderboard(modeOrLimit: LeaderboardMode | number = 'all_time', requestedLimit = 10) {
   const uid = useOptionalUserId()
   const mode: LeaderboardMode = typeof modeOrLimit === 'number' ? 'all_time' : modeOrLimit

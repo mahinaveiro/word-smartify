@@ -294,6 +294,27 @@
   }
 }
 
+@keyframes badge-sparkle {
+  0%, 100% {
+    opacity: 0.45;
+    transform: translateY(2px) rotate(-8deg) scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-3px) rotate(8deg) scale(1.08);
+  }
+}
+
+.badge-sparkle {
+  animation: badge-sparkle 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badge-sparkle {
+    animation: none;
+  }
+}
+
 @keyframes cookie-consent-slide-in {
   from {
     opacity: 0;

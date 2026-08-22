@@ -52,7 +52,7 @@ export function PublicProfileView({ userId }: { userId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title={<OwnerDisplayName userId={profile.id} name={profile.display_name} className="text-balance" />}
+        title={<OwnerDisplayName userId={profile.id} name={profile.display_name} badges={profile.badges} className="text-balance" />}
         leading={<BackButton href="/leaderboard" label="Back to leaderboard" />}
       />
 
@@ -61,7 +61,7 @@ export function PublicProfileView({ userId }: { userId: string }) {
           <Avatar name={profile.display_name} avatarId={profile.avatar_id} avatarUrl={profile.avatar_url} size="xl" />
           <div className="min-w-0">
             <h2 className="font-heading text-2xl font-bold">
-              <OwnerDisplayName userId={profile.id} name={profile.display_name} />
+              <OwnerDisplayName userId={profile.id} name={profile.display_name} badges={profile.badges} />
             </h2>
             <div className="mt-2 flex flex-wrap justify-center gap-2 sm:justify-start">
               <span className="inline-flex items-center gap-1 rounded-md border-2 border-foreground bg-coral px-2.5 py-1 text-sm font-heading font-bold text-coral-foreground">

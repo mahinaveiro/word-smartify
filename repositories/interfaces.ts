@@ -24,6 +24,9 @@ import type {
   Word,
   WordStatus,
   PublicProfile,
+  BadgeAward,
+  DisplayBadge,
+  PendingBadgeAward,
   DictionarySearchFilters,
   SavedWord,
   SavedWordWithWord,
@@ -82,6 +85,12 @@ export interface ProfileRepository {
   getProfile(userId: UUID): Promise<Profile | null>
   getPublicProfile(userId: UUID): Promise<PublicProfile | null>
   updateProfile(userId: UUID, patch: Partial<Omit<Profile, 'id' | 'created_at'>>): Promise<Profile>
+}
+
+export interface BadgeRepository {
+  getDisplayBadgesForUsers(userIds: UUID[]): Promise<Record<UUID, DisplayBadge[]>>
+  getPendingAwards(userId: UUID): Promise<PendingBadgeAward[]>
+  acknowledgeAwards(userId: UUID, awardIds: UUID[]): Promise<void>
 }
 
 export interface SavedWordRepository {
@@ -191,6 +200,7 @@ export interface AuthRepository {
 /** Aggregated access point so features depend on one object. */
 export interface Repositories {
   auth: AuthRepository
+  badges: BadgeRepository
   books: BookRepository
   chapters: ChapterRepository
   levels: LevelRepository

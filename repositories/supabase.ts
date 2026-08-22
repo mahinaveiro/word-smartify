@@ -29,6 +29,8 @@ import type {
   DictionarySearchFilters,
   SavedWord,
   SavedWordWithWord,
+  BadgeAward,
+  PendingBadgeAward,
 } from '@/types/database'
 import type { Database } from '@/types/supabase'
 import type {
@@ -46,6 +48,7 @@ import type {
   WordProgressRepository,
   WordRepository,
   SavedWordRepository,
+  BadgeRepository,
 } from './interfaces'
 import { SupabaseAuthRepository } from './supabase-auth'
 import { isMissingRowError } from '@/lib/supabase/errors'
@@ -53,6 +56,7 @@ import { calculateMockTestScore } from '@/lib/mock-test-scoring'
 import { shuffleArray } from '@/lib/quiz-randomizer'
 import { currentWeekPeriod } from '@/lib/date'
 import { isOwnerUserId } from '@/lib/owner'
+import { displayBadgeFromAward, sortDisplayBadges } from '@/lib/badges'
 
 type Client = SupabaseClient<Database>
 type QuizRow = Database['public']['Tables']['quiz_questions']['Row']
@@ -65,6 +69,8 @@ type PublicLeaderboardRpcRow = Database['public']['Functions']['get_public_leade
 type PublicMockTestRpcRow = Database['public']['Functions']['get_public_mock_test_summary']['Returns'][number]
 type LibrarySearchRpcRow = Database['public']['Functions']['search_library_words']['Returns'][number]
 type SavedWordRow = Database['public']['Tables']['saved_words']['Row']
+type BadgeAwardRpcRow = Database['public']['Functions']['get_display_badges_for_users']['Returns'][number]
+type PendingBadgeAwardRpcRow = Database['public']['Functions']['get_my_pending_badge_awards']['Returns'][number]
 
 function unwrap<T>(result: { data: T | null; error: { message: string; code?: string } | null }): T {
   if (result.error) throw new Error(result.error.message)
@@ -161,6 +167,60 @@ function emptyDaily(userId: UUID, date: ISODate): DailyProgress {
     xp_earned: 0,
     completed: false,
     created_at: new Date().toISOString(),
+  }
+}
+
+function toBadgeAward(row: BadgeAwardRpcRow | PendingBadgeAwardRpcRow): BadgeAward {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    badge_key: row.badge_key,
+    award_kind: row.award_kind === 'weekly_champion' ? 'weekly_champion' : 'permanent',
+    week_start: row.week_start,
+    week_end: row.week_end,
+    placement: row.placement,
+    awarded_at: row.awarded_at,
+    acknowledged_at: row.acknowledged_at,
+  }
+}
+
+class SupabaseBadgeRepository implements BadgeRepository {
+  constructor(private readonly client: Client) {}
+
+  async getDisplayBadgesForUsers(userIds: UUID[]): Promise<Record<UUID, import('@/types/database').DisplayBadge[]>> {
+    const uniqueUserIds = [...new Set(userIds)]
+    const grouped: Record<UUID, import('@/types/database').DisplayBadge[]> = Object.fromEntries(
+      uniqueUserIds.map((userId) => [userId, []]),
+    )
+    if (uniqueUserIds.length === 0) return grouped
+
+    const result = await this.client.rpc('get_display_badges_for_users', { p_user_ids: uniqueUserIds })
+    if (result.error) throw new Error(result.error.message)
+
+    for (const row of (result.data ?? []) as BadgeAwardRpcRow[]) {
+      const badge = displayBadgeFromAward(toBadgeAward(row))
+      if (badge && grouped[row.user_id]) grouped[row.user_id].push(badge)
+    }
+    for (const userId of uniqueUserIds) grouped[userId] = sortDisplayBadges(grouped[userId])
+    return grouped
+  }
+
+  async getPendingAwards(userId: UUID): Promise<PendingBadgeAward[]> {
+    void userId
+    const result = await this.client.rpc('get_my_pending_badge_awards')
+    if (result.error) throw new Error(result.error.message)
+    return ((result.data ?? []) as PendingBadgeAwardRpcRow[]).flatMap((row) => {
+      const award = toBadgeAward(row)
+      const display = displayBadgeFromAward(award)
+      return display ? [{ ...award, display }] : []
+    })
+  }
+
+  async acknowledgeAwards(userId: UUID, awardIds: UUID[]): Promise<void> {
+    void userId
+    if (awardIds.length === 0) return
+    const result = await this.client.rpc('acknowledge_my_badge_awards', { p_award_ids: awardIds })
+    if (result.error) throw new Error(result.error.message)
   }
 }
 
@@ -490,7 +550,7 @@ class SupabaseQuizRepository implements QuizRepository {
 }
 
 class SupabaseProfileRepository implements ProfileRepository {
-  constructor(private readonly client: Client) {}
+  constructor(private readonly client: Client, private readonly badges: BadgeRepository) {}
 
   async getProfile(userId: UUID): Promise<Profile | null> {
     const result = await this.client.from('profiles').select('*').eq('id', userId).maybeSingle()
@@ -499,7 +559,7 @@ class SupabaseProfileRepository implements ProfileRepository {
   }
 
   async getPublicProfile(userId: UUID): Promise<PublicProfile | null> {
-    const [profileResult, statsResult, bookProgressResult, leaderboardResult, mockTestsResult, booksResult] = await Promise.all([
+    const [profileResult, statsResult, bookProgressResult, leaderboardResult, mockTestsResult, booksResult, badgesResult] = await Promise.all([
       this.client.from('profiles').select('id, display_name, avatar_id, avatar_url').eq('id', userId).maybeSingle(),
       this.client
         .from('user_stats')
@@ -510,6 +570,7 @@ class SupabaseProfileRepository implements ProfileRepository {
       this.client.rpc('get_public_leaderboard_summary', { p_user_id: userId }),
       this.client.rpc('get_public_mock_test_summary', { p_user_id: userId }),
       this.client.from('books').select('id, name').order('display_order', { ascending: true }),
+      this.badges.getDisplayBadgesForUsers([userId]),
     ])
     if (profileResult.error && !isMissingRowError(profileResult.error)) throw new Error(profileResult.error.message)
     if (statsResult.error && !isMissingRowError(statsResult.error)) throw new Error(statsResult.error.message)
@@ -559,6 +620,7 @@ class SupabaseProfileRepository implements ProfileRepository {
       words_mastered: statsResult.data.words_mastered,
       book_progress: bookProgress,
       achievements,
+      badges: badgesResult[userId] ?? [],
       leaderboard: publicLeaderboard,
       mock_tests: publicMockTests,
     }
@@ -577,7 +639,7 @@ class SupabaseProfileRepository implements ProfileRepository {
 }
 
 class SupabaseStatsRepository implements StatsRepository {
-  constructor(private readonly client: Client) {}
+  constructor(private readonly client: Client, private readonly badges: BadgeRepository) {}
 
   async getStats(userId: UUID): Promise<UserStats> {
     const result = await this.client.from('user_stats').select('*').eq('user_id', userId).maybeSingle()
@@ -610,6 +672,7 @@ class SupabaseStatsRepository implements StatsRepository {
     })
     if (result.error) throw new Error(result.error.message)
     const rows = (result.data ?? []) as LeaderboardRpcRow[]
+    const badgeMap = await this.badges.getDisplayBadgesForUsers(rows.map((row) => row.user_id))
     const period = currentWeekPeriod()
     const entries: LeaderboardEntry[] = rows.map((row) => ({
       rank: row.rank,
@@ -618,6 +681,7 @@ class SupabaseStatsRepository implements StatsRepository {
         display_name: row.display_name,
         avatar_id: row.avatar_id,
         avatar_url: row.avatar_url,
+        badges: badgeMap[row.user_id] ?? [],
       },
       stats: {
         user_id: row.user_id,
@@ -938,6 +1002,7 @@ class SupabaseMockTestRepository implements MockTestRepository {
 }
 
 export function createSupabaseRepositories(client: Client): Repositories {
+  const badges = new SupabaseBadgeRepository(client)
   const books = new SupabaseBookRepository(client)
   const chapters = new SupabaseChapterRepository(client)
   const levels = new SupabaseLevelRepository(client)
@@ -948,13 +1013,14 @@ export function createSupabaseRepositories(client: Client): Repositories {
 
   return {
     auth: new SupabaseAuthRepository(client),
+    badges,
     books,
     chapters,
     levels,
     words,
     quizzes,
-    profiles: new SupabaseProfileRepository(client),
-    stats: new SupabaseStatsRepository(client),
+    profiles: new SupabaseProfileRepository(client, badges),
+    stats: new SupabaseStatsRepository(client, badges),
     wordProgress,
     dailyProgress: new SupabaseDailyProgressRepository(client),
     mockTests: new SupabaseMockTestRepository(client),

@@ -47,6 +47,50 @@ export type Database = {
         }
         Relationships: []
       }
+      badge_awards: {
+        Row: {
+          acknowledged_at: string | null
+          awarded_at: string
+          award_kind: string
+          badge_key: string
+          id: string
+          placement: number | null
+          user_id: string
+          week_end: string | null
+          week_start: string | null
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          awarded_at?: string
+          award_kind: string
+          badge_key: string
+          id?: string
+          placement?: number | null
+          user_id: string
+          week_end?: string | null
+          week_start?: string | null
+        }
+        Update: {
+          acknowledged_at?: string | null
+          awarded_at?: string
+          award_kind?: string
+          badge_key?: string
+          id?: string
+          placement?: number | null
+          user_id?: string
+          week_end?: string | null
+          week_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "badge_awards_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chapters: {
         Row: {
           book_id: string
@@ -594,9 +638,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acknowledge_my_badge_awards: {
+        Args: { p_award_ids: string[] }
+        Returns: number
+      }
       finalize_weekly_leaderboard: {
         Args: { p_week_start: string }
         Returns: number
+      }
+      get_display_badges_for_users: {
+        Args: { p_user_ids: string[] }
+        Returns: Array<{
+          id: string
+          user_id: string
+          badge_key: string
+          award_kind: string
+          week_start: string | null
+          week_end: string | null
+          placement: number | null
+          awarded_at: string
+          acknowledged_at: string | null
+        }>
       }
       get_leaderboard: {
         Args: { p_limit?: number; p_mode: string }
@@ -614,6 +676,20 @@ export type Database = {
           words_mastered: number
           week_start: string
           week_end: string
+        }>
+      }
+      get_my_pending_badge_awards: {
+        Args: Record<PropertyKey, never>
+        Returns: Array<{
+          id: string
+          user_id: string
+          badge_key: string
+          award_kind: string
+          week_start: string | null
+          week_end: string | null
+          placement: number | null
+          awarded_at: string
+          acknowledged_at: string | null
         }>
       }
       get_public_book_progress: {

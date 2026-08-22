@@ -125,7 +125,9 @@ export interface Profile {
   updated_at: ISOTimestamp
 }
 
-export type LeaderboardProfile = Pick<Profile, 'id' | 'display_name' | 'avatar_id' | 'avatar_url'>
+export interface LeaderboardProfile extends Pick<Profile, 'id' | 'display_name' | 'avatar_id' | 'avatar_url'> {
+  badges: DisplayBadge[]
+}
 
 export interface UserStats {
   user_id: UUID
@@ -202,6 +204,43 @@ export interface AchievementBadge {
   description: string
 }
 
+export type BadgeAwardKind = 'permanent' | 'weekly_champion'
+
+export interface BadgeAward {
+  id: UUID
+  user_id: UUID
+  badge_key: string
+  award_kind: BadgeAwardKind
+  week_start: ISODate | null
+  week_end: ISODate | null
+  placement: number | null
+  awarded_at: ISOTimestamp
+  acknowledged_at: ISOTimestamp | null
+}
+
+export interface DisplayBadge {
+  key: string
+  title: string
+  shortTitle: string
+  description: string
+  reason: string
+  assetSrc: string
+  category: 'owner' | 'contributor' | 'weekly_champion'
+  awardKind: BadgeAwardKind
+  tone: 'gold' | 'violet' | 'mint' | 'coral' | 'sky'
+  priority: number
+  awardId: UUID | null
+  awardedAt: ISOTimestamp | null
+  weekStart: ISODate | null
+  weekEnd: ISODate | null
+  placement: number | null
+  isCurrent: boolean
+}
+
+export interface PendingBadgeAward extends BadgeAward {
+  display: DisplayBadge
+}
+
 export interface PublicLeaderboardSummary {
   current_week_rank: number | null
   highest_weekly_rank: number | null
@@ -234,6 +273,7 @@ export interface PublicProfile {
   words_mastered: number
   book_progress: BookProgressSummary[]
   achievements: AchievementBadge[]
+  badges: DisplayBadge[]
   leaderboard: PublicLeaderboardSummary
   mock_tests: PublicMockTestSummary
 }

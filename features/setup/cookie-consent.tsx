@@ -23,19 +23,24 @@ function saveConsent() {
   document.cookie = `${COOKIE_NAME}=accepted; Max-Age=31536000; Path=/; SameSite=Lax`
 }
 
-export function CookieConsent({ enabled }: { enabled: boolean }) {
+export function CookieConsent({ enabled, onDone }: { enabled: boolean; onDone?: () => void }) {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    if (!enabled || hasConsent()) return
+    if (!enabled) return
+    if (hasConsent()) {
+      onDone?.()
+      return
+    }
     const timer = window.setTimeout(() => setVisible(true), 700)
     return () => window.clearTimeout(timer)
-  }, [enabled])
+  }, [enabled, onDone])
 
   const accept = useCallback(() => {
     saveConsent()
     setVisible(false)
-  }, [])
+    onDone?.()
+  }, [onDone])
 
   if (!visible) return null
 

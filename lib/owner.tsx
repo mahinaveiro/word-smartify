@@ -1,5 +1,7 @@
-import Image from 'next/image'
-import { cn } from '@/lib/utils'
+'use client'
+
+import { NameWithBadges } from '@/features/badges/name-with-badges'
+import type { DisplayBadge, UUID } from '@/types/database'
 
 export const OWNER_USER_ID = 'f35d5693-11e6-470f-a498-28ce07161c26'
 export const OWNER_MARKER_ALT = 'Word Smartify owner'
@@ -14,27 +16,14 @@ export function OwnerDisplayName({
   userId,
   name,
   className,
+  badges,
+  badgeSize = 'md',
 }: {
-  userId: string | null | undefined
+  userId: UUID | null | undefined
   name: string
   className?: string
+  badges?: DisplayBadge[]
+  badgeSize?: 'sm' | 'md' | 'lg'
 }) {
-  const isOwner = isOwnerUserId(userId)
-
-  return (
-    <span className={cn('inline-flex min-w-0 max-w-full items-center gap-1', className)}>
-      <span className="min-w-0 truncate">{name}</span>
-      {isOwner ? (
-        <Image
-          src="/star.gif"
-          alt={OWNER_MARKER_ALT}
-          width={20}
-          height={20}
-          unoptimized
-          className="size-4 shrink-0 object-contain sm:size-5"
-          draggable={false}
-        />
-      ) : null}
-    </span>
-  )
+  return <NameWithBadges userId={userId} name={name} badges={badges} className={className} badgeSize={badgeSize} />
 }

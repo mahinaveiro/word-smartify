@@ -31,6 +31,14 @@ export function useActions() {
     return userId
   }, [userId])
 
+  const acknowledgeBadgeAwards = useCallback(
+    async (awardIds: string[]) => {
+      await repositories.badges.acknowledgeAwards(requireUserId(), awardIds)
+      await mutate(['pending-badge-awards', requireUserId()])
+    },
+    [mutate, requireUserId],
+  )
+
   const revalidateUser = useCallback(() => {
     return mutate((key) =>
       Array.isArray(key) &&
@@ -48,6 +56,8 @@ export function useActions() {
         'daily-range',
         'daily-plan',
         'leaderboard',
+        'display-badges',
+        'pending-badge-awards',
         'level-progress',
         'mock-tests',
         'mock-test',
@@ -115,5 +125,6 @@ export function useActions() {
     removeSavedWord,
     addToReview,
     revalidateUser,
+    acknowledgeBadgeAwards,
   }
 }
