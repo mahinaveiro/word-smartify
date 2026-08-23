@@ -156,7 +156,7 @@ export function QuestionReportDialog({
             onChange={(event) => setNote(event.target.value.slice(0, 1000))}
             placeholder="Add details (optional)"
             rows={3}
-            className="mt-2 w-full resize-none rounded-md border-2 border-foreground bg-card px-3 py-2.5 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="mt-2 w-full resize-none rounded-md border-2 border-foreground bg-card px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
           />
           <p className="mt-1 text-right text-xs text-muted-foreground">{note.length}/1000</p>
           {error ? <p className="mt-3 text-sm font-semibold text-coral-foreground" role="alert">{error}</p> : null}
