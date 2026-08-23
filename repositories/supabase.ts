@@ -52,7 +52,6 @@ import type {
 } from './interfaces'
 import { SupabaseAuthRepository } from './supabase-auth'
 import { isMissingRowError } from '@/lib/supabase/errors'
-import { calculateMockTestScore } from '@/lib/mock-test-scoring'
 import { shuffleArray } from '@/lib/quiz-randomizer'
 import { currentWeekPeriod } from '@/lib/date'
 import { isOwnerUserId } from '@/lib/owner'
@@ -660,7 +659,7 @@ class SupabaseStatsRepository implements StatsRepository {
   async addXp(userId: UUID, amount: number): Promise<UserStats> {
     const xp = Math.max(0, Math.floor(amount))
     if (xp === 0) return this.getStats(userId)
-    const result = await this.client.rpc('record_xp', { p_amount: xp })
+    const result = await this.client.rpc('record_xp_for_user', { p_user_id: userId, p_amount: xp })
     if (result.error) throw new Error(result.error.message)
     return this.getStats(userId)
   }
@@ -946,35 +945,31 @@ class SupabaseMockTestRepository implements MockTestRepository {
     )
   }
 
-  async finalizeMockTest(
+    async finalizeMockTest(
     testId: UUID,
     input: { time_taken_seconds: number },
+    userId: UUID,
   ): Promise<{ test: MockTest; finalized: boolean }> {
-    const current = await this.getMockTest(testId)
-    if (!current) throw new Error('Mock test not found.')
-    if (current.test.time_taken_seconds != null) return { test: current.test, finalized: false }
-
-    const score = calculateMockTestScore(current.test.total_questions, current.answers)
-    const result = await this.client
-      .from('mock_tests')
-      .update({
-        correct_answers: score.correct,
-        score: score.percentage,
-        time_taken_seconds: Math.max(0, Math.floor(input.time_taken_seconds)),
-      })
-      .eq('id', testId)
-      .is('time_taken_seconds', null)
-      .select('*')
-      .maybeSingle()
-
+    const result = await this.client.rpc('finalize_mock_test_canonical', {
+      p_test_id: testId,
+      p_user_id: userId,
+      p_time_taken_seconds: Math.max(0, Math.floor(input.time_taken_seconds)),
+    })
     if (result.error) throw new Error(result.error.message)
-    if (result.data) return { test: result.data, finalized: true }
-
-    const afterRace = await this.getMockTest(testId)
-    if (afterRace?.test.time_taken_seconds != null) {
-      return { test: afterRace.test, finalized: false }
+    const row = result.data?.[0]
+    if (!row) throw new Error('Mock test could not be finalized.')
+    return {
+      finalized: row.finalized,
+      test: {
+        id: row.id,
+        user_id: row.user_id,
+        total_questions: row.total_questions,
+        correct_answers: row.correct_answers,
+        score: row.score,
+        time_taken_seconds: row.time_taken_seconds,
+        created_at: row.created_at,
+      },
     }
-    throw new Error('Mock test could not be finalized.')
   }
 
   async cancelMockTest(testId: UUID): Promise<void> {

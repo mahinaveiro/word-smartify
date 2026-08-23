@@ -21,8 +21,8 @@ import { useAuth } from '@/features/auth/auth-provider'
 import {
   MOCK_TEST_LENGTHS,
   MOCK_TEST_QUESTION_SECONDS,
-  startMockTest,
 } from '@/services/mock-test'
+import { callSecureAction } from '@/lib/secure-action'
 
 export function MockTestsView() {
   const { data: history, error, isLoading, mutate } = useMockTests()
@@ -38,7 +38,7 @@ export function MockTestsView() {
     setStartError(null)
     try {
       if (!userId) throw new Error('Please sign in to start a mock test.')
-      const test = await startMockTest(userId, selectedCount)
+      const test = await callSecureAction<{ id: string }>('start-mock-test', { totalQuestions: selectedCount })
       router.push(`/mock-tests/${test.id}`)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Please try again.'

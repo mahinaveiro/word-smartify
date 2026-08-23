@@ -133,7 +133,7 @@ export function ReviewView({ mode = 'scheduled', sourceTestId }: { mode?: Review
     setPendingAnswer({ wordId, event })
     failedSavesRef.current.delete(wordId)
 
-    const request = recordQuizAnswer(wordId, event.isCorrect, 'review')
+    const request = recordQuizAnswer(wordId, event, 'review')
     pendingSavesRef.current.add(request)
     void request
       .then((res) => {

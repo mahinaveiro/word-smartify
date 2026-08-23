@@ -54,12 +54,8 @@ async function provisionUserRows(client: Client, user: User, displayName = displ
     if (updated.error) throw new Error(updated.error.message)
   }
 
-  const stats = await client.from('user_stats').select('user_id').eq('user_id', user.id).maybeSingle()
-  if (stats.error) throw new Error(stats.error.message)
-  if (!stats.data) {
-    const inserted = await client.from('user_stats').insert({ user_id: user.id })
-    if (inserted.error && inserted.error.code !== '23505') throw new Error(inserted.error.message)
-  }
+  const provisioned = await fetch('/api/provision-user', { method: 'POST' })
+  if (!provisioned.ok) throw new Error('Could not provision the account statistics.')
 }
 
 export class SupabaseAuthRepository implements AuthRepository {

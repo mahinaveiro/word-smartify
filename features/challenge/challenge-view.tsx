@@ -89,7 +89,7 @@ export function ChallengeView() {
     if (saveQueuesRef.current.has(wordId)) return
     const save = (async () => {
       try {
-        const result = await recordQuizAnswer(wordId, event.isCorrect, 'challenge')
+        const result = await recordQuizAnswer(wordId, event, 'challenge')
         failedAnswersRef.current.delete(wordId)
         setResults((previous) => [...previous, result])
         return true

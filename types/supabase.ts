@@ -646,6 +646,19 @@ export type Database = {
         Args: { p_week_start: string }
         Returns: number
       }
+      finalize_mock_test_canonical: {
+        Args: { p_test_id: string; p_user_id: string; p_time_taken_seconds: number }
+        Returns: Array<{
+          finalized: boolean
+          id: string
+          user_id: string
+          total_questions: number
+          correct_answers: number
+          score: number
+          time_taken_seconds: number | null
+          created_at: string
+        }>
+      }
       get_display_badges_for_users: {
         Args: { p_user_ids: string[] }
         Returns: Array<{
@@ -726,6 +739,10 @@ export type Database = {
       }
       record_xp: {
         Args: { p_amount: number }
+        Returns: null
+      }
+      record_xp_for_user: {
+        Args: { p_amount: number; p_user_id: string }
         Returns: null
       }
       search_library_words: {

@@ -5,12 +5,9 @@ import { useSWRConfig } from 'swr'
 import { repositories } from '@/repositories'
 import { useAuth } from '@/features/auth/auth-provider'
 import { trackProductEvent } from '@/lib/product-analytics'
-import {
-  completeDailyChallenge as completeChallenge,
-  finalizeSession,
-  recordQuizAnswer as recordAnswer,
-  type QuizMode,
-} from '@/services/daily-loop'
+import type { QuizAnswerEvent } from '@/lib/quiz-engine'
+import type { QuizMode } from '@/lib/xp'
+import { callSecureAction } from '@/lib/secure-action'
 
 export interface QuizAnswerResult {
   correct: boolean
@@ -69,18 +66,27 @@ export function useActions() {
   }, [mutate])
 
   const recordQuizAnswer = useCallback(
-    (wordId: string, correct: boolean, mode: QuizMode = 'learning') => {
-      trackProductEvent('answer_submitted', { mode, correct })
-      return recordAnswer(requireUserId(), wordId, correct, mode)
+    (wordId: string, event: QuizAnswerEvent, mode: QuizMode = 'learning') => {
+      trackProductEvent('answer_submitted', { mode, correct: event.isCorrect })
+      return callSecureAction<QuizAnswerResult>('quiz-answer', {
+        wordId,
+        questionId: event.questionId,
+        selectedAnswer: event.selectedAnswer,
+        mode,
+      })
     },
-    [requireUserId],
+    [],
   )
 
-  const recordSessionProgress = useCallback(() => finalizeSession(requireUserId()), [requireUserId])
+  const recordSessionProgress = useCallback(
+    () => callSecureAction('finalize-session'),
+    [],
+  )
 
   const completeDailyChallenge = useCallback(
-    (answeredWordIds: string[]) => completeChallenge(requireUserId(), answeredWordIds),
-    [requireUserId],
+    (answeredWordIds: string[]) =>
+      callSecureAction('complete-daily-challenge', { answeredWordIds }),
+    [],
   )
 
   const updateProfile = (patch: Parameters<typeof repositories.profiles.updateProfile>[1]) =>
@@ -105,15 +111,11 @@ export function useActions() {
 
   const addToReview = useCallback(
     async (wordId: string) => {
-      const now = new Date().toISOString()
-      const progress = await repositories.wordProgress.updateWordProgress(requireUserId(), wordId, {
-        status: 'learning',
-        next_review_at: now,
-      })
+      const progress = await callSecureAction('add-to-review', { wordId })
       await revalidateUser()
       return progress
     },
-    [requireUserId, revalidateUser],
+    [revalidateUser],
   )
 
   return {

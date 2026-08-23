@@ -14,7 +14,8 @@ import { QuizCard } from '@/features/session/quiz-card'
 import { useMockTest } from '@/hooks/use-data'
 import { formatDuration } from '@/lib/date'
 import { useAuth } from '@/features/auth/auth-provider'
-import { cancelMockTest, finalizeMockTest, MOCK_TEST_QUESTION_SECONDS, saveMockTestAnswer } from '@/services/mock-test'
+import { MOCK_TEST_QUESTION_SECONDS } from '@/services/mock-test'
+import { callSecureAction } from '@/lib/secure-action'
 import type { MockTestAnswer } from '@/types/database'
 import type { QuizAnswerEvent } from '@/lib/quiz-engine'
 import { useQuizEngine } from '@/hooks/use-quiz-engine'
@@ -61,7 +62,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
     }
 
     try {
-      await cancelMockTest(testId, userId)
+      await callSecureAction('cancel-mock-test', { testId })
       router.replace('/mock-tests')
     } catch {
       securityStateRef.current = 'needs-cancel'
@@ -178,7 +179,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
     const previous = saveQueuesRef.current.get(questionId) ?? Promise.resolve()
     const request = previous
       .catch(() => undefined)
-      .then(() => saveMockTestAnswer(testId, event))
+      .then(() => callSecureAction<MockTestAnswer>('save-mock-answer', { testId, event }))
     const queueTail = request.then(() => undefined, () => undefined)
     saveQueuesRef.current.set(questionId, queueTail)
     pendingSavesRef.current.add(request)
@@ -226,7 +227,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
       if (pendingResults.some((result) => result.status === 'rejected') || runError) {
         throw new Error('Some answers are not saved yet. Retry the failed answer before submitting.')
       }
-      await finalizeMockTest(testId, elapsed, userId)
+      await callSecureAction('finalize-mock-test', { testId, timeTakenSeconds: elapsed })
       intentionalLeaveRef.current = true
       router.replace(`/mock-tests/${testId}/result`)
     } catch (submitFailure) {

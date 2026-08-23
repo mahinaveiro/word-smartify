@@ -159,6 +159,7 @@ export interface MockTestRepository {
   finalizeMockTest(
     testId: UUID,
     input: { time_taken_seconds: number },
+    userId: UUID,
   ): Promise<{ test: MockTest; finalized: boolean }>
   /** Cancel an in-progress test and remove its saved answer slots. */
   cancelMockTest(testId: UUID): Promise<void>

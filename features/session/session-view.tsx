@@ -150,7 +150,7 @@ export function SessionView({ levelId }: { levelId: string }) {
     setPendingAnswer({ wordId, event })
     failedSavesRef.current.delete(wordId)
 
-    const request = recordQuizAnswer(wordId, event.isCorrect, 'learning')
+    const request = recordQuizAnswer(wordId, event, 'learning')
     pendingSavesRef.current.add(request)
 
     void request
