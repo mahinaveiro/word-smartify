@@ -118,8 +118,8 @@ export function QuestionReportDialog({
             {QUICK_REPORT_CATEGORIES.map((value) => (
               <label
                 key={value}
-                className={`flex min-h-11 cursor-pointer items-center justify-center rounded-md border-2 px-2.5 py-2 text-center text-sm font-semibold leading-tight transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${
-                  category === value ? 'border-foreground bg-muted' : 'border-foreground/20 bg-card hover:border-foreground/60'
+                className={`flex min-h-11 cursor-pointer items-center justify-center rounded-md border-2 px-2.5 py-2 text-center text-sm font-semibold leading-tight ${
+                  category === value ? 'border-foreground bg-muted' : 'border-foreground/20 bg-card'
                 }`}
               >
                 <input
