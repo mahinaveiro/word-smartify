@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '@/lib/supabase/server'
 import {
-  isQuestionReportCategory,
+  isQuestionReportStoredCategory,
   isQuestionReportMode,
+  questionReportCategoryLabel,
 } from '@/types/question-reports'
 
 const QUESTION_ID_PATTERN = /^[0-9a-f-]{36}$/i
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
   if (!questionId || !QUESTION_ID_PATTERN.test(questionId)) {
     return NextResponse.json({ error: 'This question could not be identified.' }, { status: 400 })
   }
-  if (!isQuestionReportCategory(category)) {
+  if (!isQuestionReportStoredCategory(category)) {
     return NextResponse.json({ error: 'Choose a report reason.' }, { status: 400 })
   }
   if (!isQuestionReportMode(mode)) {
@@ -128,7 +129,7 @@ export async function POST(request: Request) {
     const { error: emailError } = await resend.emails.send({
       from: sender,
       to: recipient,
-      subject: `Word Smartify question report · ${category.replace('_', ' ')}`,
+      subject: `Word Smartify question report · ${questionReportCategoryLabel(category)}`,
       html: `
         <h2>Question report</h2>
         <h3>Reporter</h3>
@@ -136,7 +137,7 @@ export async function POST(request: Request) {
         <p><strong>Email:</strong> ${escapeHtml(reporterEmail)}</p>
         <p><strong>UID:</strong> ${escapeHtml(reporterUid)}</p>
         <hr />
-        <p><strong>Reason:</strong> ${escapeHtml(category.replace('_', ' '))}</p>
+        <p><strong>Reason:</strong> ${escapeHtml(questionReportCategoryLabel(category))}</p>
         <p><strong>Mode:</strong> ${escapeHtml(mode)}</p>
         <p><strong>Question ID:</strong> ${escapeHtml(question.id)}</p>
         <p><strong>Question:</strong> ${escapeHtml(question.question)}</p>

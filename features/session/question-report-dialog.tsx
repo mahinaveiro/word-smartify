@@ -1,7 +1,7 @@
 'use client'
 
 import { Flag, Send } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
 import { Modal } from '@/components/ui/modal'
@@ -15,6 +15,10 @@ import {
 import type { QuizQuestion } from '@/types/database'
 import { trackProductEvent } from '@/lib/product-analytics'
 
+const QUICK_REPORT_CATEGORIES = QUESTION_REPORT_CATEGORIES.filter(
+  (value): value is Exclude<QuestionReportCategory, 'other'> => value !== 'other',
+)
+
 export function QuestionReportDialog({
   question,
   mode,
@@ -23,10 +27,11 @@ export function QuestionReportDialog({
   mode: QuestionReportMode
 }) {
   const [open, setOpen] = useState(false)
-  const [category, setCategory] = useState<QuestionReportCategory>('faulty_question')
+  const [category, setCategory] = useState<QuestionReportCategory>('broken_question')
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const noteInputRef = useRef<HTMLTextAreaElement>(null)
   const { toast } = useToast()
 
   async function submitReport() {
@@ -64,6 +69,18 @@ export function QuestionReportDialog({
     }
   }
 
+  function openReportDialog() {
+    setCategory('broken_question')
+    setNote('')
+    setError(null)
+    setOpen(true)
+  }
+
+  function chooseOther() {
+    setCategory('other')
+    requestAnimationFrame(() => noteInputRef.current?.focus())
+  }
+
   return (
     <>
       <IconButton
@@ -71,12 +88,7 @@ export function QuestionReportDialog({
         variant="ghost"
         size="sm"
         aria-haspopup="dialog"
-        onClick={() => {
-          setCategory('faulty_question')
-          setNote('')
-          setError(null)
-          setOpen(true)
-        }}
+        onClick={openReportDialog}
       >
         <Flag aria-hidden />
       </IconButton>
@@ -87,7 +99,6 @@ export function QuestionReportDialog({
           if (!submitting) setOpen(false)
         }}
         title="Report question"
-        description="Tell us what went wrong so we can fix it."
         className="max-h-[calc(100dvh-2rem)] overflow-y-auto"
         footer={
           <>
@@ -103,11 +114,11 @@ export function QuestionReportDialog({
       >
         <fieldset disabled={submitting}>
           <legend className="sr-only">Reason for reporting</legend>
-          <div className="grid gap-2">
-            {QUESTION_REPORT_CATEGORIES.map((value) => (
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Reason for reporting">
+            {QUICK_REPORT_CATEGORIES.map((value) => (
               <label
                 key={value}
-                className={`flex cursor-pointer items-center gap-3 rounded-md border-2 px-3 py-3 text-sm font-semibold transition-colors ${
+                className={`flex min-h-11 cursor-pointer items-center justify-center rounded-md border-2 px-2.5 py-2 text-center text-sm font-semibold leading-tight transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${
                   category === value ? 'border-foreground bg-muted' : 'border-foreground/20 bg-card hover:border-foreground/60'
                 }`}
               >
@@ -117,21 +128,33 @@ export function QuestionReportDialog({
                   value={value}
                   checked={category === value}
                   onChange={() => setCategory(value)}
-                  className="size-4 accent-foreground"
+                  className="sr-only"
                 />
                 {QUESTION_REPORT_CATEGORY_LABELS[value]}
               </label>
             ))}
           </div>
 
+          <button
+            type="button"
+            className={`mt-3 text-sm font-semibold underline decoration-foreground/40 underline-offset-4 transition-colors hover:decoration-foreground ${
+              category === 'other' ? 'text-foreground' : 'text-muted-foreground'
+            }`}
+            aria-pressed={category === 'other'}
+            onClick={chooseOther}
+          >
+            Other
+          </button>
+
           <label htmlFor={`question-report-note-${question.id}`} className="mt-4 block text-sm font-semibold">
-            Add a note <span className="font-normal text-muted-foreground">(optional)</span>
+            Details <span className="font-normal text-muted-foreground">(optional)</span>
           </label>
           <textarea
+            ref={noteInputRef}
             id={`question-report-note-${question.id}`}
             value={note}
             onChange={(event) => setNote(event.target.value.slice(0, 1000))}
-            placeholder="What did you notice?"
+            placeholder="Add details (optional)"
             rows={3}
             className="mt-2 w-full resize-none rounded-md border-2 border-foreground bg-card px-3 py-2.5 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           />
