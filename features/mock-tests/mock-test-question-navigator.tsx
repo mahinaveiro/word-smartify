@@ -50,8 +50,8 @@ export function MockTestQuestionNavigator({
           >
             {questionIndex + 1}
             <span className="absolute -right-1 -top-1 flex items-center gap-px rounded-full border border-foreground bg-background px-0.5 py-px">
-              {isSkipped ? <SkipForward className="size-2.5 text-coral-foreground" strokeWidth={3} aria-hidden /> : null}
-              {isStarred ? <Star className="size-2.5 fill-accent text-accent-foreground" strokeWidth={3} aria-hidden /> : null}
+              {isSkipped ? <SkipForward className="size-2.5 text-foreground" strokeWidth={3} aria-hidden /> : null}
+              {isStarred ? <Star className="size-2.5 fill-accent text-foreground" strokeWidth={3} aria-hidden /> : null}
             </span>
           </button>
         )
