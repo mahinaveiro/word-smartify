@@ -99,7 +99,7 @@ export function DashboardView() {
                 ) : null}
               </div>
             </div>
-            <div className="grid w-full grid-cols-2 gap-2.5 md:grid-cols-3 xl:w-auto xl:min-w-[500px]">
+            <div className="grid w-full grid-cols-2 gap-2.5 md:grid-cols-3 md:items-stretch xl:w-auto xl:min-w-[500px]">
               <PlanItem
                 icon={BookOpen}
                 title="New learning"
@@ -122,7 +122,7 @@ export function DashboardView() {
                 action={plan.review.due > 0 ? 'Open reviews' : plan.review.weak > 0 ? 'Start weak drill' : 'Open reviews'}
                 accent="coral"
               />
-              <div className="hidden md:block">
+              <div className="hidden md:contents">
                 <PlanItem
                   icon={Sparkles}
                   title="Daily challenge"
@@ -233,7 +233,7 @@ function PlanItem({
   accent: 'mint' | 'coral' | 'ink'
 }) {
   return (
-    <div className="flex min-h-28 flex-col justify-between rounded-md border-2 border-foreground bg-card p-3 shadow-brutal-sm">
+    <div className="flex min-h-28 flex-col justify-between rounded-md border-2 border-foreground bg-card p-3 shadow-brutal-sm md:h-full">
       <div className="flex items-start justify-between gap-2">
         <span className={`grid size-8 place-items-center rounded-md border-2 border-foreground ${accent === 'mint' ? 'bg-mint' : accent === 'coral' ? 'bg-coral' : 'bg-foreground text-background'}`}>
           <Icon className="size-4" aria-hidden />
