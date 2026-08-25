@@ -334,11 +334,11 @@ export function SessionView({ levelId }: { levelId: string }) {
             </Button>
           </div>
         ) : (
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button size="lg" variant="outline" className="flex-1" onClick={() => router.push('/dashboard')}>
+          <div className="flex gap-3">
+            <Button size="sm" variant="outline" className="min-w-0 flex-1 px-3 text-sm" onClick={() => router.push('/dashboard')}>
               Home
             </Button>
-            <Button size="lg" className="flex-1" onClick={close}>
+            <Button size="sm" className="min-w-0 flex-1 px-3 text-sm" onClick={close}>
               Back to level
             </Button>
           </div>

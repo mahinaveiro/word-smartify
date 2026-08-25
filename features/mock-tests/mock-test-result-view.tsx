@@ -166,11 +166,11 @@ export function MockTestResultView({ testId }: { testId: string }) {
         </Card>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <Button asChild variant="outline" className="flex-1">
+      <div className="flex gap-3">
+        <Button asChild size="sm" variant="outline" className="min-w-0 flex-1 px-3 text-sm">
           <Link href="/mock-tests"><ArrowLeft className="size-4" aria-hidden /> Back to Mock Tests</Link>
         </Button>
-        <Button asChild className="flex-1">
+        <Button asChild size="sm" className="min-w-0 flex-1 px-3 text-sm">
           <Link href="/dashboard">Back to Dashboard</Link>
         </Button>
       </div>
