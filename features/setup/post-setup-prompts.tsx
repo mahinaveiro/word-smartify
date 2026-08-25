@@ -6,17 +6,19 @@ import { InstallPrompt } from '@/features/setup/install-prompt'
 import { StudyGcPrompt } from '@/features/setup/study-gc-prompt'
 import { BadgeCongratulationsModal } from '@/features/badges/badge-congratulations-modal'
 import { FeedbackAnnouncement } from '@/features/setup/feedback-announcement'
+import { ProfilePictureAnnouncement } from '@/features/setup/profile-picture-announcement'
 import { usePendingBadgeAwards } from '@/hooks/use-data'
 
 export function PostSetupPrompts({ userId, joined }: { userId: string; joined: boolean }) {
-  const [stage, setStage] = useState<'telegram' | 'install' | 'cookies' | 'badges' | 'feedback' | 'done'>('telegram')
+  const [stage, setStage] = useState<'telegram' | 'install' | 'cookies' | 'badges' | 'feedback' | 'profile-picture' | 'done'>('telegram')
   const pendingAwardsQuery = usePendingBadgeAwards()
 
   const finishTelegram = useCallback(() => setStage('install'), [])
   const finishInstall = useCallback(() => setStage('cookies'), [])
   const finishCookies = useCallback(() => setStage('badges'), [])
   const finishBadges = useCallback(() => setStage('feedback'), [])
-  const finishFeedback = useCallback(() => setStage('done'), [])
+  const finishFeedback = useCallback(() => setStage('profile-picture'), [])
+  const finishProfilePicture = useCallback(() => setStage('done'), [])
 
   return (
     <>
@@ -30,6 +32,7 @@ export function PostSetupPrompts({ userId, joined }: { userId: string; joined: b
         onDone={finishBadges}
       />
       <FeedbackAnnouncement enabled={stage === 'feedback'} userId={userId} onDone={finishFeedback} />
+      <ProfilePictureAnnouncement enabled={stage === 'profile-picture'} userId={userId} onDone={finishProfilePicture} />
     </>
   )
 }
