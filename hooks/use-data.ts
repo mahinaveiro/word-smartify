@@ -34,6 +34,10 @@ export function useLevel(levelId: string | null) {
   return useSWR(levelId ? ['level', levelId] : null, () => repo.levels.getLevel(levelId as string))
 }
 
+export function useLevelBookId(levelId: string | null) {
+  return useSWR(levelId ? ['level-book', levelId] : null, () => repo.levels.getBookIdForLevel(levelId as string))
+}
+
 export function useLevelByNumber(levelNumber: number | null) {
   return useSWR(
     levelNumber != null ? ['level-num', levelNumber] : null,

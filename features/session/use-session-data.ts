@@ -25,9 +25,12 @@ export function useSessionData(levelId: string | null) {
     const level = await repositories.levels.getLevel(levelId as string)
     if (!level) throw new Error('This level is not available.')
 
+    const bookId = await repositories.levels.getBookIdForLevel(level.id)
+    if (!bookId) throw new Error('This level is not available.')
+
     const [levels, progress] = await Promise.all([
-      repositories.levels.getLevelsForBook(level.book_id),
-      repositories.wordProgress.getLevelProgress(userId as string, level.book_id),
+      repositories.levels.getLevelsForBook(bookId),
+      repositories.wordProgress.getLevelProgress(userId as string, bookId),
     ])
     const levelIndex = getLevelIndex(levels, level.id)
     if (levelIndex === -1 || !isLevelAccessible(levels, progress, level.id)) {

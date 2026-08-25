@@ -11,7 +11,7 @@ import { BackButton } from '@/components/ui/back-button'
 import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { WordStatusBadge } from '@/features/shared/word-status'
-import { useLevel, useWordsForLevel, useAllProgress, useLevelsForBook, useLevelProgress } from '@/hooks/use-data'
+import { useLevel, useWordsForLevel, useAllProgress, useLevelBookId, useLevelsForBook, useLevelProgress } from '@/hooks/use-data'
 import { isLevelAccessible, LEVEL_LOCKED_MESSAGE } from '@/lib/level-access'
 import type { WordStatus } from '@/types/database'
 
@@ -20,25 +20,27 @@ export function LevelDetail({ levelId }: { levelId: string }) {
   const levelQuery = useLevel(levelId)
   const wordsQuery = useWordsForLevel(levelId)
   const progressQuery = useAllProgress()
-  const levelsQuery = useLevelsForBook(levelQuery.data?.book_id ?? null)
-  const levelProgressQuery = useLevelProgress(levelQuery.data?.book_id ?? null)
+  const levelBookQuery = useLevelBookId(levelId)
+  const levelsQuery = useLevelsForBook(levelBookQuery.data ?? null)
+  const levelProgressQuery = useLevelProgress(levelBookQuery.data ?? null)
   const { data: level } = levelQuery
   const { data: words } = wordsQuery
   const { data: progress } = progressQuery
+  const { data: levelBookId } = levelBookQuery
   const { data: levels } = levelsQuery
   const { data: levelProgress } = levelProgressQuery
 
-  if ([levelQuery, wordsQuery, progressQuery, levelsQuery, levelProgressQuery].some((query) => query.isLoading)) return <LevelDetailSkeleton />
-  if ([levelQuery, wordsQuery, progressQuery, levelsQuery, levelProgressQuery].some((query) => query.error)) {
+  if ([levelQuery, wordsQuery, progressQuery, levelBookQuery, levelsQuery, levelProgressQuery].some((query) => query.isLoading)) return <LevelDetailSkeleton />
+  if ([levelQuery, wordsQuery, progressQuery, levelBookQuery, levelsQuery, levelProgressQuery].some((query) => query.error)) {
     return (
       <ErrorState
         title="This level couldn't be loaded"
         description="Your learning progress is safe. Try loading this level again."
-        onRetry={() => Promise.all([levelQuery.mutate(), wordsQuery.mutate(), progressQuery.mutate(), levelsQuery.mutate(), levelProgressQuery.mutate()])}
+        onRetry={() => Promise.all([levelQuery.mutate(), wordsQuery.mutate(), progressQuery.mutate(), levelBookQuery.mutate(), levelsQuery.mutate(), levelProgressQuery.mutate()])}
       />
     )
   }
-  if (!level || !words || !levels || !levelProgress) {
+  if (!level || !words || !levelBookId || !levels || !levelProgress) {
     return <EmptyState title="Level not found" description="This level is no longer available." action={<Link href="/learn">Back to Learn</Link>} />
   }
 

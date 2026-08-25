@@ -53,6 +53,8 @@ export interface LevelRepository {
   /** Levels belonging to a book, ordered by global level_number. */
   getLevelsForBook(bookId: UUID): Promise<Level[]>
   getLevel(id: UUID): Promise<Level | null>
+  /** Resolves the parent book through the level's chapter. */
+  getBookIdForLevel(id: UUID): Promise<UUID | null>
   getLevelByNumber(levelNumber: number): Promise<Level | null>
 }
 

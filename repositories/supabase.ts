@@ -337,9 +337,24 @@ class SupabaseLevelRepository implements LevelRepository {
   }
 
   async getLevel(id: UUID): Promise<Level | null> {
-    const result = await this.client.from('levels').select('*').eq('id', id).maybeSingle()
+    const result = await this.client.from('levels').select('*').eq('id', id).limit(1).maybeSingle()
     if (result.error) throw new Error(result.error.message)
     return result.data
+  }
+
+  async getBookIdForLevel(id: UUID): Promise<UUID | null> {
+    const levelResult = await this.client.from('levels').select('chapter_id').eq('id', id).limit(1).maybeSingle()
+    if (levelResult.error) throw new Error(levelResult.error.message)
+    if (!levelResult.data?.chapter_id) return null
+
+    const chapterResult = await this.client
+      .from('chapters')
+      .select('book_id')
+      .eq('id', levelResult.data.chapter_id)
+      .limit(1)
+      .maybeSingle()
+    if (chapterResult.error) throw new Error(chapterResult.error.message)
+    return chapterResult.data?.book_id ?? null
   }
 
   async getLevelByNumber(levelNumber: number): Promise<Level | null> {
