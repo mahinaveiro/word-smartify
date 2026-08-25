@@ -28,8 +28,8 @@ export function BadgeDetailDialog({ badge, onClose }: { badge: DisplayBadge | nu
       {badge ? (
         <div className="space-y-4">
           <div className={cn('relative flex min-h-36 items-center justify-center overflow-hidden rounded-md border-2 p-5', toneClasses[badge.tone])}>
-            <div className="pointer-events-none absolute -right-5 -top-6 size-24 rounded-full bg-white/50 blur-2xl dark:bg-white/10" />
-            <div className="pointer-events-none absolute -bottom-8 -left-5 size-24 rounded-full bg-white/60 blur-2xl dark:bg-white/10" />
+            <div className="pointer-events-none absolute -right-5 -top-6 size-24 rounded-full bg-white/50 blur-2xl dark:bg-foreground/10" />
+            <div className="pointer-events-none absolute -bottom-8 -left-5 size-24 rounded-full bg-white/60 blur-2xl dark:bg-foreground/10" />
             <Image
               src={badge.assetSrc}
               alt=""

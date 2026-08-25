@@ -80,7 +80,7 @@ export function BadgeCongratulationsModal({
           {awards.map((award, index) => (
             <div
               key={award.id}
-              className="relative grid size-28 place-items-center rounded-full border-2 border-foreground/20 bg-white/70 p-3 shadow-brutal-sm animate-in zoom-in-75 duration-normal dark:bg-white/10 sm:size-36 sm:p-4"
+              className="relative grid size-28 place-items-center rounded-full border-2 border-foreground/20 bg-white/70 p-3 shadow-brutal-sm animate-in zoom-in-75 duration-normal dark:bg-foreground/10 sm:size-36 sm:p-4"
               style={{ animationDelay: `${index * 90}ms` }}
             >
               <Image
