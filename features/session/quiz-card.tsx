@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, Lightbulb, X } from 'lucide-react'
+import { Check, Lightbulb, Star, X } from 'lucide-react'
 import type { QuizQuestion } from '@/types/database'
 import type { QuestionReportMode } from '@/types/question-reports'
 import { cn } from '@/lib/utils'
@@ -20,6 +20,8 @@ export function QuizCard({
   onNext,
   canPrevious = false,
   onPrevious,
+  onToggleStar,
+  isStarred = false,
   mode = 'learning',
 }: {
   question: QuizQuestion
@@ -31,6 +33,8 @@ export function QuizCard({
   onNext?: () => void
   canPrevious?: boolean
   onPrevious?: () => void
+  onToggleStar?: () => void
+  isStarred?: boolean
   mode?: QuestionReportMode
 }) {
   const [explanationForQuestion, setExplanationForQuestion] = useState<string | null>(null)
@@ -95,7 +99,18 @@ export function QuizCard({
     >
       <div className="flex items-start justify-between gap-3">
         <h2 className="min-w-0 text-balance font-heading text-xl font-bold leading-snug">{question.question}</h2>
-        <div className="shrink-0">
+        <div className="flex shrink-0 items-center gap-1">
+          {onToggleStar ? (
+            <IconButton
+              label={isStarred ? 'Remove star from question' : 'Star question'}
+              variant={isStarred ? 'accent' : 'solid'}
+              size="sm"
+              aria-pressed={isStarred}
+              onClick={onToggleStar}
+            >
+              <Star className={cn(isStarred && 'fill-current')} aria-hidden />
+            </IconButton>
+          ) : null}
           <QuestionReportDialog question={question} mode={mode} />
         </div>
       </div>

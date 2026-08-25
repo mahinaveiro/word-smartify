@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { ArrowLeft, ArrowRight, Clock, ShieldAlert, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -19,6 +19,7 @@ import { callSecureAction } from '@/lib/secure-action'
 import type { MockTestAnswer } from '@/types/database'
 import type { QuizAnswerEvent } from '@/lib/quiz-engine'
 import { useQuizEngine } from '@/hooks/use-quiz-engine'
+import { MockTestQuestionNavigator } from './mock-test-question-navigator'
 
 type SecurityState = 'preparing' | 'active' | 'needs-fullscreen' | 'cancelling' | 'needs-cancel'
 
@@ -29,6 +30,8 @@ export function MockTestRunView({ testId }: { testId: string }) {
   const [index, setIndex] = useState(0)
   const [savedAnswerMap, setSavedAnswerMap] = useState<Record<string, MockTestAnswer>>({})
   const [localSelections, setLocalSelections] = useState<Record<string, string>>({})
+  const [skippedQuestionIds, setSkippedQuestionIds] = useState<Record<string, boolean>>({})
+  const [starredQuestionIds, setStarredQuestionIds] = useState<Record<string, boolean>>({})
   const [elapsed, setElapsed] = useState(0)
   const [runError, setRunError] = useState<string | null>(null)
   const [pendingAnswer, setPendingAnswer] = useState<{ questionId: string; event: QuizAnswerEvent } | null>(null)
@@ -152,25 +155,40 @@ export function MockTestRunView({ testId }: { testId: string }) {
     return () => window.clearInterval(timer)
   }, [createdAt, totalDurationSeconds])
 
-  const answerMap = useMemo(
-    () => ({ ...(data?.answerMap ?? {}), ...savedAnswerMap }),
-    [data?.answerMap, savedAnswerMap],
-  )
+  const answerMap = { ...(data?.answerMap ?? {}), ...savedAnswerMap }
   const current = data?.questions[index] ?? null
-  const selectedAnswers = useMemo(
-    () => ({
-      ...Object.fromEntries(
-        Object.entries(answerMap).map(([questionId, answer]) => [questionId, answer.user_answer]),
-      ),
-      ...localSelections,
-    }),
-    [answerMap, localSelections],
-  )
+  const selectedAnswers = {
+    ...Object.fromEntries(
+      Object.entries(answerMap).map(([questionId, answer]) => [questionId, answer.user_answer]),
+    ),
+    ...localSelections,
+  }
   const selected = current ? selectedAnswers[current.id] ?? null : null
   const unanswered = data
     ? data.questions.filter((question) => selectedAnswers[question.id] == null).length
     : 0
   const quiz = useQuizEngine(current, { allowChange: true, initialSelected: selected })
+
+  function toggleStar(questionId: string) {
+    setStarredQuestionIds((previous) => ({
+      ...previous,
+      [questionId]: !previous[questionId],
+    }))
+  }
+
+  function goNext() {
+    if (current) {
+      setSkippedQuestionIds((previous) => {
+        const next = { ...previous }
+        if (selectedAnswers[current.id] == null) next[current.id] = true
+        else delete next[current.id]
+        return next
+      })
+    }
+
+    if (index < data!.questions.length - 1) setIndex((value) => value + 1)
+    else setSubmitOpen(true)
+  }
 
   async function persistAnswer(questionId: string, event: QuizAnswerEvent) {
     setRunError(null)
@@ -209,6 +227,12 @@ export function MockTestRunView({ testId }: { testId: string }) {
     const event = quiz.submit(option)
     if (!event) return
     setLocalSelections((previous) => ({ ...previous, [current.id]: event.selectedAnswer }))
+    setSkippedQuestionIds((previous) => {
+      if (!previous[current.id]) return previous
+      const next = { ...previous }
+      delete next[current.id]
+      return next
+    })
     void persistAnswer(current.id, event)
   }
 
@@ -323,12 +347,11 @@ export function MockTestRunView({ testId }: { testId: string }) {
               mode="mock_test"
               secure
               canNext={!submitting}
-              onNext={() => {
-                if (index < data.questions.length - 1) setIndex((value) => value + 1)
-                else setSubmitOpen(true)
-              }}
+              onNext={goNext}
               canPrevious={index > 0 && !submitting}
               onPrevious={() => setIndex((value) => Math.max(0, value - 1))}
+              onToggleStar={() => toggleStar(current.id)}
+              isStarred={Boolean(starredQuestionIds[current.id])}
             />
             {runError ? (
               <ErrorState
@@ -338,6 +361,14 @@ export function MockTestRunView({ testId }: { testId: string }) {
                 onRetry={retryAnswer}
               />
             ) : null}
+            <MockTestQuestionNavigator
+              questions={data.questions}
+              currentIndex={index}
+              selectedAnswers={selectedAnswers}
+              skippedQuestionIds={skippedQuestionIds}
+              starredQuestionIds={starredQuestionIds}
+              onSelect={(questionIndex) => setIndex(questionIndex)}
+            />
           </CardContent>
         </Card>
 
@@ -352,10 +383,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
           <span className="text-center text-xs text-muted-foreground">
             {data.questions.length - unanswered} answered
           </span>
-          <Button onClick={() => {
-            if (index < data.questions.length - 1) setIndex((value) => value + 1)
-            else setSubmitOpen(true)
-          }} disabled={submitting}>
+          <Button onClick={goNext} disabled={submitting}>
             {index < data.questions.length - 1 ? 'Next' : 'Submit'}
             <ArrowRight className="size-4" aria-hidden />
           </Button>
