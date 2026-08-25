@@ -91,6 +91,23 @@ export async function recordQuizAnswer(
   repos: Repositories = repositories,
 ): Promise<QuizAnswerResult> {
   const date = new Date(nowMs).toISOString().slice(0, 10)
+
+  // Daily Challenge is exploratory practice over the full corpus. It must not
+  // create review state, learned/mastered progress, daily learning counts, or
+  // per-answer quiz XP. The secure action validates the question and answer
+  // before this service is called, so returning here preserves answer feedback
+  // without allowing challenge words to unlock learning levels.
+  if (mode === 'challenge') {
+    return {
+      correct,
+      xpEarned: 0,
+      becameLearned: false,
+      becameMastered: false,
+      reviewCredited: false,
+      goalJustCompleted: false,
+    }
+  }
+
   const previous = await repos.wordProgress.getWordProgress(userId, wordId)
   const progressUpdate = applyQuizResult(previous, correct, nowMs)
   const alreadyReviewedToday =
@@ -191,16 +208,14 @@ export async function completeDailyChallenge(
   const today = await repos.dailyProgress.getDailyProgress(userId, date)
   if (today?.challenge_completed) return { alreadyDone: true }
   const uniqueWordIds = [...new Set(answeredWordIds)]
-  if (uniqueWordIds.length === 0) {
-    throw new Error('Complete the challenge quiz before claiming its reward.')
-  }
-  const progressRows = await Promise.all(
-    uniqueWordIds.map((wordId) => repos.wordProgress.getWordProgress(userId, wordId)),
-  )
-  const completedWords = progressRows.filter(
-    (progress) => progress?.last_reviewed_at?.slice(0, 10) === date,
-  )
-  if (completedWords.length !== uniqueWordIds.length) {
+  const assignedCards = await buildDailyChallenge(userId, date, repos)
+  const assignedWordIds = [...new Set(assignedCards.map((card) => card.word.id))]
+  const submittedIds = new Set(uniqueWordIds)
+  const hasExactAssignment =
+    assignedWordIds.length > 0 &&
+    uniqueWordIds.length === assignedWordIds.length &&
+    assignedWordIds.every((wordId) => submittedIds.has(wordId))
+  if (!hasExactAssignment) {
     throw new Error('Complete every challenge word before claiming its reward.')
   }
   const profile = await repos.profiles.getProfile(userId)

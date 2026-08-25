@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { useBooks, useLevelsForBook, useLevelProgress } from '@/hooks/use-data'
 import type { Level } from '@/types/database'
 import type { LevelProgressSummary } from '@/repositories/interfaces'
+import { isLevelUnlocked } from '@/lib/level-access'
 
 export function LearnView() {
   const booksQuery = useBooks()
@@ -131,13 +132,8 @@ function LevelGrid({
         const total = p?.total ?? level.word_count
         const mastered = p?.mastered ?? 0
         const complete = total > 0 && learned >= total
-        const previousLevel = levels[index - 1]
-        const previousProgress = previousLevel ? progress?.[previousLevel.id] : undefined
-        const previousLearned = previousProgress?.learned ?? 0
-        const previousTotal = previousProgress?.total ?? previousLevel?.word_count ?? 0
-        const prevComplete = index === 0 || (previousTotal > 0 && previousLearned >= previousTotal)
-        const locked = !prevComplete && learned === 0
-        const unlocked = !locked
+        const unlocked = isLevelUnlocked(levels, progress, index)
+        const locked = !unlocked
         const pct = total > 0 ? Math.round((learned / total) * 100) : 0
 
         return (

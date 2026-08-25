@@ -11,7 +11,8 @@ import { BackButton } from '@/components/ui/back-button'
 import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { WordStatusBadge } from '@/features/shared/word-status'
-import { useLevel, useWordsForLevel, useAllProgress } from '@/hooks/use-data'
+import { useLevel, useWordsForLevel, useAllProgress, useLevelsForBook, useLevelProgress } from '@/hooks/use-data'
+import { isLevelAccessible, LEVEL_LOCKED_MESSAGE } from '@/lib/level-access'
 import type { WordStatus } from '@/types/database'
 
 export function LevelDetail({ levelId }: { levelId: string }) {
@@ -19,22 +20,38 @@ export function LevelDetail({ levelId }: { levelId: string }) {
   const levelQuery = useLevel(levelId)
   const wordsQuery = useWordsForLevel(levelId)
   const progressQuery = useAllProgress()
+  const levelsQuery = useLevelsForBook(levelQuery.data?.book_id ?? null)
+  const levelProgressQuery = useLevelProgress(levelQuery.data?.book_id ?? null)
   const { data: level } = levelQuery
   const { data: words } = wordsQuery
   const { data: progress } = progressQuery
+  const { data: levels } = levelsQuery
+  const { data: levelProgress } = levelProgressQuery
 
-  if ([levelQuery, wordsQuery, progressQuery].some((query) => query.isLoading)) return <LevelDetailSkeleton />
-  if ([levelQuery, wordsQuery, progressQuery].some((query) => query.error)) {
+  if ([levelQuery, wordsQuery, progressQuery, levelsQuery, levelProgressQuery].some((query) => query.isLoading)) return <LevelDetailSkeleton />
+  if ([levelQuery, wordsQuery, progressQuery, levelsQuery, levelProgressQuery].some((query) => query.error)) {
     return (
       <ErrorState
         title="This level couldn't be loaded"
         description="Your learning progress is safe. Try loading this level again."
-        onRetry={() => Promise.all([levelQuery.mutate(), wordsQuery.mutate(), progressQuery.mutate()])}
+        onRetry={() => Promise.all([levelQuery.mutate(), wordsQuery.mutate(), progressQuery.mutate(), levelsQuery.mutate(), levelProgressQuery.mutate()])}
       />
     )
   }
-  if (!level || !words) {
+  if (!level || !words || !levels || !levelProgress) {
     return <EmptyState title="Level not found" description="This level is no longer available." action={<Link href="/learn">Back to Learn</Link>} />
+  }
+
+  if (!isLevelAccessible(levels, levelProgress, level.id)) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <EmptyState
+          title={`Level ${level.level_number} is locked`}
+          description={LEVEL_LOCKED_MESSAGE}
+          action={<Link href="/learn">Back to Learn</Link>}
+        />
+      </div>
+    )
   }
 
   const statusByWord = new Map<string, WordStatus>()

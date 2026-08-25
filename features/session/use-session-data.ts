@@ -2,8 +2,10 @@
 
 import useSWR from 'swr'
 import { repositories } from '@/repositories'
+import { useAuth } from '@/features/auth/auth-provider'
 import { createRandomizedQuizCards, shuffleArray } from '@/lib/quiz-randomizer'
 import { filterLearningQuestions } from '@/lib/learning-question-filter'
+import { getLevelIndex, isLevelAccessible, LEVEL_LOCKED_MESSAGE } from '@/lib/level-access'
 import type { QuizQuestion, Word } from '@/types/database'
 
 export interface SessionCard {
@@ -17,7 +19,21 @@ export interface SessionCard {
  * this session payload is fetched, so rerenders do not reshuffle the session.
  */
 export function useSessionData(levelId: string | null) {
-  return useSWR(levelId ? ['session', levelId] : null, async (): Promise<SessionCard[]> => {
+  const userId = useAuth().user?.id ?? null
+
+  return useSWR(userId && levelId ? ['session', userId, levelId] : null, async (): Promise<SessionCard[]> => {
+    const level = await repositories.levels.getLevel(levelId as string)
+    if (!level) throw new Error('This level is not available.')
+
+    const [levels, progress] = await Promise.all([
+      repositories.levels.getLevelsForBook(level.book_id),
+      repositories.wordProgress.getLevelProgress(userId as string, level.book_id),
+    ])
+    const levelIndex = getLevelIndex(levels, level.id)
+    if (levelIndex === -1 || !isLevelAccessible(levels, progress, level.id)) {
+      throw new Error(LEVEL_LOCKED_MESSAGE)
+    }
+
     const words = await repositories.words.getWordsForLevel(levelId as string)
     if (words.length < 10) throw new Error('This level does not contain the required 10 learning words.')
     const sessionWords = shuffleArray(words).slice(0, 10)

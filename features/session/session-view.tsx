@@ -18,6 +18,7 @@ import { QuizCard } from './quiz-card'
 import { useQuizEngine } from '@/hooks/use-quiz-engine'
 import type { QuizAnswerEvent } from '@/lib/quiz-engine'
 import { XP } from '@/lib/xp'
+import { LEVEL_LOCKED_MESSAGE } from '@/lib/level-access'
 import { trackProductEvent } from '@/lib/product-analytics'
 
 type Phase = 'flashcards' | 'quiz' | 'summary'
@@ -110,13 +111,22 @@ export function SessionView({ levelId }: { levelId: string }) {
 
   if (isLoading) return <SessionSkeleton />
   if (error || levelQuery.error) {
+    const isLocked = error instanceof Error && error.message === LEVEL_LOCKED_MESSAGE
     return (
       <div className="mx-auto flex min-h-dvh max-w-lg items-center px-4">
-        <ErrorState
-          title="Couldn't load this session"
-          description="Your learning progress is safe. Try loading this session again."
-          onRetry={() => Promise.all([mutate(), levelQuery.mutate()])}
-        />
+        {isLocked ? (
+          <EmptyState
+            title="This level is locked"
+            description={LEVEL_LOCKED_MESSAGE}
+            action={<Button onClick={() => router.push('/learn')}>Back to Learn</Button>}
+          />
+        ) : (
+          <ErrorState
+            title="Couldn't load this session"
+            description="Your learning progress is safe. Try loading this session again."
+            onRetry={() => Promise.all([mutate(), levelQuery.mutate()])}
+          />
+        )}
       </div>
     )
   }
