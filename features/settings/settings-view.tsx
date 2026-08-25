@@ -25,8 +25,7 @@ import { Modal } from '@/components/ui/modal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 import { SectionHeader } from '@/components/ui/section-header'
-import { Avatar } from '@/features/shared/avatar'
-import { AvatarPicker, profileSaveDisabled } from '@/features/profile/profile-form'
+import { AvatarUpload, profileSaveDisabled } from '@/features/profile/profile-form'
 import { PasswordChecklist } from '@/features/auth/password-checklist'
 import { PasswordField } from '@/features/auth/password-field'
 import { FeedbackView } from './feedback-view'
@@ -36,9 +35,9 @@ import { useProfile, useBooks } from '@/hooks/use-data'
 import { useActions } from '@/hooks/use-actions'
 import { useAuth } from '@/features/auth/auth-provider'
 import { checkPassword } from '@/lib/password'
-import { validateAvatarUrl, validateDisplayName } from '@/lib/profile'
+import { validateDisplayName } from '@/lib/profile'
 import { isAuthError } from '@/types/auth'
-import type { DailyGoal } from '@/types/database'
+import type { DailyGoal, Profile } from '@/types/database'
 
 const GOAL_OPTIONS: readonly DailyGoal[] = [5, 10, 15, 20, 30]
 
@@ -66,8 +65,6 @@ export function SettingsView({ section = 'hub' }: { section?: SettingsSection })
 
   const [firstNameDraft, setFirstNameDraft] = useState<string | null>(null)
   const [lastNameDraft, setLastNameDraft] = useState<string | null>(null)
-  const [avatarDraft, setAvatarDraft] = useState<string | null>(null)
-  const [avatarUrlDraft, setAvatarUrlDraft] = useState<string | null>(null)
   const [dailyGoalDraft, setDailyGoalDraft] = useState<DailyGoal | null>(null)
   const [bookIdDraft, setBookIdDraft] = useState<string | null | undefined>(undefined)
   const [profileSaving, setProfileSaving] = useState(false)
@@ -113,29 +110,21 @@ export function SettingsView({ section = 'hub' }: { section?: SettingsSection })
   const lastName = lastNameDraft ?? nameParts.last
   const name = [firstName.trim(), lastName.trim()].filter(Boolean).join(' ')
   const nameError = validateDisplayName(name)
-  const avatarId = avatarDraft ?? profile.avatar_id ?? 'mint'
-  const avatarUrl = avatarUrlDraft ?? profile.avatar_url ?? ''
-  const avatarUrlError = validateAvatarUrl(avatarUrl)
+  const avatarId = profile.avatar_id ?? 'mint'
+  const avatarUrl = profile.avatar_url ?? ''
   const dailyGoal = dailyGoalDraft ?? profile.daily_goal ?? 10
   const bookId = bookIdDraft === undefined ? profile.current_book_id ?? null : bookIdDraft
   const activeBook = (books ?? []).find((book) => book.id === bookId)
 
-  const profileDirty =
-    name.trim() !== profile.display_name ||
-    avatarId !== profile.avatar_id ||
-    avatarUrl.trim() !== (profile.avatar_url ?? '')
+  const profileDirty = name.trim() !== profile.display_name
   const learningDirty = dailyGoal !== profile.daily_goal || bookId !== profile.current_book_id
 
   async function onSaveProfile() {
-    if (profileSaveDisabled(name, profileSaving) || avatarUrlError) return
+    if (profileSaveDisabled(name, profileSaving)) return
     setProfileSaving(true)
     setProfileSaveError(false)
     try {
-      const updated = await updateProfile({
-        display_name: name.trim(),
-        avatar_id: avatarId,
-        avatar_url: avatarUrl.trim() || null,
-      })
+      const updated = await updateProfile({ display_name: name.trim() })
       await mutateProfile(updated, false)
       await revalidateUser()
       toast({ title: 'Profile saved', description: 'Your profile has been updated.', tone: 'success' })
@@ -238,17 +227,18 @@ export function SettingsView({ section = 'hub' }: { section?: SettingsSection })
           firstName={firstName}
           lastName={lastName}
           nameError={nameError}
+          userId={user?.id ?? profile.id}
           avatarId={avatarId}
           avatarUrl={avatarUrl}
-          avatarUrlError={avatarUrlError}
           profileSaving={profileSaving}
           profileSaveError={profileSaveError}
           profileDirty={profileDirty}
           onFirstNameChange={setFirstNameDraft}
           onLastNameChange={setLastNameDraft}
-          onAvatarChange={setAvatarDraft}
-          onAvatarUrlChange={setAvatarUrlDraft}
           onSave={onSaveProfile}
+          onProfileUpdated={async (updated) => {
+            await mutateProfile(updated, false)
+          }}
         />
       ) : null}
 
@@ -421,33 +411,31 @@ function ProfileSettings({
   firstName,
   lastName,
   nameError,
+  userId,
   avatarId,
   avatarUrl,
-  avatarUrlError,
   profileSaving,
   profileSaveError,
   profileDirty,
   onFirstNameChange,
   onLastNameChange,
-  onAvatarChange,
-  onAvatarUrlChange,
   onSave,
+  onProfileUpdated,
 }: {
   name: string
   firstName: string
   lastName: string
   nameError: string | null
+  userId: string
   avatarId: string
   avatarUrl: string
-  avatarUrlError: string | null
   profileSaving: boolean
   profileSaveError: boolean
   profileDirty: boolean
   onFirstNameChange: (value: string) => void
   onLastNameChange: (value: string) => void
-  onAvatarChange: (value: string) => void
-  onAvatarUrlChange: (value: string) => void
   onSave: () => void
+  onProfileUpdated: (profile: Profile) => Promise<unknown> | unknown
 }) {
   return (
     <div className="flex flex-col gap-6">
@@ -469,36 +457,19 @@ function ProfileSettings({
         <SectionHeader title="Profile picture" />
         <Card>
           <CardContent className="flex flex-col gap-5 p-5">
-            <div className="flex items-center gap-4">
-              <Avatar name={name || 'Word Smartify'} avatarId={avatarId} avatarUrl={avatarUrl || null} size="lg" />
-              <div className="min-w-0">
-                <p className="font-heading text-sm font-semibold">Choose an avatar</p>
-                <p className="text-xs text-muted-foreground">Pick a preset or use an image URL.</p>
-              </div>
-            </div>
-            <AvatarPicker name={name || 'Word Smartify'} value={avatarId} onChange={onAvatarChange} disabled={profileSaving} />
-            <Field
-              label="External image URL (optional)"
-              htmlFor="avatar-url"
-              hint="Only http:// and https:// links are accepted."
-              error={avatarUrlError ?? undefined}
-            >
-              <Input
-                id="avatar-url"
-                type="url"
-                value={avatarUrl}
-                onChange={(event) => onAvatarUrlChange(event.target.value)}
-                placeholder="https://example.com/avatar.jpg"
-                autoComplete="url"
-                aria-invalid={Boolean(avatarUrlError)}
-                disabled={profileSaving}
-              />
-            </Field>
+            <AvatarUpload
+              userId={userId}
+              name={name || 'Word Smartify'}
+              avatarId={avatarId}
+              avatarUrl={avatarUrl}
+              disabled={profileSaving}
+              onUpdated={onProfileUpdated}
+            />
           </CardContent>
         </Card>
       </section>
 
-      <SaveChangesAction dirty={profileDirty} saving={profileSaving} error={profileSaveError} disabled={profileSaveDisabled(name, profileSaving) || Boolean(avatarUrlError)} onSave={onSave} />
+      <SaveChangesAction dirty={profileDirty} saving={profileSaving} error={profileSaveError} disabled={profileSaveDisabled(name, profileSaving)} onSave={onSave} />
     </div>
   )
 }
