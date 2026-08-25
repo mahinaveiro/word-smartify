@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { PRIMARY_NAV, SECONDARY_NAV, isActive, type NavItem } from './nav-items'
 import { Wordmark } from './wordmark'
 import { useAuth } from '@/features/auth/auth-provider'
+import { ThemeToggle } from '@/components/theme/theme-toggle'
 
 function SidebarLink({ item, pathname }: { item: NavItem; pathname: string }) {
   const active = isActive(pathname, item)
@@ -55,6 +56,8 @@ export function Sidebar() {
           <SidebarLink key={item.href} item={item} pathname={pathname} />
         ))}
       </nav>
+
+      <ThemeToggle />
 
       <button
         type="button"

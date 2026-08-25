@@ -6,6 +6,7 @@ import { ToastProvider } from '@/components/ui/toast'
 import { RepositoryProvider } from '@/repositories/provider'
 import { AuthProvider } from '@/features/auth/auth-provider'
 import { PageTitleManager } from '@/components/shell/page-title-manager'
+import Script from 'next/script'
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -32,6 +33,14 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://word-smartify.verce
 const socialImageUrl = new URL('/og-image.jpg', siteUrl).toString()
 const siteDescription =
   'Master Word Smart and IBA English vocabulary with mnemonics, quizzes, spaced review, and mock tests.'
+const themeBootstrapScript = `(() => {
+  try {
+    if (window.localStorage.getItem('word-smartify:theme:last') === 'dark') {
+      document.documentElement.classList.add('dark')
+      document.documentElement.style.colorScheme = 'dark'
+    }
+  } catch {}
+})()`
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -116,8 +125,11 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'light',
-  themeColor: '#f4f1e9',
+  colorScheme: 'light dark',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f4f1e9' },
+    { media: '(prefers-color-scheme: dark)', color: '#101716' },
+  ],
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
@@ -134,6 +146,11 @@ export default function RootLayout({
       lang="en"
       className={`${spaceGrotesk.variable} ${dmSans.variable} ${notoSansBengali.variable} bg-background`}
     >
+      <head>
+        <Script id="theme-bootstrap" strategy="beforeInteractive">
+          {themeBootstrapScript}
+        </Script>
+      </head>
       <body className="min-h-dvh antialiased">
         <PageTitleManager />
 

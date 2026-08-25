@@ -112,6 +112,7 @@ export interface QuizQuestion {
 // ---------------------------------------------------------------------------
 
 export type DailyGoal = 5 | 10 | 15 | 20 | 30
+export type ThemePreference = 'light' | 'dark'
 
 export interface Profile {
   id: UUID // -> auth.users.id
@@ -121,6 +122,7 @@ export interface Profile {
   daily_goal: DailyGoal
   current_book_id: UUID | null
   study_gc_joined: boolean
+  theme_preference: ThemePreference
   created_at: ISOTimestamp
   updated_at: ISOTimestamp
 }

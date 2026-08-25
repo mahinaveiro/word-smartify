@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Flame } from 'lucide-react'
 import { Wordmark } from './wordmark'
 import { useStats } from '@/hooks/use-data'
+import { ThemeToggle } from '@/components/theme/theme-toggle'
 
 export function MobileTopBar() {
   const { data: stats } = useStats()
@@ -15,12 +16,15 @@ export function MobileTopBar() {
       <Link href="/dashboard" aria-label="Word Smartify home">
         <Wordmark />
       </Link>
-      <div
-        className="flex items-center gap-1.5 rounded-[--radius-sm] border-2 border-foreground bg-coral px-2.5 py-1 font-heading text-sm font-bold text-coral-foreground shadow-brutal-sm"
-        aria-label={`${stats?.current_streak ?? 0} day streak`}
-      >
-        <Flame className="size-4" strokeWidth={2.5} aria-hidden="true" />
-        <span>{stats?.current_streak ?? 0}</span>
+      <div className="flex items-center gap-2">
+        <ThemeToggle compact />
+        <div
+          className="flex items-center gap-1.5 rounded-[--radius-sm] border-2 border-foreground bg-coral px-2.5 py-1 font-heading text-sm font-bold text-coral-foreground shadow-brutal-sm"
+          aria-label={`${stats?.current_streak ?? 0} day streak`}
+        >
+          <Flame className="size-4" strokeWidth={2.5} aria-hidden="true" />
+          <span>{stats?.current_streak ?? 0}</span>
+        </div>
       </div>
     </header>
   )

@@ -113,6 +113,55 @@
   --sidebar-ring: #14b8a6;
 }
 
+.dark {
+  color-scheme: dark;
+
+  /* Dark neutrals keep the warm green-black character of the light theme. */
+  --background: #101716;
+  --foreground: #edf5f0;
+  --card: #18211f;
+  --card-foreground: #edf5f0;
+  --popover: #1c2825;
+  --popover-foreground: #edf5f0;
+  --muted: #24302c;
+  --muted-foreground: #aab8b0;
+
+  /* Primary remains the high-contrast neo-brutalist action surface. */
+  --primary: #edf5f0;
+  --primary-foreground: #111715;
+  --secondary: #24302c;
+  --secondary-foreground: #edf5f0;
+
+  /* Brand accents remain recognizable on dark surfaces. */
+  --mint: #25c7b2;
+  --mint-foreground: #052d28;
+  --accent: #25c7b2;
+  --accent-foreground: #052d28;
+  --coral: #f29a6e;
+  --coral-foreground: #32160c;
+
+  --destructive: #ef6c5b;
+  --destructive-foreground: #fff4f1;
+  --border: #edf5f0;
+  --input: #edf5f0;
+  --ring: #58e0cf;
+
+  --chart-1: #25c7b2;
+  --chart-2: #edf5f0;
+  --chart-3: #f29a6e;
+  --chart-4: #8b9a91;
+  --chart-5: #aab8b0;
+
+  --sidebar: #141d1b;
+  --sidebar-foreground: #edf5f0;
+  --sidebar-primary: #25c7b2;
+  --sidebar-primary-foreground: #052d28;
+  --sidebar-accent: #24302c;
+  --sidebar-accent-foreground: #edf5f0;
+  --sidebar-border: #edf5f0;
+  --sidebar-ring: #58e0cf;
+}
+
 @layer base {
   * {
     @apply border-border;

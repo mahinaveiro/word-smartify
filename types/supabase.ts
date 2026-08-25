@@ -341,6 +341,7 @@ export type Database = {
           daily_goal: number
           display_name: string
           study_gc_joined: boolean
+          theme_preference: 'light' | 'dark'
           id: string
           updated_at: string
         }
@@ -352,6 +353,7 @@ export type Database = {
           daily_goal?: number
           display_name: string
           study_gc_joined?: boolean
+          theme_preference?: 'light' | 'dark'
           id: string
           updated_at?: string
         }
@@ -363,6 +365,7 @@ export type Database = {
           daily_goal?: number
           display_name?: string
           study_gc_joined?: boolean
+          theme_preference?: 'light' | 'dark'
           id?: string
           updated_at?: string
         }
