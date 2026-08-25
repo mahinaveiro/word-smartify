@@ -209,15 +209,7 @@ export function DashboardView() {
       </div>
 
       <div className="md:hidden">
-        <PlanItem
-          icon={Sparkles}
-          title="Daily challenge"
-          detail={plan.challenge.completed ? 'Finished for today' : 'Short quiz · +15 XP'}
-          done={plan.challenge.completed}
-          href="/challenge"
-          action={plan.challenge.completed ? 'View challenge' : 'Take challenge'}
-          accent="ink"
-        />
+        <DailyChallengeCard completed={plan.challenge.completed} />
       </div>
     </div>
   )
@@ -241,7 +233,7 @@ function PlanItem({
   accent: 'mint' | 'coral' | 'ink'
 }) {
   return (
-    <div className="flex min-h-24 flex-col justify-between rounded-md border-2 border-foreground bg-card p-2.5 shadow-brutal-sm sm:min-h-28 sm:p-3">
+    <div className="flex min-h-28 flex-col justify-between rounded-md border-2 border-foreground bg-card p-3 shadow-brutal-sm">
       <div className="flex items-start justify-between gap-2">
         <span className={`grid size-8 place-items-center rounded-md border-2 border-foreground ${accent === 'mint' ? 'bg-mint' : accent === 'coral' ? 'bg-coral' : 'bg-foreground text-background'}`}>
           <Icon className="size-4" aria-hidden />
@@ -249,8 +241,8 @@ function PlanItem({
         {done ? <CircleCheckBig className="size-5 text-mint-foreground" aria-label="Done" /> : null}
       </div>
       <div className="mt-2">
-        <p className="font-heading text-xs font-bold sm:text-sm">{title}</p>
-        <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground sm:text-xs">{detail}</p>
+        <p className="font-heading text-sm font-bold">{title}</p>
+        <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{detail}</p>
       </div>
       <Button asChild variant="ghost" size="sm" className="mt-1 justify-start px-0 shadow-none">
         <Link
@@ -261,6 +253,35 @@ function PlanItem({
         </Link>
       </Button>
     </div>
+  )
+}
+
+function DailyChallengeCard({ completed }: { completed: boolean }) {
+  return (
+    <Card className="border-foreground bg-foreground/[0.04]">
+      <CardContent className="flex flex-col gap-4 p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-md border-2 border-foreground bg-foreground text-background shadow-brutal-sm">
+              <Sparkles className="size-5" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Daily challenge</p>
+              <h2 className="truncate font-heading text-lg font-bold">{completed ? 'Challenge complete' : 'Meet a new word'}</h2>
+            </div>
+          </div>
+          <Sparkles className="size-6 shrink-0 text-foreground" aria-hidden />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {completed ? 'You finished today’s discovery challenge.' : 'A short quiz introducing a word from the full book.'}
+        </p>
+        <Button asChild size="sm" className="self-start">
+          <Link href="/challenge" onClick={() => trackProductEvent('today_action_opened', { action: completed ? 'View challenge' : 'Take challenge' })}>
+            {completed ? 'View challenge' : 'Take challenge'} <ArrowRight className="size-4" aria-hidden />
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
   )
 }
 
