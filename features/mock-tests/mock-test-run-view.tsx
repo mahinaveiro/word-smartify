@@ -44,6 +44,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
   const intentionalLeaveRef = useRef(false)
   const pendingSavesRef = useRef(new Set<Promise<MockTestAnswer>>())
   const saveQueuesRef = useRef(new Map<string, Promise<void>>())
+  const latestSelectionsRef = useRef<Record<string, string>>({})
 
   useEffect(() => {
     if (data?.test.time_taken_seconds != null) {
@@ -203,18 +204,26 @@ export function MockTestRunView({ testId }: { testId: string }) {
 
     try {
       const saved = await request
-      setSavedAnswerMap((previousAnswers) => ({ ...previousAnswers, [questionId]: saved }))
-      setLocalSelections((previousSelections) => {
-        if (previousSelections[questionId] !== event.selectedAnswer) return previousSelections
-        const next = { ...previousSelections }
-        delete next[questionId]
-        return next
-      })
-      setPendingAnswer((previousAnswer) => (
-        previousAnswer?.event.questionId === event.questionId ? null : previousAnswer
-      ))
+      const isLatestSelection = latestSelectionsRef.current[questionId] === event.selectedAnswer
+      if (isLatestSelection) {
+        setSavedAnswerMap((previousAnswers) => ({ ...previousAnswers, [questionId]: saved }))
+        setLocalSelections((previousSelections) => {
+          if (previousSelections[questionId] !== event.selectedAnswer) return previousSelections
+          const next = { ...previousSelections }
+          delete next[questionId]
+          return next
+        })
+        setPendingAnswer((previousAnswer) => (
+          previousAnswer?.event.questionId === event.questionId
+            && previousAnswer.event.selectedAnswer === event.selectedAnswer
+            ? null
+            : previousAnswer
+        ))
+      }
     } catch {
-      setRunError('Your answer could not be saved. Retry it before submitting the exam.')
+      if (latestSelectionsRef.current[questionId] === event.selectedAnswer) {
+        setRunError('Your answer could not be saved. Retry it before submitting the exam.')
+      }
     } finally {
       pendingSavesRef.current.delete(request)
       if (saveQueuesRef.current.get(questionId) === queueTail) saveQueuesRef.current.delete(questionId)
@@ -225,6 +234,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
     if (!current) return
     const event = quiz.submit(option)
     if (!event) return
+    latestSelectionsRef.current[current.id] = event.selectedAnswer
     setLocalSelections((previous) => ({ ...previous, [current.id]: event.selectedAnswer }))
     setSkippedQuestionIds((previous) => {
       if (!previous[current.id]) return previous
