@@ -59,7 +59,7 @@ Every question carries an explanation intended to teach the distinction, not mer
 | Language | TypeScript 5.7 |
 | UI | React 19, Tailwind CSS 4, Base UI, Lucide icons, Recharts |
 | Data and auth | Supabase Auth, Postgres, Row Level Security, and `@supabase/ssr` |
-| Email | Resend for question-report notifications |
+| Email | Resend for question-report and Help & feedback notifications |
 | Analytics | Vercel Analytics plus privacy-safe product learning events |
 | Deployment | Vercel from the `main` branch |
 | Package manager | pnpm 10 |
@@ -90,7 +90,8 @@ Create `.env.local` at the repository root. Never commit this file or expose ser
 | `NEXT_PUBLIC_SITE_URL` | Recommended | Canonical site URL and metadata. For production, use `https://word-smartify.vercel.app`. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only | Privileged server operations such as authenticated reporting workflows. Never expose it to the browser. |
 | `RESEND_API_KEY` | Optional | Sends question-report notifications through Resend. |
-| `QUESTION_REPORTS_TO_EMAIL` | Optional | Destination email for question reports. |
+| `QUESTION_REPORTS_TO_EMAIL` | Optional | Destination email for question reports and feedback when `FEEDBACK_TO_EMAIL` is not set. |
+| `FEEDBACK_TO_EMAIL` | Optional | Destination email for Help & feedback notifications; falls back to `QUESTION_REPORTS_TO_EMAIL`. |
 | `RESEND_FROM_EMAIL` | Optional | Sender address for report notifications; the Resend sandbox sender can be used during development. |
 
 A minimal local configuration is enough to run the core app:

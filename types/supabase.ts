@@ -275,6 +275,51 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback_submissions: {
+        Row: {
+          category: string
+          created_at: string
+          display_name: string
+          email_error: string | null
+          email_sent: boolean
+          email_sent_at: string | null
+          id: string
+          message: string
+          page_path: string | null
+          status: string
+          user_email: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          display_name: string
+          email_error?: string | null
+          email_sent?: boolean
+          email_sent_at?: string | null
+          id?: string
+          message: string
+          page_path?: string | null
+          status?: string
+          user_email: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          display_name?: string
+          email_error?: string | null
+          email_sent?: boolean
+          email_sent_at?: string | null
+          id?: string
+          message?: string
+          page_path?: string | null
+          status?: string
+          user_email?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_id: string

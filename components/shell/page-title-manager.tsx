@@ -36,6 +36,7 @@ function titleForPath(pathname: string) {
   if (pathname === '/settings/account') return 'Account settings'
   if (pathname === '/settings/security') return 'Security'
   if (pathname === '/settings/danger') return 'Delete account'
+  if (pathname === '/settings/feedback') return 'Help & feedback'
   if (pathname === '/profile') return 'Your profile'
   if (pathname.startsWith('/profile/')) return 'Learner profile'
   if (pathname.startsWith('/word/')) return 'Word details'

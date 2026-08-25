@@ -10,6 +10,7 @@ import {
   Check,
   KeyRound,
   LogOut,
+  MessageSquare,
   Save,
   Shield,
   Trash2,
@@ -28,6 +29,7 @@ import { Avatar } from '@/features/shared/avatar'
 import { AvatarPicker, profileSaveDisabled } from '@/features/profile/profile-form'
 import { PasswordChecklist } from '@/features/auth/password-checklist'
 import { PasswordField } from '@/features/auth/password-field'
+import { FeedbackView } from './feedback-view'
 import { useToast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
 import { useProfile, useBooks } from '@/hooks/use-data'
@@ -40,7 +42,7 @@ import type { DailyGoal } from '@/types/database'
 
 const GOAL_OPTIONS: readonly DailyGoal[] = [5, 10, 15, 20, 30]
 
-export type SettingsSection = 'hub' | 'profile' | 'learning' | 'account' | 'security' | 'danger'
+export type SettingsSection = 'hub' | 'profile' | 'learning' | 'account' | 'security' | 'danger' | 'feedback'
 
 const SECTION_META: Record<Exclude<SettingsSection, 'hub'>, { title: string; backLabel: string }> = {
   profile: { title: 'Profile settings', backLabel: 'Back to settings' },
@@ -48,6 +50,7 @@ const SECTION_META: Record<Exclude<SettingsSection, 'hub'>, { title: string; bac
   account: { title: 'Account settings', backLabel: 'Back to settings' },
   security: { title: 'Security', backLabel: 'Back to settings' },
   danger: { title: 'Danger zone', backLabel: 'Back to settings' },
+  feedback: { title: 'Help & feedback', backLabel: 'Back to settings' },
 }
 
 export function SettingsView({ section = 'hub' }: { section?: SettingsSection }) {
@@ -227,6 +230,8 @@ export function SettingsView({ section = 'hub' }: { section?: SettingsSection })
         <SettingsHub profileName={profile.display_name} userEmail={user?.email ?? null} dailyGoal={profile.daily_goal} activeBookName={activeBook?.name ?? null} />
       ) : null}
 
+      {section === 'feedback' ? <FeedbackView userEmail={user?.email ?? null} /> : null}
+
       {section === 'profile' ? (
         <ProfileSettings
           name={name}
@@ -350,6 +355,15 @@ function SettingsHub({
           title="Delete account"
           description="Permanently delete your account"
           destructive
+        />
+      </SettingsGroup>
+
+      <SettingsGroup title="Help">
+        <SettingsRow
+          href="/settings/feedback"
+          icon={MessageSquare}
+          title="Help & feedback"
+          description="Share an idea or report a problem"
         />
       </SettingsGroup>
     </div>
