@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type KeyboardEvent } from 'react'
 import {
   ResponsiveContainer,
   BarChart,
@@ -11,9 +11,11 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  type BarShapeProps,
+  type DotItemDotProps,
 } from 'recharts'
 import Link from 'next/link'
-import { BookOpen, CheckCircle2, Flame, Target, Trophy, Zap } from 'lucide-react'
+import { BookOpen, CheckCircle2, Flame, Trophy, Zap } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -67,23 +69,9 @@ export function ProgressView() {
   const totalTracked = STATUS_ORDER.reduce((sum, status) => sum + counts[status], 0)
   const last7Words = summary.weeklyActivity.slice(-7).reduce((sum, day) => sum + day.words, 0)
   const selectedDay = selectedDate ? summary.weeklyActivity.find((day) => day.date === selectedDate) ?? null : null
-  const handleChartClick = (state: unknown) => {
-    if (!state || typeof state !== 'object') return
-    const chartState = state as {
-      activePayload?: Array<{ payload?: { date?: unknown } }>
-      activeTooltipIndex?: number | string
-    }
-    const payloadDate = chartState.activePayload?.[0]?.payload?.date
-    if (typeof payloadDate === 'string') {
-      setSelectedDate(payloadDate)
-      return
-    }
-    const index = typeof chartState.activeTooltipIndex === 'number'
-      ? chartState.activeTooltipIndex
-      : Number(chartState.activeTooltipIndex)
-    if (Number.isInteger(index) && index >= 0 && index < summary.weeklyActivity.length) {
-      setSelectedDate(summary.weeklyActivity[index]?.date ?? null)
-    }
+  const selectDay = (index: number) => {
+    const day = summary.weeklyActivity[index]
+    if (day) setSelectedDate(day.date)
   }
   const level = summary.level
 
@@ -169,12 +157,19 @@ export function ProgressView() {
             <p className="mb-4 text-sm text-muted-foreground">New words completed over the last 14 days.</p>
             <div className="h-52 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={summary.weeklyActivity} margin={{ top: 4, right: 4, left: -24, bottom: 0 }} onClick={handleChartClick}>
+                <BarChart data={summary.weeklyActivity} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                   <CartesianGrid vertical={false} stroke="var(--border)" strokeWidth={1} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} interval={1} />
                   <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} allowDecimals={false} width={32} />
                   <Tooltip shared={false} cursor={{ fill: 'var(--muted)' }} content={<ChartTip unit="words" />} />
-                  <Bar dataKey="words" fill="var(--mint)" stroke="var(--foreground)" strokeWidth={2} radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey="words"
+                    fill="var(--mint)"
+                    stroke="var(--foreground)"
+                    strokeWidth={2}
+                    radius={[4, 4, 0, 0]}
+                    shape={(props) => <SelectableBar {...props} onSelectDay={selectDay} />}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -190,12 +185,19 @@ export function ProgressView() {
             <p className="mb-4 text-sm text-muted-foreground">Momentum across the last 14 days.</p>
             <div className="h-52 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={summary.weeklyActivity} margin={{ top: 4, right: 8, left: -24, bottom: 0 }} onClick={handleChartClick}>
+                <LineChart data={summary.weeklyActivity} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
                   <CartesianGrid vertical={false} stroke="var(--border)" strokeWidth={1} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} interval={1} />
                   <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} allowDecimals={false} width={32} />
                   <Tooltip shared={false} cursor={{ stroke: 'var(--muted-foreground)' }} content={<ChartTip unit="words total" dataKey="cumulative" />} />
-                  <Line type="monotone" dataKey="cumulative" stroke="var(--coral)" strokeWidth={3} dot={{ fill: 'var(--coral)', stroke: 'var(--foreground)', strokeWidth: 2, r: 3 }} activeDot={{ r: 5, stroke: 'var(--foreground)', strokeWidth: 2 }} />
+                  <Line
+                    type="monotone"
+                    dataKey="cumulative"
+                    stroke="var(--coral)"
+                    strokeWidth={3}
+                    dot={(props) => <SelectableDot {...props} onSelectDay={selectDay} />}
+                    activeDot={false}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -267,7 +269,7 @@ function ChartTip({
 }) {
   if (!active || !payload?.length) return null
   const entry = payload.find((item) => String(item.dataKey) === dataKey) ?? payload[0]
-  const rawValue = entry?.value
+  const rawValue = entry?.payload?.[dataKey] ?? entry?.value
   const value = Array.isArray(rawValue) ? rawValue.join(' – ') : rawValue ?? '—'
   const dateValue = typeof entry?.payload?.date === 'string' ? entry.payload.date : label
   const date = typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue) ? shortDate(dateValue) : dateValue
@@ -276,6 +278,70 @@ function ChartTip({
       <p className="font-heading font-bold">{date}</p>
       <p className="text-muted-foreground">{value} {unit}</p>
     </div>
+  )
+}
+
+type SelectableBarProps = BarShapeProps & {
+  onSelectDay: (index: number) => void
+}
+
+function SelectableBar({ x, y, width, height, index, payload, onSelectDay }: SelectableBarProps) {
+  const barTop = Math.min(y, y + height)
+  const baseline = Math.max(y, y + height)
+  const hitTop = Math.min(barTop - 8, baseline - 24)
+  const date = typeof payload?.date === 'string' ? shortDate(payload.date) : 'selected day'
+  const words = typeof payload?.words === 'number' ? payload.words : 0
+  const activate = () => onSelectDay(index)
+  const handleKeyDown = (event: KeyboardEvent<SVGGElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      activate()
+    }
+  }
+
+  return (
+    <g
+      role="button"
+      tabIndex={0}
+      aria-label={`${date}: ${words} words learned`}
+      onClick={(event) => {
+        event.stopPropagation()
+        activate()
+      }}
+      onKeyDown={handleKeyDown}
+    >
+      <rect x={x} y={hitTop} width={width} height={Math.max(baseline - hitTop, 24)} fill="transparent" />
+      <rect x={x} y={y} width={width} height={height} fill="var(--mint)" stroke="var(--foreground)" strokeWidth={2} rx={4} ry={4} />
+    </g>
+  )
+}
+
+function SelectableDot({ cx, cy, index, payload, onSelectDay }: DotItemDotProps & { onSelectDay: (index: number) => void }) {
+  if (cx == null || cy == null) return null
+  const date = typeof payload?.date === 'string' ? shortDate(payload.date) : 'selected day'
+  const cumulative = typeof payload?.cumulative === 'number' ? payload.cumulative : 0
+  const activate = () => onSelectDay(index)
+  const handleKeyDown = (event: KeyboardEvent<SVGGElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      activate()
+    }
+  }
+
+  return (
+    <g
+      role="button"
+      tabIndex={0}
+      aria-label={`${date}: ${cumulative} words learned in total`}
+      onClick={(event) => {
+        event.stopPropagation()
+        activate()
+      }}
+      onKeyDown={handleKeyDown}
+    >
+      <circle cx={cx} cy={cy} r={12} fill="transparent" />
+      <circle cx={cx} cy={cy} r={3} fill="var(--coral)" stroke="var(--foreground)" strokeWidth={2} />
+    </g>
   )
 }
 

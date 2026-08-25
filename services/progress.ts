@@ -1,7 +1,8 @@
-import { addDaysISO, todayISO, shortDay } from '@/lib/date'
+import { addDaysISO, todayISO } from '@/lib/date'
 import { xpToLevel } from '@/lib/learning-logic'
+import { buildProgressActivity } from '@/lib/progress-activity'
 import { repositories } from '@/repositories'
-import type { BookProgressSummary, DailyProgress, UserStats } from '@/types/database'
+import type { BookProgressSummary, UserStats } from '@/types/database'
 
 export interface ProgressSummary {
   stats: UserStats
@@ -42,28 +43,9 @@ export async function buildProgressSummary(
   const correct = progress.reduce((sum, row) => sum + row.correct_count, 0)
   const wrong = progress.reduce((sum, row) => sum + row.wrong_count, 0)
   const attempts = correct + wrong
-  const byDate = new Map(dailyRows.map((row) => [row.date, row]))
-  const weeklyActivity: ProgressSummary['weeklyActivity'] = []
-  let cumulative = 0
-  let completedReviewDays = 0
-  let totalReviews = 0
-
-  for (let index = windowDays - 1; index >= 0; index--) {
-    const date = addDaysISO(today, -index)
-    const row: DailyProgress | undefined = byDate.get(date)
-    const words = row?.new_words_completed ?? 0
-    cumulative += words
-    const reviews = row?.reviews_completed ?? 0
-    if (reviews > 0) completedReviewDays += 1
-    totalReviews += reviews
-    weeklyActivity.push({
-      date,
-      label: shortDay(date),
-      words,
-      xp: row?.xp_earned ?? 0,
-      cumulative,
-    })
-  }
+  const weeklyActivity = buildProgressActivity(dailyRows, today, windowDays)
+  const completedReviewDays = dailyRows.filter((row) => row.reviews_completed > 0).length
+  const totalReviews = dailyRows.reduce((sum, row) => sum + row.reviews_completed, 0)
 
   return {
     stats,
