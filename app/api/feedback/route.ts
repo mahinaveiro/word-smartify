@@ -2,7 +2,14 @@ import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { feedbackCategoryLabel, isFeedbackCategory, type FeedbackCategory } from '@/types/feedback'
+import {
+  FEEDBACK_PAGE_OPTIONS,
+  feedbackCategoryLabel,
+  feedbackPageLabel,
+  isFeedbackCategory,
+  isFeedbackPageKey,
+  type FeedbackCategory,
+} from '@/types/feedback'
 
 export const runtime = 'nodejs'
 
@@ -29,6 +36,7 @@ type ParsedInput = {
   category: unknown
   message: unknown
   pagePath: unknown
+  pagePaths: unknown
   attachment: FeedbackAttachment | null
 }
 
@@ -45,6 +53,20 @@ function normalizeText(value: unknown, maxLength: number) {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
   return trimmed ? trimmed.slice(0, maxLength) : null
+}
+
+function normalizePagePaths(value: unknown) {
+  let rawValue: unknown = value
+  if (typeof value === 'string') {
+    try {
+      rawValue = JSON.parse(value)
+    } catch {
+      rawValue = []
+    }
+  }
+
+  const values = Array.isArray(rawValue) ? rawValue : []
+  return Array.from(new Set(values.filter(isFeedbackPageKey))).slice(0, FEEDBACK_PAGE_OPTIONS.length)
 }
 
 function getReporterName(user: { email?: string; user_metadata?: unknown }, displayName: unknown) {
@@ -102,6 +124,7 @@ async function parseInput(request: Request): Promise<ParsedInput | { error: stri
       category: payload.category,
       message: payload.message,
       pagePath: payload.pagePath,
+      pagePaths: payload.pagePaths,
       attachment: null,
     }
   }
@@ -131,6 +154,7 @@ async function parseInput(request: Request): Promise<ParsedInput | { error: stri
       category: formData.get('category'),
       message: formData.get('message'),
       pagePath: formData.get('pagePath'),
+      pagePaths: formData.get('pagePaths'),
       attachment: {
         filename: safeAttachmentFilename(photoEntry.name, photoEntry.type),
         contentType: photoEntry.type as FeedbackAttachment['contentType'],
@@ -145,6 +169,7 @@ async function parseInput(request: Request): Promise<ParsedInput | { error: stri
       category: formData.get('category'),
       message: formData.get('message'),
       pagePath: formData.get('pagePath'),
+      pagePaths: formData.get('pagePaths'),
       attachment: null,
     }
   }
@@ -155,6 +180,7 @@ async function parseInput(request: Request): Promise<ParsedInput | { error: stri
     category: formData.get('category'),
     message: formData.get('message'),
     pagePath: formData.get('pagePath'),
+    pagePaths: formData.get('pagePaths'),
     attachment: null,
   }
 }
@@ -173,6 +199,7 @@ export async function POST(request: Request) {
   const category = parsed.category
   const message = normalizeText(parsed.message, MAX_MESSAGE_LENGTH)
   const pagePath = normalizeText(parsed.pagePath, MAX_PAGE_PATH_LENGTH)
+  const pagePaths = normalizePagePaths(parsed.pagePaths)
 
   if (!isFeedbackCategory(category)) {
     return NextResponse.json({ error: 'Choose a feedback type.' }, { status: 400 })
@@ -219,6 +246,7 @@ export async function POST(request: Request) {
       category,
       message,
       page_path: pagePath,
+      page_paths: pagePaths.length ? pagePaths : null,
       attachment_filename: parsed.attachment?.filename ?? null,
       attachment_content_type: parsed.attachment?.contentType ?? null,
       attachment_size: parsed.attachment?.size ?? null,
@@ -254,6 +282,7 @@ export async function POST(request: Request) {
         <p><strong>Email:</strong> ${escapeHtml(reporterEmail)}</p>
         <p><strong>UID:</strong> ${escapeHtml(authData.user.id)}</p>
         ${pagePath ? `<p><strong>Page:</strong> ${escapeHtml(pagePath)}</p>` : ''}
+        ${pagePaths.length ? `<p><strong>Selected pages:</strong> ${escapeHtml(pagePaths.map((page) => feedbackPageLabel(page)).join(', '))}</p>` : ''}
         <p><strong>Feedback ID:</strong> ${escapeHtml(feedback.id)}</p>
       `,
       attachments: parsed.attachment

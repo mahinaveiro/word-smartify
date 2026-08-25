@@ -289,6 +289,7 @@ export type Database = {
           id: string
           message: string
           page_path: string | null
+          page_paths: string[] | null
           status: string
           user_email: string
           user_id: string
@@ -306,6 +307,7 @@ export type Database = {
           id?: string
           message: string
           page_path?: string | null
+          page_paths?: string[] | null
           status?: string
           user_email: string
           user_id: string
@@ -323,6 +325,7 @@ export type Database = {
           id?: string
           message?: string
           page_path?: string | null
+          page_paths?: string[] | null
           status?: string
           user_email?: string
           user_id?: string
