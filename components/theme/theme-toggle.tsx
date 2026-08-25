@@ -23,8 +23,8 @@ export function ThemeToggle({ compact = false, className }: ThemeToggleProps) {
       aria-label={`Switch to ${nextTheme} mode`}
       aria-pressed={theme === 'dark'}
       className={cn(
-        'press touch-target inline-flex items-center justify-center rounded-[--radius-md] border-2 border-transparent text-foreground/80 hover:border-foreground hover:bg-card disabled:cursor-wait disabled:opacity-70',
-        compact ? 'size-11 shrink-0 bg-card shadow-brutal-sm' : 'w-full gap-3 px-3 py-2.5 font-medium',
+        'press touch-target inline-flex items-center rounded-[--radius-md] border-2 border-transparent text-foreground/80 hover:border-foreground hover:bg-card disabled:cursor-wait disabled:opacity-70',
+        compact ? 'size-11 shrink-0 justify-center bg-card shadow-brutal-sm' : 'w-full justify-start gap-3 px-3 py-2.5 text-left font-medium',
         className,
       )}
     >
