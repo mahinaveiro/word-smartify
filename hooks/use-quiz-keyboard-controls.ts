@@ -12,6 +12,7 @@ interface QuizKeyboardControlsOptions {
   onNext: () => void
   canPrevious: boolean
   onPrevious: () => void
+  vibrateOnCorrectAnswer?: boolean
 }
 
 function isEditableTarget(target: EventTarget | null) {
@@ -41,6 +42,7 @@ export function useQuizKeyboardControls({
   onNext,
   canPrevious,
   onPrevious,
+  vibrateOnCorrectAnswer = true,
 }: QuizKeyboardControlsOptions) {
   useEffect(() => {
     if (!enabled) return
@@ -68,12 +70,12 @@ export function useQuizKeyboardControls({
       const option = options[optionIndex]
       if (option === undefined) return
       onAnswer(option)
-      if (option === correctAnswer) vibrateForCorrectAnswer()
+      if (vibrateOnCorrectAnswer && option === correctAnswer) vibrateForCorrectAnswer()
     }
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [canAnswer, canNext, canPrevious, correctAnswer, enabled, onAnswer, onNext, onPrevious, options])
+  }, [canAnswer, canNext, canPrevious, correctAnswer, enabled, onAnswer, onNext, onPrevious, options, vibrateOnCorrectAnswer])
 }
 
 export { vibrateForCorrectAnswer }

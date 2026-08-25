@@ -156,7 +156,8 @@ export function MockTestRunView({ testId }: { testId: string }) {
   }, [createdAt, totalDurationSeconds])
 
   const answerMap = { ...(data?.answerMap ?? {}), ...savedAnswerMap }
-  const current = data?.questions[index] ?? null
+  const questions = data?.questions ?? []
+  const current = questions[index] ?? null
   const selectedAnswers = {
     ...Object.fromEntries(
       Object.entries(answerMap).map(([questionId, answer]) => [questionId, answer.user_answer]),
@@ -164,9 +165,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
     ...localSelections,
   }
   const selected = current ? selectedAnswers[current.id] ?? null : null
-  const unanswered = data
-    ? data.questions.filter((question) => selectedAnswers[question.id] == null).length
-    : 0
+  const unanswered = questions.filter((question) => selectedAnswers[question.id] == null).length
   const quiz = useQuizEngine(current, { allowChange: true, initialSelected: selected })
 
   function toggleStar(questionId: string) {
@@ -186,7 +185,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
       })
     }
 
-    if (index < data!.questions.length - 1) setIndex((value) => value + 1)
+    if (index < questions.length - 1) setIndex((value) => value + 1)
     else setSubmitOpen(true)
   }
 
@@ -300,7 +299,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
     )
   }
 
-  const progress = Math.round(((index + 1) / data.questions.length) * 100)
+  const progress = Math.round(((index + 1) / questions.length) * 100)
 
   return (
     <>
@@ -324,7 +323,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
             <div className="h-full bg-coral transition-[width] duration-normal" style={{ width: `${progress}%` }} />
           </div>
           <span className="shrink-0 font-heading text-sm font-bold tabular-nums">
-            {index + 1}/{data.questions.length}
+            {index + 1}/{questions.length}
           </span>
         </div>
 
@@ -340,6 +339,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
         <Card className="my-6 flex-1">
           <CardContent className="p-5 sm:p-8">
             <QuizCard
+              key={current.id}
               question={current}
               selected={selected}
               onSelect={choose}
@@ -362,7 +362,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
               />
             ) : null}
             <MockTestQuestionNavigator
-              questions={data.questions}
+              questions={questions}
               currentIndex={index}
               skippedQuestionIds={skippedQuestionIds}
               starredQuestionIds={starredQuestionIds}
@@ -380,10 +380,10 @@ export function MockTestRunView({ testId }: { testId: string }) {
             <ArrowLeft className="size-4" aria-hidden /> Previous
           </Button>
           <span className="text-center text-xs text-muted-foreground">
-            {data.questions.length - unanswered} answered
+            {questions.length - unanswered} answered
           </span>
           <Button onClick={goNext} disabled={submitting}>
-            {index < data.questions.length - 1 ? 'Next' : 'Submit'}
+            {index < questions.length - 1 ? 'Next' : 'Submit'}
             <ArrowRight className="size-4" aria-hidden />
           </Button>
         </div>

@@ -37,6 +37,7 @@ export function QuizCard({
   isStarred?: boolean
   mode?: QuestionReportMode
 }) {
+  const vibrateOnCorrectAnswer = mode !== 'mock_test'
   const [explanationForQuestion, setExplanationForQuestion] = useState<string | null>(null)
   const [celebrationQuestionId, setCelebrationQuestionId] = useState<string | null>(null)
   const celebratedQuestionIds = useRef<Set<string>>(new Set())
@@ -64,6 +65,7 @@ export function QuizCard({
     enabled: true,
     options,
     correctAnswer: question.correct_answer,
+    vibrateOnCorrectAnswer,
     canAnswer: !revealed,
     onAnswer: handleSelect,
     canNext: canNext && Boolean(onNext),
@@ -135,16 +137,16 @@ export function QuizCard({
               type="button"
               disabled={revealed}
               onTouchStart={() => {
-                if (option === question.correct_answer) vibrateForCorrectAnswer()
+                if (vibrateOnCorrectAnswer && option === question.correct_answer) vibrateForCorrectAnswer()
               }}
               onPointerDown={(event) => {
                 // Touch browsers use touchstart above; this covers mouse and pen input without double-pulsing.
-                if (event.pointerType !== 'touch' && option === question.correct_answer) vibrateForCorrectAnswer()
+                if (vibrateOnCorrectAnswer && event.pointerType !== 'touch' && option === question.correct_answer) vibrateForCorrectAnswer()
               }}
               onClick={(event) => {
                 setExplanationForQuestion(null)
                 // Keyboard activation has no touchstart/pointerdown event, so keep its direct haptic path.
-                if (event.detail === 0 && option === question.correct_answer) vibrateForCorrectAnswer()
+                if (vibrateOnCorrectAnswer && event.detail === 0 && option === question.correct_answer) vibrateForCorrectAnswer()
                 handleSelect(option)
               }}
               aria-pressed={isSelected}
