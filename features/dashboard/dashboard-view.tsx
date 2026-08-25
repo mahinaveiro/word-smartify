@@ -99,7 +99,7 @@ export function DashboardView() {
                 ) : null}
               </div>
             </div>
-            <div className="grid w-full gap-3 grid-cols-1 min-[480px]:grid-cols-3 xl:w-auto xl:min-w-[500px]">
+            <div className="grid w-full grid-cols-2 gap-2.5 md:grid-cols-3 xl:w-auto xl:min-w-[500px]">
               <PlanItem
                 icon={BookOpen}
                 title="New learning"
@@ -122,15 +122,17 @@ export function DashboardView() {
                 action={plan.review.due > 0 ? 'Open reviews' : plan.review.weak > 0 ? 'Start weak drill' : 'Open reviews'}
                 accent="coral"
               />
-              <PlanItem
-                icon={Sparkles}
-                title="Daily challenge"
-                detail={plan.challenge.completed ? 'Finished for today' : 'Short quiz · +15 XP'}
-                done={plan.challenge.completed}
-                href="/challenge"
-                action={plan.challenge.completed ? 'View challenge' : 'Take challenge'}
-                accent="ink"
-              />
+              <div className="hidden md:block">
+                <PlanItem
+                  icon={Sparkles}
+                  title="Daily challenge"
+                  detail={plan.challenge.completed ? 'Finished for today' : 'Short quiz · +15 XP'}
+                  done={plan.challenge.completed}
+                  href="/challenge"
+                  action={plan.challenge.completed ? 'View challenge' : 'Take challenge'}
+                  accent="ink"
+                />
+              </div>
             </div>
           </div>
         </CardContent>
@@ -205,6 +207,18 @@ export function DashboardView() {
           </CardContent>
         </Card>
       </div>
+
+      <div className="md:hidden">
+        <PlanItem
+          icon={Sparkles}
+          title="Daily challenge"
+          detail={plan.challenge.completed ? 'Finished for today' : 'Short quiz · +15 XP'}
+          done={plan.challenge.completed}
+          href="/challenge"
+          action={plan.challenge.completed ? 'View challenge' : 'Take challenge'}
+          accent="ink"
+        />
+      </div>
     </div>
   )
 }
@@ -227,7 +241,7 @@ function PlanItem({
   accent: 'mint' | 'coral' | 'ink'
 }) {
   return (
-    <div className="flex min-h-28 flex-col justify-between rounded-md border-2 border-foreground bg-card p-3 shadow-brutal-sm">
+    <div className="flex min-h-24 flex-col justify-between rounded-md border-2 border-foreground bg-card p-2.5 shadow-brutal-sm sm:min-h-28 sm:p-3">
       <div className="flex items-start justify-between gap-2">
         <span className={`grid size-8 place-items-center rounded-md border-2 border-foreground ${accent === 'mint' ? 'bg-mint' : accent === 'coral' ? 'bg-coral' : 'bg-foreground text-background'}`}>
           <Icon className="size-4" aria-hidden />
@@ -235,8 +249,8 @@ function PlanItem({
         {done ? <CircleCheckBig className="size-5 text-mint-foreground" aria-label="Done" /> : null}
       </div>
       <div className="mt-2">
-        <p className="font-heading text-sm font-bold">{title}</p>
-        <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{detail}</p>
+        <p className="font-heading text-xs font-bold sm:text-sm">{title}</p>
+        <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground sm:text-xs">{detail}</p>
       </div>
       <Button asChild variant="ghost" size="sm" className="mt-1 justify-start px-0 shadow-none">
         <Link
