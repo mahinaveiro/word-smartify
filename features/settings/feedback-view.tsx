@@ -96,13 +96,6 @@ function FeedbackPageSelect({
               </button>
             )
           })}
-          <button
-            type="button"
-            className="mt-1 w-full rounded border-t border-foreground/10 px-2.5 py-2 text-left text-xs font-semibold text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            onClick={() => setOpen(false)}
-          >
-            Done
-          </button>
         </div>
       ) : null}
     </div>
