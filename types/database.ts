@@ -48,6 +48,15 @@ export interface Level {
 }
 
 export type WordDifficulty = 'easy' | 'medium' | 'hard'
+export type WordPartOfSpeech =
+  | 'noun'
+  | 'verb'
+  | 'adjective'
+  | 'adverb'
+  | 'preposition'
+  | 'interjection'
+  | 'numeral'
+  | 'phrase'
 
 export interface Word {
   id: UUID
@@ -61,6 +70,7 @@ export interface Word {
   mnemonic: string | null
   synonyms: string[] | null
   antonyms: string[] | null
+  part_of_speech: WordPartOfSpeech
   difficulty: WordDifficulty | null
   created_at: ISOTimestamp
 }

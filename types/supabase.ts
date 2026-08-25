@@ -649,6 +649,7 @@ export type Database = {
           id: string
           level_id: string
           mnemonic: string | null
+          part_of_speech: string
           pronunciation: string | null
           synonyms: string[] | null
           word: string
@@ -664,6 +665,7 @@ export type Database = {
           id?: string
           level_id: string
           mnemonic?: string | null
+          part_of_speech?: string
           pronunciation?: string | null
           synonyms?: string[] | null
           word: string
@@ -679,6 +681,7 @@ export type Database = {
           id?: string
           level_id?: string
           mnemonic?: string | null
+          part_of_speech?: string
           pronunciation?: string | null
           synonyms?: string[] | null
           word?: string
@@ -825,6 +828,7 @@ export type Database = {
           id: string
           level_id: string
           mnemonic: string | null
+          part_of_speech: string
           pronunciation: string | null
           synonyms: string[] | null
           total_count: number

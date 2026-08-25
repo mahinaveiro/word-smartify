@@ -5,6 +5,46 @@ import type { Word } from '@/types/database'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
+function formatPartOfSpeech(value: Word['part_of_speech']) {
+  return value.replaceAll('_', ' ')
+}
+
+function RelatedWords({
+  label,
+  items,
+  tone,
+}: {
+  label: string
+  items: string[]
+  tone: 'mint' | 'coral'
+}) {
+  if (!items.length) return null
+
+  return (
+    <div className="min-w-0 rounded-md border border-foreground/15 bg-muted/35 px-2.5 py-2">
+      <p
+        className={cn(
+          'font-heading text-[10px] font-bold uppercase tracking-[0.12em]',
+          tone === 'mint' ? 'text-mint' : 'text-coral',
+        )}
+      >
+        {label}
+      </p>
+      <div className="mt-1.5 flex flex-wrap gap-1">
+        {items.map((item) => (
+          <span
+            key={`${label}-${item}`}
+            className="max-w-full truncate rounded-sm border border-foreground/20 bg-card px-1.5 py-1 text-xs font-medium leading-tight"
+            title={item}
+          >
+            {item}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function Flashcard({
   word,
   flipped,
@@ -14,6 +54,9 @@ export function Flashcard({
   flipped: boolean
   onFlip: () => void
 }) {
+  const synonyms = (word.synonyms ?? []).filter((item) => item.trim().length > 0)
+  const antonyms = (word.antonyms ?? []).filter((item) => item.trim().length > 0)
+
   return (
     <button
       type="button"
@@ -32,11 +75,16 @@ export function Flashcard({
           {word.pronunciation ? (
             <p className="text-sm text-muted-foreground">{word.pronunciation}</p>
           ) : null}
-          {word.difficulty ? (
-            <Badge variant="muted" className="mt-2 capitalize">
-              {word.difficulty}
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+            <Badge variant="neutral" className="capitalize">
+              {formatPartOfSpeech(word.part_of_speech)}
             </Badge>
-          ) : null}
+            {word.difficulty ? (
+              <Badge variant="muted" className="capitalize">
+                {word.difficulty}
+              </Badge>
+            ) : null}
+          </div>
         </div>
       ) : (
         <div className="flex min-h-[15rem] flex-col gap-3">
@@ -58,6 +106,13 @@ export function Flashcard({
               <p className="text-pretty text-sm italic leading-relaxed text-muted-foreground">
                 {word.example_sentence}
               </p>
+            </div>
+          ) : null}
+
+          {synonyms.length || antonyms.length ? (
+            <div className="grid grid-cols-2 gap-2 border-t-2 border-foreground/15 pt-3">
+              <RelatedWords label="Synonyms" items={synonyms} tone="mint" />
+              <RelatedWords label="Antonyms" items={antonyms} tone="coral" />
             </div>
           ) : null}
 

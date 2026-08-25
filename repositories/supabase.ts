@@ -109,7 +109,11 @@ function normalizeDailyGoal(value: number): DailyGoal {
 }
 
 function toWord(row: WordRow): Word {
-  return { ...row, difficulty: normalizeDifficulty(row.difficulty) }
+  return {
+    ...row,
+    part_of_speech: row.part_of_speech as Word['part_of_speech'],
+    difficulty: normalizeDifficulty(row.difficulty),
+  }
 }
 
 function toProfile(row: ProfileRow): Profile {
@@ -137,6 +141,7 @@ function toLibraryWord(row: LibrarySearchRpcRow): Word {
     mnemonic: row.mnemonic,
     synonyms: row.synonyms,
     antonyms: row.antonyms,
+    part_of_speech: row.part_of_speech as Word['part_of_speech'],
     difficulty: normalizeDifficulty(row.difficulty),
     created_at: row.created_at,
   }
