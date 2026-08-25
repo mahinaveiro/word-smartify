@@ -1,4 +1,3 @@
-import type { QuizAnswerEvent } from '@/lib/quiz-engine'
 import { calculateMockTestScore } from '@/lib/mock-test-scoring'
 import { createSeededRandom, prepareQuizQuestion, shuffleArray } from '@/lib/quiz-randomizer'
 import { XP } from '@/lib/xp'
@@ -103,18 +102,24 @@ export async function getMockTestData(
   }
 }
 
+type MockTestAnswerInput = {
+  questionId: UUID
+  wordId: UUID
+  selectedAnswer: string | null
+}
+
 export async function saveMockTestAnswer(
   testId: UUID,
-  event: QuizAnswerEvent,
+  input: MockTestAnswerInput,
   repos: Repositories = repositories,
 ): Promise<MockTestAnswer> {
-  const question = await repos.quizzes.getQuestion(event.questionId)
+  const question = await repos.quizzes.getQuestion(input.questionId)
   if (!question) throw new Error('Question not found.')
-  if (question.word_id !== event.wordId) throw new Error('Question does not belong to this word.')
+  if (question.word_id !== input.wordId) throw new Error('Question does not belong to this word.')
   return repos.mockTests.saveMockAnswer(testId, {
-    question_id: event.questionId,
-    user_answer: event.selectedAnswer,
-    is_correct: event.selectedAnswer === question.correct_answer,
+    question_id: input.questionId,
+    user_answer: input.selectedAnswer,
+    is_correct: input.selectedAnswer !== null && input.selectedAnswer === question.correct_answer,
   })
 }
 

@@ -22,6 +22,9 @@ import { useQuizEngine } from '@/hooks/use-quiz-engine'
 import { MockTestQuestionNavigator } from './mock-test-question-navigator'
 
 type SecurityState = 'preparing' | 'active' | 'needs-fullscreen' | 'cancelling' | 'needs-cancel'
+type MockTestAnswerInput = Pick<QuizAnswerEvent, 'questionId' | 'wordId'> & {
+  selectedAnswer: string | null
+}
 
 export function MockTestRunView({ testId }: { testId: string }) {
   const router = useRouter()
@@ -29,12 +32,12 @@ export function MockTestRunView({ testId }: { testId: string }) {
   const userId = useAuth().user?.id
   const [index, setIndex] = useState(0)
   const [savedAnswerMap, setSavedAnswerMap] = useState<Record<string, MockTestAnswer>>({})
-  const [localSelections, setLocalSelections] = useState<Record<string, string>>({})
+  const [localSelections, setLocalSelections] = useState<Record<string, string | null>>({})
   const [skippedQuestionIds, setSkippedQuestionIds] = useState<Record<string, boolean>>({})
   const [starredQuestionIds, setStarredQuestionIds] = useState<Record<string, boolean>>({})
   const [elapsed, setElapsed] = useState(0)
   const [runError, setRunError] = useState<string | null>(null)
-  const [pendingAnswer, setPendingAnswer] = useState<{ questionId: string; event: QuizAnswerEvent } | null>(null)
+  const [pendingAnswer, setPendingAnswer] = useState<{ questionId: string; event: MockTestAnswerInput } | null>(null)
   const [submitOpen, setSubmitOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -44,7 +47,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
   const intentionalLeaveRef = useRef(false)
   const pendingSavesRef = useRef(new Set<Promise<MockTestAnswer>>())
   const saveQueuesRef = useRef(new Map<string, Promise<void>>())
-  const latestSelectionsRef = useRef<Record<string, string>>({})
+  const latestSelectionsRef = useRef<Record<string, string | null>>({})
 
   useEffect(() => {
     if (data?.test.time_taken_seconds != null) {
@@ -190,7 +193,7 @@ export function MockTestRunView({ testId }: { testId: string }) {
     else setSubmitOpen(true)
   }
 
-  async function persistAnswer(questionId: string, event: QuizAnswerEvent) {
+  async function persistAnswer(questionId: string, event: MockTestAnswerInput) {
     setRunError(null)
     setPendingAnswer({ questionId, event })
 
@@ -232,6 +235,20 @@ export function MockTestRunView({ testId }: { testId: string }) {
 
   function choose(option: string) {
     if (!current) return
+
+    if (selected === option) {
+      const event: MockTestAnswerInput = {
+        questionId: current.id,
+        wordId: current.word_id,
+        selectedAnswer: null,
+      }
+      latestSelectionsRef.current[current.id] = null
+      quiz.reset()
+      setLocalSelections((previous) => ({ ...previous, [current.id]: null }))
+      void persistAnswer(current.id, event)
+      return
+    }
+
     const event = quiz.submit(option)
     if (!event) return
     latestSelectionsRef.current[current.id] = event.selectedAnswer

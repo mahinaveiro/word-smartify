@@ -12,7 +12,6 @@ import {
   saveMockTestAnswer,
   startMockTest,
 } from '@/services/mock-test'
-import { evaluateAnswer } from '@/lib/quiz-engine'
 import type { QuizMode } from '@/lib/xp'
 import type { UUID } from '@/types/database'
 
@@ -50,6 +49,14 @@ function quizMode(value: unknown): QuizMode {
 function answerEvent(body: Record<string, unknown>): { questionId: UUID; wordId: UUID; selectedAnswer: string } {
   const questionId = requiredUuid(body.questionId, 'questionId')
   const wordId = requiredUuid(body.wordId, 'wordId')
+  const selectedAnswer = requiredString(body.selectedAnswer, 'selectedAnswer')
+  return { questionId, wordId, selectedAnswer }
+}
+
+function mockAnswerEvent(body: Record<string, unknown>): { questionId: UUID; wordId: UUID; selectedAnswer: string | null } {
+  const questionId = requiredUuid(body.questionId, 'questionId')
+  const wordId = requiredUuid(body.wordId, 'wordId')
+  if (body.selectedAnswer === null) return { questionId, wordId, selectedAnswer: null }
   const selectedAnswer = requiredString(body.selectedAnswer, 'selectedAnswer')
   return { questionId, wordId, selectedAnswer }
 }
@@ -116,14 +123,13 @@ export async function POST(request: Request) {
         const current = await repos.mockTests.getMockTest(testId)
         if (!current || current.test.user_id !== user.id) throw new Error('Mock test not found.')
         if (!isRecord(parsed.event)) throw new Error('Invalid mock-test answer.')
-        const input = answerEvent(parsed.event)
+        const input = mockAnswerEvent(parsed.event)
         const question = await repos.quizzes.getQuestion(input.questionId)
         if (!question || question.word_id !== input.wordId) throw new Error('Question not found.')
-        if (question.options && !question.options.includes(input.selectedAnswer)) {
+        if (input.selectedAnswer !== null && question.options && !question.options.includes(input.selectedAnswer)) {
           throw new Error('Selected answer is not a valid option for this question.')
         }
-        const event = evaluateAnswer(question, input.selectedAnswer)
-        return NextResponse.json(await saveMockTestAnswer(testId, event, repos))
+        return NextResponse.json(await saveMockTestAnswer(testId, input, repos))
       }
       case 'cancel-mock-test':
         await cancelMockTest(requiredUuid(parsed.testId, 'testId'), user.id, repos)
