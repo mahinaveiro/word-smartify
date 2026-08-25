@@ -149,7 +149,7 @@ export function ProgressView() {
                   <CartesianGrid vertical={false} stroke="var(--border)" strokeWidth={1} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} interval={1} />
                   <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} allowDecimals={false} width={32} />
-                  <Tooltip cursor={{ fill: 'var(--muted)' }} content={<ChartTip unit="words" />} />
+                  <Tooltip shared={false} cursor={{ fill: 'var(--muted)' }} content={<ChartTip unit="words" />} />
                   <Bar dataKey="words" fill="var(--mint)" stroke="var(--foreground)" strokeWidth={2} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -167,7 +167,7 @@ export function ProgressView() {
                   <CartesianGrid vertical={false} stroke="var(--border)" strokeWidth={1} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} interval={1} />
                   <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} allowDecimals={false} width={32} />
-                  <Tooltip cursor={{ stroke: 'var(--muted-foreground)' }} content={<ChartTip unit="words total" dataKey="cumulative" />} />
+                  <Tooltip shared={false} cursor={{ stroke: 'var(--muted-foreground)' }} content={<ChartTip unit="words total" dataKey="cumulative" />} />
                   <Line type="monotone" dataKey="cumulative" stroke="var(--coral)" strokeWidth={3} dot={{ fill: 'var(--coral)', stroke: 'var(--foreground)', strokeWidth: 2, r: 3 }} activeDot={{ r: 5, stroke: 'var(--foreground)', strokeWidth: 2 }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -234,17 +234,18 @@ function ChartTip({
     dataKey?: string | number
     payload?: Record<string, number | string>
   }>
-  label?: string
+  label?: string | number
   unit: string
   dataKey?: string
 }) {
   if (!active || !payload?.length) return null
   const entry = payload.find((item) => String(item.dataKey) === dataKey) ?? payload[0]
-  const rawValue = entry.payload?.[dataKey] ?? entry.value
+  const rawValue = entry?.value
   const value = Array.isArray(rawValue) ? rawValue.join(' – ') : rawValue ?? '—'
+  const date = typeof entry?.payload?.date === 'string' ? entry.payload.date : label
   return (
     <div className="rounded-md border-2 border-foreground bg-card px-3 py-2 text-xs shadow-brutal-sm">
-      <p className="font-heading font-bold">{label}</p>
+      <p className="font-heading font-bold">{date}</p>
       <p className="text-muted-foreground">{value} {unit}</p>
     </div>
   )
