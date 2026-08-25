@@ -364,7 +364,6 @@ export function MockTestRunView({ testId }: { testId: string }) {
             <MockTestQuestionNavigator
               questions={data.questions}
               currentIndex={index}
-              selectedAnswers={selectedAnswers}
               skippedQuestionIds={skippedQuestionIds}
               starredQuestionIds={starredQuestionIds}
               onSelect={(questionIndex) => setIndex(questionIndex)}
