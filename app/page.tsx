@@ -126,7 +126,7 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
-            <div className="mt-4 rounded-[--radius-md] border-2 border-foreground bg-foreground p-5 text-primary-foreground">
+            <div className="mt-4 rounded-[--radius-md] border-2 border-foreground bg-foreground p-5 text-primary-foreground dark:bg-primary">
               <p className="font-heading text-xs font-semibold uppercase tracking-[0.16em] text-primary-foreground/70">Today&apos;s word</p>
               <p className="mt-2 font-heading text-3xl font-bold">Ephemeral</p>
               <p className="mt-1 text-sm text-primary-foreground/80">Lasting a very short time; fleeting.</p>

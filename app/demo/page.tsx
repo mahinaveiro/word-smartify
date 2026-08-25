@@ -78,7 +78,7 @@ export default function DemoPage() {
           </div>
         </section>
 
-        <section className="relative mt-16 overflow-hidden rounded-[--radius-lg] border-2 border-foreground bg-foreground p-6 text-primary-foreground shadow-brutal-lg md:p-10">
+        <section className="relative mt-16 overflow-hidden rounded-[--radius-lg] border-2 border-foreground bg-foreground p-6 text-primary-foreground shadow-brutal-lg dark:bg-primary md:p-10">
           <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/60 to-transparent" aria-hidden />
           <div className="relative z-10 max-w-2xl">
             <LockKeyhole className="size-8 text-mint" aria-hidden />

@@ -96,6 +96,7 @@
   --border: #1a1a1a;
   --input: #1a1a1a;
   --ring: #14b8a6;
+  --shadow-color: #1a1a1a;
 
   --chart-1: #14b8a6;
   --chart-2: #1a1a1a;
@@ -116,50 +117,51 @@
 .dark {
   color-scheme: dark;
 
-  /* Dark neutrals keep the warm green-black character of the light theme. */
-  --background: #101716;
-  --foreground: #ded8cc;
-  --card: #18211f;
-  --card-foreground: #ded8cc;
-  --popover: #1c2825;
-  --popover-foreground: #ded8cc;
-  --muted: #24302c;
-  --muted-foreground: #aaa297;
+  /* Dull AMOLED neutrals: near-black surfaces, warm muted text, quiet separation. */
+  --background: #080c0b;
+  --foreground: #d9d3c7;
+  --card: #101815;
+  --card-foreground: #d9d3c7;
+  --popover: #111c18;
+  --popover-foreground: #d9d3c7;
+  --muted: #18231f;
+  --muted-foreground: #9b968b;
 
-  /* Primary remains the high-contrast neo-brutalist action surface. */
-  --primary: #ded8cc;
-  --primary-foreground: #201d19;
-  --secondary: #24302c;
-  --secondary-foreground: #ded8cc;
+  /* Dark primary keeps actions grounded instead of turning them into white blocks. */
+  --primary: #1c2c27;
+  --primary-foreground: #e2dccf;
+  --secondary: #15211d;
+  --secondary-foreground: #d9d3c7;
 
-  /* Brand accents remain recognizable on dark surfaces. */
-  --mint: #25c7b2;
-  --mint-foreground: #052d28;
-  --accent: #25c7b2;
-  --accent-foreground: #052d28;
-  --coral: #f29a6e;
-  --coral-foreground: #32160c;
+  /* Muted brand accents retain recognition without overpowering AMOLED surfaces. */
+  --mint: #20ad9d;
+  --mint-foreground: #062621;
+  --accent: #20ad9d;
+  --accent-foreground: #062621;
+  --coral: #d9825e;
+  --coral-foreground: #2c140c;
 
-  --destructive: #ef6c5b;
-  --destructive-foreground: #f4e9df;
-  --border: #ded8cc;
-  --input: #ded8cc;
-  --ring: #58e0cf;
+  --destructive: #c85d4d;
+  --destructive-foreground: #f0ddd2;
+  --border: #59645d;
+  --input: #667169;
+  --ring: #45c7b7;
+  --shadow-color: #030605;
 
-  --chart-1: #25c7b2;
-  --chart-2: #ded8cc;
-  --chart-3: #f29a6e;
-  --chart-4: #8b9a91;
-  --chart-5: #aab8b0;
+  --chart-1: #20ad9d;
+  --chart-2: #778078;
+  --chart-3: #d9825e;
+  --chart-4: #65736c;
+  --chart-5: #8b958d;
 
-  --sidebar: #141d1b;
-  --sidebar-foreground: #ded8cc;
-  --sidebar-primary: #25c7b2;
-  --sidebar-primary-foreground: #052d28;
-  --sidebar-accent: #24302c;
-  --sidebar-accent-foreground: #ded8cc;
-  --sidebar-border: #ded8cc;
-  --sidebar-ring: #58e0cf;
+  --sidebar: #0c1412;
+  --sidebar-foreground: #d9d3c7;
+  --sidebar-primary: #20ad9d;
+  --sidebar-primary-foreground: #062621;
+  --sidebar-accent: #15211d;
+  --sidebar-accent-foreground: #d9d3c7;
+  --sidebar-border: #4d5952;
+  --sidebar-ring: #45c7b7;
 }
 
 @layer base {
@@ -188,15 +190,20 @@
 }
 
 @layer utilities {
+  /* Dark mode uses quieter separators while preserving the visible brutalist rhythm. */
+  .dark .border-foreground {
+    border-color: var(--border);
+  }
+
   /* Flat offset shadows — the neo-brutalist signature */
   .shadow-brutal {
-    box-shadow: 4px 4px 0 0 var(--foreground);
+    box-shadow: 4px 4px 0 0 var(--shadow-color);
   }
   .shadow-brutal-sm {
-    box-shadow: 2px 2px 0 0 var(--foreground);
+    box-shadow: 2px 2px 0 0 var(--shadow-color);
   }
   .shadow-brutal-lg {
-    box-shadow: 6px 6px 0 0 var(--foreground);
+    box-shadow: 6px 6px 0 0 var(--shadow-color);
   }
   .shadow-brutal-mint {
     box-shadow: 4px 4px 0 0 var(--mint);
@@ -217,14 +224,14 @@
     transform: translate(2px, 2px);
   }
   .press.shadow-brutal:active:not(:disabled) {
-    box-shadow: 2px 2px 0 0 var(--foreground);
+    box-shadow: 2px 2px 0 0 var(--shadow-color);
   }
   .press.shadow-brutal-sm:active:not(:disabled) {
-    box-shadow: 1px 1px 0 0 var(--foreground);
+    box-shadow: 1px 1px 0 0 var(--shadow-color);
     transform: translate(1px, 1px);
   }
   .press.shadow-brutal-lg:active:not(:disabled) {
-    box-shadow: 3px 3px 0 0 var(--foreground);
+    box-shadow: 3px 3px 0 0 var(--shadow-color);
     transform: translate(3px, 3px);
   }
   .press.shadow-brutal-mint:active:not(:disabled) {

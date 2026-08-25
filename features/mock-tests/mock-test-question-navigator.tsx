@@ -43,7 +43,7 @@ export function MockTestQuestionNavigator({
             onClick={() => onSelect(questionIndex)}
             className={cn(
               'press relative grid size-9 place-items-center rounded-sm border-2 border-foreground bg-card text-xs font-bold tabular-nums transition-colors duration-normal ease-brutal',
-              isCurrent && 'bg-foreground text-primary-foreground shadow-brutal-sm',
+              isCurrent && 'bg-foreground text-primary-foreground shadow-brutal-sm dark:bg-primary',
               !isCurrent && isSkipped && 'bg-coral text-coral-foreground',
               !isCurrent && !isSkipped && isStarred && 'bg-accent text-accent-foreground',
             )}

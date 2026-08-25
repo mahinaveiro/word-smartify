@@ -49,7 +49,7 @@ export function Modal({
   return createPortal(
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-foreground/40 animate-in fade-in duration-micro"
+        className="absolute inset-0 bg-foreground/40 animate-in fade-in duration-micro dark:bg-black/60"
         onClick={onClose}
         aria-hidden
       />

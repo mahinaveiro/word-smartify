@@ -235,7 +235,7 @@ function PlanItem({
   return (
     <div className="flex min-h-28 flex-col justify-between rounded-md border-2 border-foreground bg-card p-3 shadow-brutal-sm md:h-full">
       <div className="flex items-start justify-between gap-2">
-        <span className={`grid size-8 place-items-center rounded-md border-2 border-foreground ${accent === 'mint' ? 'bg-mint' : accent === 'coral' ? 'bg-coral' : 'bg-foreground text-background'}`}>
+        <span className={`grid size-8 place-items-center rounded-md border-2 border-foreground ${accent === 'mint' ? 'bg-mint' : accent === 'coral' ? 'bg-coral' : 'bg-foreground text-background dark:bg-primary dark:text-primary-foreground'}`}>
           <Icon className="size-4" aria-hidden />
         </span>
         {done ? <CircleCheckBig className="size-5 text-mint-foreground" aria-label="Done" /> : null}
@@ -262,7 +262,7 @@ function DailyChallengeCard({ completed }: { completed: boolean }) {
       <CardContent className="flex flex-col gap-4 p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-md border-2 border-foreground bg-foreground text-background shadow-brutal-sm">
+            <span className="grid size-10 shrink-0 place-items-center rounded-md border-2 border-foreground bg-foreground text-background shadow-brutal-sm dark:bg-primary dark:text-primary-foreground">
               <Sparkles className="size-5" aria-hidden />
             </span>
             <div className="min-w-0">

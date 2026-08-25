@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 const AVATAR_BG: Record<string, string> = {
   coral: 'bg-coral text-coral-foreground',
   mint: 'bg-mint text-mint-foreground',
-  ink: 'bg-foreground text-primary-foreground',
+  ink: 'bg-foreground text-primary-foreground dark:bg-primary',
   sand: 'bg-muted text-foreground',
 }
 

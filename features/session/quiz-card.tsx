@@ -151,7 +151,7 @@ export function QuizCard({
               className={cn(
                 'press flex items-center justify-between gap-3 rounded-md border-2 border-foreground px-4 py-3.5 text-left font-medium transition-all duration-normal ease-brutal',
                 state === 'idle' && 'bg-card hover:bg-muted',
-                state === 'selected' && 'bg-foreground text-primary-foreground shadow-brutal-sm',
+                state === 'selected' && 'bg-foreground text-primary-foreground shadow-brutal-sm dark:bg-primary',
                 state === 'correct' && 'bg-mint text-mint-foreground shadow-brutal-sm',
                 state === 'wrong' && 'bg-coral text-coral-foreground shadow-brutal-sm',
                 state === 'dim' && 'bg-card opacity-55',
@@ -180,7 +180,7 @@ export function QuizCard({
             <button
               type="button"
               aria-label="Close explanation"
-              className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm"
+              className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm dark:bg-black/60"
               onClick={() => setExplanationForQuestion(null)}
             />
           ) : null}

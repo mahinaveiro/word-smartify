@@ -64,7 +64,7 @@ export function LearnView() {
                     className={cn(
                       'press flex-1 rounded-md border-2 border-foreground px-3 py-2.5 text-left font-heading text-sm font-bold transition-colors',
                       active
-                        ? 'bg-foreground text-primary-foreground shadow-brutal-sm'
+                        ? 'bg-foreground text-primary-foreground shadow-brutal-sm dark:bg-primary'
                         : 'bg-card text-foreground hover:bg-muted',
                     )}
                   >
@@ -96,7 +96,7 @@ export function LearnView() {
 
           <Link
             href="/library"
-            className="press flex items-center justify-between gap-4 rounded-md border-2 border-foreground bg-foreground px-4 py-3 text-primary-foreground shadow-brutal-sm transition-colors hover:bg-foreground/90"
+            className="press flex items-center justify-between gap-4 rounded-md border-2 border-foreground bg-foreground px-4 py-3 text-primary-foreground shadow-brutal-sm transition-colors hover:bg-foreground/90 dark:bg-primary dark:hover:bg-primary/90"
           >
             <span className="flex min-w-0 items-center gap-3">
               <span className="grid size-9 shrink-0 place-items-center rounded-md border-2 border-primary-foreground/30 bg-primary-foreground/10">

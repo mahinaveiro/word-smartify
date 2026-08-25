@@ -97,7 +97,7 @@ export function IbaEnglishLandingPage() {
       </section>
 
       <section className="border-t-2 border-foreground py-14">
-        <div className="rounded-[--radius-lg] border-2 border-foreground bg-foreground p-6 text-primary-foreground shadow-brutal-lg sm:p-8">
+        <div className="rounded-[--radius-lg] border-2 border-foreground bg-foreground p-6 text-primary-foreground shadow-brutal-lg dark:bg-primary sm:p-8">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="max-w-xl">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary-foreground/65">Make the next session count</p>
@@ -223,7 +223,7 @@ function MarketingHero({
 
       <div className="relative rounded-[--radius-lg] border-2 border-foreground bg-card p-4 shadow-brutal-lg md:p-6">
         <div className={`absolute -right-3 -top-3 rounded-full border-2 border-foreground ${panelAccent} px-3 py-1 text-xs font-bold shadow-brutal-sm`}>Learn · recall · retain</div>
-        <div className="rounded-[--radius-md] border-2 border-foreground bg-foreground p-5 text-primary-foreground">
+        <div className="rounded-[--radius-md] border-2 border-foreground bg-foreground p-5 text-primary-foreground dark:bg-primary">
           <p className="font-heading text-xs font-semibold uppercase tracking-[0.16em] text-primary-foreground/70">{panelTitle}</p>
           <div className="mt-5 space-y-3">
             {panelItems.map((item) => (

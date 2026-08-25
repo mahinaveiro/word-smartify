@@ -18,7 +18,7 @@ export function StatTile({
     card: 'bg-card text-foreground',
     mint: 'bg-mint text-mint-foreground',
     coral: 'bg-coral text-coral-foreground',
-    ink: 'bg-foreground text-primary-foreground',
+    ink: 'bg-foreground text-primary-foreground dark:bg-primary',
   }
   return (
     <div

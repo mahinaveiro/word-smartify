@@ -68,7 +68,7 @@ export function LeaderboardView() {
             role="tab"
             aria-selected={mode === nextMode}
             onClick={() => setMode(nextMode)}
-            className={cn('rounded-sm px-3 py-2 font-heading text-sm font-bold transition-colors', mode === nextMode ? 'bg-foreground text-primary-foreground' : 'hover:bg-muted')}
+            className={cn('rounded-sm px-3 py-2 font-heading text-sm font-bold transition-colors', mode === nextMode ? 'bg-foreground text-primary-foreground dark:bg-primary' : 'hover:bg-muted')}
           >
             {nextMode === 'all_time' ? 'All Time' : 'This Week'}
           </button>

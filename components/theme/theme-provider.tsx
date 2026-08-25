@@ -11,7 +11,7 @@ import type { ThemePreference } from '@/types/database'
 const LAST_THEME_STORAGE_KEY = 'word-smartify:theme:last'
 const USER_THEME_STORAGE_PREFIX = 'word-smartify:theme:user:'
 const LIGHT_THEME_COLOR = '#f4f1e9'
-const DARK_THEME_COLOR = '#101716'
+const DARK_THEME_COLOR = '#080c0b'
 
 interface ThemeContextValue {
   theme: ThemePreference
