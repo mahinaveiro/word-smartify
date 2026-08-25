@@ -277,6 +277,9 @@ export type Database = {
       }
       feedback_submissions: {
         Row: {
+          attachment_content_type: string | null
+          attachment_filename: string | null
+          attachment_size: number | null
           category: string
           created_at: string
           display_name: string
@@ -291,6 +294,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          attachment_content_type?: string | null
+          attachment_filename?: string | null
+          attachment_size?: number | null
           category: string
           created_at?: string
           display_name: string
@@ -305,6 +311,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          attachment_content_type?: string | null
+          attachment_filename?: string | null
+          attachment_size?: number | null
           category?: string
           created_at?: string
           display_name?: string

@@ -230,7 +230,7 @@ export function SettingsView({ section = 'hub' }: { section?: SettingsSection })
         <SettingsHub profileName={profile.display_name} userEmail={user?.email ?? null} dailyGoal={profile.daily_goal} activeBookName={activeBook?.name ?? null} />
       ) : null}
 
-      {section === 'feedback' ? <FeedbackView userEmail={user?.email ?? null} /> : null}
+      {section === 'feedback' ? <FeedbackView /> : null}
 
       {section === 'profile' ? (
         <ProfileSettings

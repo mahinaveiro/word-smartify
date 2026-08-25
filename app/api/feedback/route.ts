@@ -4,9 +4,33 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { feedbackCategoryLabel, isFeedbackCategory, type FeedbackCategory } from '@/types/feedback'
 
+export const runtime = 'nodejs'
+
 const MAX_MESSAGE_LENGTH = 4000
 const MAX_PAGE_PATH_LENGTH = 160
 const MAX_SUBMISSIONS_PER_HOUR = 3
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
+const MAX_REQUEST_BYTES = MAX_ATTACHMENT_BYTES + 512 * 1024
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const IMAGE_EXTENSIONS: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+}
+
+type FeedbackAttachment = {
+  filename: string
+  contentType: 'image/jpeg' | 'image/png' | 'image/webp'
+  size: number
+  buffer: Buffer
+}
+
+type ParsedInput = {
+  category: unknown
+  message: unknown
+  pagePath: unknown
+  attachment: FeedbackAttachment | null
+}
 
 function escapeHtml(value: string) {
   return value
@@ -35,6 +59,106 @@ function getReporterName(user: { email?: string; user_metadata?: unknown }, disp
   return user.email?.split('@')[0]?.trim().slice(0, 120) || 'Unknown student'
 }
 
+function hasImageSignature(buffer: Buffer, contentType: string) {
+  if (contentType === 'image/jpeg') {
+    return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff
+  }
+  if (contentType === 'image/png') {
+    return buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+  }
+  if (contentType === 'image/webp') {
+    return buffer.length >= 12 && buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP'
+  }
+  return false
+}
+
+function safeAttachmentFilename(originalName: string, contentType: string) {
+  const baseName = originalName
+    .replace(/\.[^/.]+$/, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 100)
+  return `${baseName || 'feedback-photo'}.${IMAGE_EXTENSIONS[contentType]}`
+}
+
+async function parseInput(request: Request): Promise<ParsedInput | { error: string }> {
+  const contentLength = Number(request.headers.get('content-length'))
+  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
+    return { error: 'That photo is too large. Please attach an image smaller than 5 MB.' }
+  }
+
+  const contentType = request.headers.get('content-type')?.toLowerCase() || ''
+  if (!contentType.includes('multipart/form-data')) {
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      return { error: 'Invalid feedback request.' }
+    }
+
+    if (!body || typeof body !== 'object') return { error: 'Invalid feedback request.' }
+    const payload = body as Record<string, unknown>
+    return {
+      category: payload.category,
+      message: payload.message,
+      pagePath: payload.pagePath,
+      attachment: null,
+    }
+  }
+
+  let formData: FormData
+  try {
+    formData = await request.formData()
+  } catch {
+    return { error: 'The feedback form could not be read. Please try again.' }
+  }
+
+  const photoEntry = formData.get('photo')
+  if (photoEntry !== null && typeof File !== 'undefined' && photoEntry instanceof File && photoEntry.size > 0) {
+    if (!ALLOWED_IMAGE_TYPES.has(photoEntry.type)) {
+      return { error: 'Attach a JPG, PNG, or WebP image.' }
+    }
+    if (photoEntry.size > MAX_ATTACHMENT_BYTES) {
+      return { error: 'That photo is too large. Please attach an image smaller than 5 MB.' }
+    }
+
+    const buffer = Buffer.from(await photoEntry.arrayBuffer())
+    if (!hasImageSignature(buffer, photoEntry.type)) {
+      return { error: 'That file does not look like a valid image.' }
+    }
+
+    return {
+      category: formData.get('category'),
+      message: formData.get('message'),
+      pagePath: formData.get('pagePath'),
+      attachment: {
+        filename: safeAttachmentFilename(photoEntry.name, photoEntry.type),
+        contentType: photoEntry.type as FeedbackAttachment['contentType'],
+        size: photoEntry.size,
+        buffer,
+      },
+    }
+  }
+
+  if (photoEntry !== null && typeof File !== 'undefined' && photoEntry instanceof File && photoEntry.size === 0) {
+    return {
+      category: formData.get('category'),
+      message: formData.get('message'),
+      pagePath: formData.get('pagePath'),
+      attachment: null,
+    }
+  }
+
+  if (photoEntry !== null) return { error: 'The attached photo is invalid.' }
+
+  return {
+    category: formData.get('category'),
+    message: formData.get('message'),
+    pagePath: formData.get('pagePath'),
+    attachment: null,
+  }
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: authData, error: authError } = await supabase.auth.getUser()
@@ -43,21 +167,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'You must be signed in to send feedback.' }, { status: 401 })
   }
 
-  let body: unknown
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: 'Invalid feedback request.' }, { status: 400 })
-  }
+  const parsed = await parseInput(request)
+  if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 })
 
-  if (!body || typeof body !== 'object') {
-    return NextResponse.json({ error: 'Invalid feedback request.' }, { status: 400 })
-  }
-
-  const payload = body as Record<string, unknown>
-  const category = payload.category
-  const message = normalizeText(payload.message, MAX_MESSAGE_LENGTH)
-  const pagePath = normalizeText(payload.pagePath, MAX_PAGE_PATH_LENGTH)
+  const category = parsed.category
+  const message = normalizeText(parsed.message, MAX_MESSAGE_LENGTH)
+  const pagePath = normalizeText(parsed.pagePath, MAX_PAGE_PATH_LENGTH)
 
   if (!isFeedbackCategory(category)) {
     return NextResponse.json({ error: 'Choose a feedback type.' }, { status: 400 })
@@ -75,9 +190,7 @@ export async function POST(request: Request) {
     .eq('id', authData.user.id)
     .maybeSingle()
 
-  if (profileError) {
-    console.warn('Feedback profile lookup failed; using auth fallback', profileError)
-  }
+  if (profileError) console.warn('Feedback profile lookup failed; using auth fallback', profileError)
 
   const reporterEmail = authData.user.email || 'Email unavailable'
   const reporterName = getReporterName(authData.user, profile?.display_name)
@@ -106,6 +219,9 @@ export async function POST(request: Request) {
       category,
       message,
       page_path: pagePath,
+      attachment_filename: parsed.attachment?.filename ?? null,
+      attachment_content_type: parsed.attachment?.contentType ?? null,
+      attachment_size: parsed.attachment?.size ?? null,
     })
     .select('id')
     .single()
@@ -131,6 +247,7 @@ export async function POST(request: Request) {
         <p><strong>Type:</strong> ${escapeHtml(feedbackCategoryLabel(category as FeedbackCategory))}</p>
         <p><strong>Message:</strong></p>
         <p>${escapeHtml(message).replaceAll('\n', '<br />')}</p>
+        ${parsed.attachment ? '<p><strong>Photo:</strong> attached to this email.</p>' : ''}
         <hr />
         <h3>Reporter</h3>
         <p><strong>Name:</strong> ${escapeHtml(reporterName)}</p>
@@ -139,6 +256,13 @@ export async function POST(request: Request) {
         ${pagePath ? `<p><strong>Page:</strong> ${escapeHtml(pagePath)}</p>` : ''}
         <p><strong>Feedback ID:</strong> ${escapeHtml(feedback.id)}</p>
       `,
+      attachments: parsed.attachment
+        ? [{
+            filename: parsed.attachment.filename,
+            content: parsed.attachment.buffer,
+            contentType: parsed.attachment.contentType,
+          }]
+        : undefined,
     })
 
     if (emailError) {

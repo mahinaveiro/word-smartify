@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Check, MessageSquare, Send } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Check, ImagePlus, MessageSquare, Send, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Field, Label } from '@/components/ui/input'
@@ -14,15 +14,54 @@ import {
 } from '@/types/feedback'
 
 const MAX_MESSAGE_LENGTH = 4000
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024
+const ACCEPTED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 
-export function FeedbackView({ userEmail }: { userEmail: string | null }) {
+type FeedbackResponse = { error?: string; emailSent?: boolean }
+
+function formatFileSize(size: number) {
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`
+}
+
+export function FeedbackView() {
   const { toast } = useToast()
+  const photoInputRef = useRef<HTMLInputElement>(null)
   const [category, setCategory] = useState<FeedbackCategory>('suggestion')
   const [message, setMessage] = useState('')
+  const [photo, setPhoto] = useState<File | null>(null)
+  const [photoError, setPhotoError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [emailSent, setEmailSent] = useState<boolean | null>(null)
+
+  function clearPhoto() {
+    setPhoto(null)
+    setPhotoError(null)
+    if (photoInputRef.current) photoInputRef.current.value = ''
+  }
+
+  function onPhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const nextPhoto = event.target.files?.[0] ?? null
+    if (!nextPhoto) return
+
+    if (!ACCEPTED_PHOTO_TYPES.includes(nextPhoto.type as (typeof ACCEPTED_PHOTO_TYPES)[number])) {
+      setPhoto(null)
+      setPhotoError('Attach a JPG, PNG, or WebP image.')
+      event.target.value = ''
+      return
+    }
+    if (nextPhoto.size > MAX_PHOTO_BYTES) {
+      setPhoto(null)
+      setPhotoError('That photo is too large. Please choose an image smaller than 5 MB.')
+      event.target.value = ''
+      return
+    }
+
+    setPhoto(nextPhoto)
+    setPhotoError(null)
+    setError(null)
+  }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -31,25 +70,28 @@ export function FeedbackView({ userEmail }: { userEmail: string | null }) {
       setError('Tell us a little more before sending.')
       return
     }
+    if (photoError) return
 
     setSubmitting(true)
     setError(null)
     try {
+      const formData = new FormData()
+      formData.append('category', category)
+      formData.append('message', trimmedMessage)
+      formData.append('pagePath', window.location.pathname)
+      if (photo) formData.append('photo', photo, photo.name)
+
       const response = await fetch('/api/feedback', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          category,
-          message: trimmedMessage,
-          pagePath: window.location.pathname,
-        }),
+        body: formData,
       })
-      const payload = (await response.json().catch(() => null)) as { error?: string; emailSent?: boolean } | null
+      const payload = (await response.json().catch(() => null)) as FeedbackResponse | null
       if (!response.ok) throw new Error(payload?.error || 'Your feedback could not be sent.')
 
       setSubmitted(true)
       setEmailSent(payload?.emailSent === true)
       setMessage('')
+      clearPhoto()
       toast({ title: 'Feedback sent', description: 'Thanks for helping improve Word Smartify.', tone: 'success' })
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Your feedback could not be sent.')
@@ -74,7 +116,15 @@ export function FeedbackView({ userEmail }: { userEmail: string | null }) {
               Your message is safe in our records. The notification email is temporarily unavailable.
             </p>
           ) : null}
-          <Button type="button" variant="outline" className="mt-6" onClick={() => { setSubmitted(false); setEmailSent(null) }}>
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-6"
+            onClick={() => {
+              setSubmitted(false)
+              setEmailSent(null)
+            }}
+          >
             Send more feedback
           </Button>
         </CardContent>
@@ -141,11 +191,47 @@ export function FeedbackView({ userEmail }: { userEmail: string | null }) {
             </div>
           </fieldset>
 
-          <div className="flex items-center justify-between gap-3 border-t-2 border-foreground/10 pt-4">
-            <p className="min-w-0 text-xs text-muted-foreground">
-              {userEmail ? `Sent from ${userEmail}` : 'Sent from your Word Smartify account'}
+          <div>
+            <Label htmlFor="feedback-photo">Attach a photo <span className="font-normal text-muted-foreground">(optional)</span></Label>
+            <div className="flex flex-wrap items-center gap-2">
+              <label
+                htmlFor="feedback-photo"
+                className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border-2 border-foreground bg-card px-3 py-2 text-sm font-semibold transition-colors hover:bg-muted focus-within:shadow-brutal-sm"
+              >
+                <ImagePlus className="size-4" aria-hidden />
+                {photo ? 'Change photo' : 'Choose photo'}
+                <input
+                  ref={photoInputRef}
+                  id="feedback-photo"
+                  name="photo"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={onPhotoChange}
+                  className="sr-only"
+                />
+              </label>
+              {photo ? (
+                <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-foreground/20 bg-muted px-2.5 py-2 text-xs text-muted-foreground">
+                  <span className="max-w-[12rem] truncate">{photo.name}</span>
+                  <span className="shrink-0">{formatFileSize(photo.size)}</span>
+                  <button
+                    type="button"
+                    aria-label="Remove attached photo"
+                    onClick={clearPhoto}
+                    className="ml-0.5 rounded p-0.5 text-foreground transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <X className="size-4" aria-hidden />
+                  </button>
+                </span>
+              ) : null}
+            </div>
+            <p className={cn('mt-1.5 text-xs text-muted-foreground', photoError && 'font-medium text-destructive')}>
+              {photoError || 'JPG, PNG, or WebP · up to 5 MB · sent with the feedback email and not stored.'}
             </p>
-            <Button type="submit" loading={submitting} disabled={!message.trim()}>
+          </div>
+
+          <div className="flex justify-end border-t-2 border-foreground/10 pt-4">
+            <Button type="submit" loading={submitting} disabled={!message.trim() || Boolean(photoError)}>
               <Send className="size-4" aria-hidden />
               Send feedback
             </Button>
