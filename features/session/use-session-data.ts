@@ -3,6 +3,7 @@
 import useSWR from 'swr'
 import { repositories } from '@/repositories'
 import { createRandomizedQuizCards, shuffleArray } from '@/lib/quiz-randomizer'
+import { filterLearningQuestions } from '@/lib/learning-question-filter'
 import type { QuizQuestion, Word } from '@/types/database'
 
 export interface SessionCard {
@@ -21,9 +22,10 @@ export function useSessionData(levelId: string | null) {
     if (words.length < 10) throw new Error('This level does not contain the required 10 learning words.')
     const sessionWords = shuffleArray(words).slice(0, 10)
     const questions = await repositories.quizzes.getQuizQuestionsForWords(sessionWords.map((word) => word.id))
+    const learningQuestions = filterLearningQuestions(questions)
     const questionsByWord = new Map<string, QuizQuestion[]>()
 
-    for (const question of questions) {
+    for (const question of learningQuestions) {
       const wordQuestions = questionsByWord.get(question.word_id) ?? []
       wordQuestions.push(question)
       questionsByWord.set(question.word_id, wordQuestions)
