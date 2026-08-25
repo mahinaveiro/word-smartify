@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import {
   ResponsiveContainer,
   BarChart,
@@ -21,6 +22,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { EmptyState } from '@/components/ui/empty-state'
 import { StatTile } from '@/features/shared/stat-tile'
 import { statusLabel } from '@/lib/learning-logic'
+import { shortDate } from '@/lib/date'
 import { useBooks, useProgressCounts, useProgressSummary } from '@/hooks/use-data'
 import type { WordStatus } from '@/types/database'
 
@@ -39,6 +41,7 @@ export function ProgressView() {
   const { data: summary } = summaryQuery
   const { data: counts } = countsQuery
   const { data: books } = booksQuery
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const queries = [summaryQuery, countsQuery, booksQuery]
   if (queries.some((query) => query.isLoading)) return <ProgressSkeleton />
@@ -63,6 +66,25 @@ export function ProgressView() {
 
   const totalTracked = STATUS_ORDER.reduce((sum, status) => sum + counts[status], 0)
   const last7Words = summary.weeklyActivity.slice(-7).reduce((sum, day) => sum + day.words, 0)
+  const selectedDay = selectedDate ? summary.weeklyActivity.find((day) => day.date === selectedDate) ?? null : null
+  const handleChartClick = (state: unknown) => {
+    if (!state || typeof state !== 'object') return
+    const chartState = state as {
+      activePayload?: Array<{ payload?: { date?: unknown } }>
+      activeTooltipIndex?: number | string
+    }
+    const payloadDate = chartState.activePayload?.[0]?.payload?.date
+    if (typeof payloadDate === 'string') {
+      setSelectedDate(payloadDate)
+      return
+    }
+    const index = typeof chartState.activeTooltipIndex === 'number'
+      ? chartState.activeTooltipIndex
+      : Number(chartState.activeTooltipIndex)
+    if (Number.isInteger(index) && index >= 0 && index < summary.weeklyActivity.length) {
+      setSelectedDate(summary.weeklyActivity[index]?.date ?? null)
+    }
+  }
   const level = summary.level
 
   return (
@@ -140,12 +162,14 @@ export function ProgressView() {
           <CardContent className="p-5">
             <div className="mb-1 flex items-baseline justify-between">
               <h2 className="font-heading text-base font-bold">Daily activity</h2>
-              <span className="text-xs font-medium text-muted-foreground">{last7Words} words this week</span>
+              <span className="text-right text-xs font-medium text-muted-foreground">
+                {selectedDay ? `${selectedDay.words} words · ${shortDate(selectedDay.date)}` : `${last7Words} words this week`}
+              </span>
             </div>
             <p className="mb-4 text-sm text-muted-foreground">New words completed over the last 14 days.</p>
             <div className="h-52 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={summary.weeklyActivity} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+                <BarChart data={summary.weeklyActivity} margin={{ top: 4, right: 4, left: -24, bottom: 0 }} onClick={handleChartClick}>
                   <CartesianGrid vertical={false} stroke="var(--border)" strokeWidth={1} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} interval={1} />
                   <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} allowDecimals={false} width={32} />
@@ -159,11 +183,14 @@ export function ProgressView() {
 
         <Card>
           <CardContent className="p-5">
-            <h2 className="font-heading text-base font-bold">Words learned (cumulative)</h2>
+            <div className="mb-1 flex items-baseline justify-between gap-3">
+              <h2 className="font-heading text-base font-bold">Words learned (cumulative)</h2>
+              {selectedDay ? <span className="text-right text-xs font-medium text-muted-foreground">{selectedDay.cumulative} total · {shortDate(selectedDay.date)}</span> : null}
+            </div>
             <p className="mb-4 text-sm text-muted-foreground">Momentum across the last 14 days.</p>
             <div className="h-52 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={summary.weeklyActivity} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
+                <LineChart data={summary.weeklyActivity} margin={{ top: 4, right: 8, left: -24, bottom: 0 }} onClick={handleChartClick}>
                   <CartesianGrid vertical={false} stroke="var(--border)" strokeWidth={1} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} interval={1} />
                   <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} allowDecimals={false} width={32} />
@@ -242,7 +269,8 @@ function ChartTip({
   const entry = payload.find((item) => String(item.dataKey) === dataKey) ?? payload[0]
   const rawValue = entry?.value
   const value = Array.isArray(rawValue) ? rawValue.join(' – ') : rawValue ?? '—'
-  const date = typeof entry?.payload?.date === 'string' ? entry.payload.date : label
+  const dateValue = typeof entry?.payload?.date === 'string' ? entry.payload.date : label
+  const date = typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue) ? shortDate(dateValue) : dateValue
   return (
     <div className="rounded-md border-2 border-foreground bg-card px-3 py-2 text-xs shadow-brutal-sm">
       <p className="font-heading font-bold">{date}</p>
