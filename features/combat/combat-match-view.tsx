@@ -330,7 +330,7 @@ export function CombatMatchView({ matchId }: { matchId: string }) {
   })
 
   const toggleQuickPicker = () => {
-    if (quickPickerOpen) {
+    if (quickPickerVisible) {
       setQuickPickerOpen(false)
       setQuickPickerPosition(null)
     } else {
@@ -345,7 +345,8 @@ export function CombatMatchView({ matchId }: { matchId: string }) {
 
   if (result) return <><CombatResultPanel result={result} userId={user?.id} onBack={() => router.push('/combat')} onRematch={rematch} rematchBusy={busy === 'rematch'} />{errorModal}</>
   if (closedResult.data) return <><CombatResultPanel result={closedResult.data} userId={user?.id} onBack={() => router.push('/combat')} onRematch={rematch} rematchBusy={busy === 'rematch'} />{errorModal}</>
-  if (closedMatch) return <>{<div className="mx-auto flex min-h-[45vh] w-full max-w-md items-center justify-center py-8"><Card className="w-full"><CardContent className="p-6 text-center"><span className="mx-auto grid size-12 place-items-center rounded-full border-2 border-foreground bg-muted shadow-brutal-sm">{closedResult.error || closedResult.data === null ? <XCircle className="size-6 text-destructive" aria-hidden /> : <Loader2 className="size-6 animate-spin" aria-hidden />}</span><h1 className="mt-4 font-heading text-xl font-black">{closedResult.error || closedResult.data === null ? 'Result unavailable' : 'Loading your result…'}</h1><p className="mt-2 text-sm leading-5 text-muted-foreground">{closedResult.error || closedResult.data === null ? 'The room is closed, but its result could not be loaded yet.' : 'The server is preparing the final scores and XP outcome.'}</p>{closedResult.error || closedResult.data === null ? <Button variant="outline" size="sm" className="mt-5" onClick={() => void closedResult.mutate()}><RefreshCw className="size-4" aria-hidden /> Try again</Button> : null}</CardContent></Card></div>}{errorModal}</>
+  const closedWithoutResult = Boolean(closedMatch && ['cancelled', 'expired'].includes(currentMatch.status) && currentMatch.players.length < 2)
+  if (closedMatch) return <>{<div className="mx-auto flex min-h-[45vh] w-full max-w-md items-center justify-center py-8"><Card className="w-full"><CardContent className="p-6 text-center"><span className="mx-auto grid size-12 place-items-center rounded-full border-2 border-foreground bg-muted shadow-brutal-sm">{closedWithoutResult || closedResult.error || closedResult.data === null ? <XCircle className="size-6 text-destructive" aria-hidden /> : <Loader2 className="size-6 animate-spin" aria-hidden />}</span><h1 className="mt-4 font-heading text-xl font-black">{closedWithoutResult ? 'Room closed' : closedResult.error || closedResult.data === null ? 'Result unavailable' : 'Loading your result…'}</h1><p className="mt-2 text-sm leading-5 text-muted-foreground">{closedWithoutResult ? 'This private room closed before a two-player duel began.' : closedResult.error || closedResult.data === null ? 'The room is closed, but its result could not be loaded yet.' : 'The server is preparing the final scores and XP outcome.'}</p><div className="mt-5 flex justify-center gap-2">{closedWithoutResult ? <Button size="sm" onClick={() => router.push('/combat')}>Back to Combat</Button> : closedResult.error || closedResult.data === null ? <Button variant="outline" size="sm" onClick={() => void closedResult.mutate()}><RefreshCw className="size-4" aria-hidden /> Try again</Button> : null}</div></CardContent></Card></div>}{errorModal}</>
 
   const isHost = currentMatch.host_id === user?.id
   const myPlayer = currentMatch.players.find((player) => player.user_id === user?.id) ?? currentMatch.players[0]
@@ -409,12 +410,12 @@ function CombatResultPanel({ result, userId, onBack, onRematch, rematchBusy }: {
   const draw = result.outcome === 'draw'
   const abandonedWin = result.outcome === 'abandoned' && Boolean(userId && result.winner_id === userId)
   const abandonedLoss = result.outcome === 'abandoned' && Boolean(result.winner_id && result.winner_id !== userId)
-  const won = result.outcome === 'win' || abandonedWin
+  const won = Boolean(userId && result.winner_id === userId && (result.outcome === 'win' || result.outcome === 'abandoned'))
   const [shareMessage, setShareMessage] = React.useState<string | null>(null)
   const wagered = result.wager_xp === 100
   const myPlayer = result.match.players.find((player) => player.user_id === userId) ?? result.match.players[0]
   const opponent = result.match.players.find((player) => player.user_id !== myPlayer?.user_id) ?? result.match.players[1]
-  const winnerId = result.winner_id ?? (won ? myPlayer?.user_id : result.outcome === 'loss' ? opponent?.user_id : null)
+  const winnerId = ['win', 'loss', 'abandoned'].includes(result.outcome) ? result.winner_id : null
   const winner = result.match.players.find((player) => player.user_id === winnerId)
   const outcomeReason = draw ? 'Both players finished with the same result.' : result.outcome === 'cancelled' ? 'This private room was cancelled before a result was recorded.' : result.outcome === 'expired' ? 'The room expired before the duel could begin.' : result.outcome === 'no_contest' ? 'The duel was closed fairly without awarding a winner.' : abandonedWin ? 'The server awarded you the win after your opponent became inactive.' : abandonedLoss ? 'The server awarded the win to your opponent after your match became inactive.' : won ? result.my_score === result.opponent_score ? 'You won the speed tiebreak.' : 'You finished with more correct answers.' : 'Your opponent finished ahead this time.'
   const wagerReason = !wagered ? 'Practice match · no XP was at risk.' : result.wager_status === 'refunded' ? 'Both 100 XP stakes were refunded.' : result.wager_status === 'settled' && result.my_xp_delta > 0 ? 'You received 200 XP, for a net gain of 100 XP.' : result.wager_status === 'settled' && result.my_xp_delta < 0 ? 'Your 100 XP stake went to the winner.' : 'The 100 XP stakes were settled without a net change.'
