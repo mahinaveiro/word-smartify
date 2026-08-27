@@ -9,6 +9,8 @@ import type {
   CombatReviewQuestion,
   CombatResult,
   CombatPreset,
+  CombatQuestionSource,
+  CombatQuickMessage,
   PresenceState,
   SocialProfile,
   UUID,
@@ -21,6 +23,7 @@ type PlayerRow = Database['public']['Tables']['combat_match_players']['Row']
 type MatchQuestionRow = Database['public']['Tables']['combat_match_questions']['Row']
 type InviteRow = Database['public']['Tables']['combat_match_invites']['Row']
 type AnswerRow = Database['public']['Tables']['combat_match_answers']['Row']
+type MessageRow = Database['public']['Tables']['combat_match_messages']['Row']
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
 type PresenceRow = Database['public']['Tables']['user_presence']['Row']
 
@@ -121,6 +124,16 @@ export class SupabaseCombatRepository implements CombatRepository {
     if (playersResult.error) throw new Error(playersResult.error.message)
     const playerRows = (playersResult.data ?? []) as PlayerRow[]
     const profiles = await this.profilesFor(playerRows.map((player) => player.user_id))
+    const currentQuestionResult = row.status === 'active'
+      ? await this.client.from('combat_match_questions').select('question_id').eq('match_id', row.id).eq('position', row.current_question_index).maybeSingle()
+      : null
+    if (currentQuestionResult?.error) throw new Error(currentQuestionResult.error.message)
+    const currentQuestionId = currentQuestionResult?.data?.question_id
+    const submissionsResult = currentQuestionId
+      ? await this.client.from('combat_match_answers').select('user_id').eq('match_id', row.id).eq('question_id', currentQuestionId)
+      : null
+    if (submissionsResult?.error) throw new Error(submissionsResult.error.message)
+    const currentQuestionSubmissions = submissionsResult?.data?.map((answer) => answer.user_id) ?? []
     const players: CombatPlayerWithProfile[] = playerRows.map((player) => ({
       ...player,
       slot: player.slot as 1 | 2,
@@ -133,7 +146,7 @@ export class SupabaseCombatRepository implements CombatRepository {
         last_seen_at: null,
       },
     }))
-    return { ...row, preset: row.preset as CombatPreset, status: row.status as CombatMatch['status'], visibility: 'private', wager_xp: row.wager_xp === 100 ? 100 : 0, wager_status: row.wager_status as CombatMatch['wager_status'], players }
+    return { ...row, preset: row.preset as CombatPreset, status: row.status as CombatMatch['status'], visibility: 'private', question_source: (row.question_source ? (row.question_source as unknown as CombatQuestionSource) : { mode: 'mixed' }), wager_xp: row.wager_xp === 100 ? 100 : 0, wager_status: row.wager_status as CombatMatch['wager_status'], current_question_submissions: currentQuestionSubmissions, players }
   }
 
   private async uniqueJoinCode(): Promise<string> {
@@ -163,13 +176,50 @@ export class SupabaseCombatRepository implements CombatRepository {
     return match.wager_winner_id === currentUserId ? { my_xp_delta: match.wager_xp, opponent_xp_delta: -match.wager_xp } : { my_xp_delta: -match.wager_xp, opponent_xp_delta: match.wager_xp }
   }
 
-  private async chooseQuestions(count: number): Promise<Array<{ question_id: UUID; word_id: UUID; question: string; options: string[]; correct_answer: string; explanation: string | null }>> {
-    const result = await this.client
+  private async chooseQuestions(count: number, source: CombatQuestionSource = { mode: 'mixed' }, userIds: UUID[] = []): Promise<Array<{ question_id: UUID; word_id: UUID; question: string; options: string[]; correct_answer: string; explanation: string | null }>> {
+    let wordIds: string[] | null = null
+    if (source.mode === 'letter') {
+      const words = await this.client.from('words').select('id').ilike('word', `${source.letter ?? 'A'}%`).limit(1200)
+      if (words.error) throw new Error(words.error.message)
+      wordIds = (words.data ?? []).map((row) => row.id)
+    } else if (source.mode === 'level' || source.mode === 'book') {
+      let levelQuery = this.client.from('levels').select('id, chapter_id')
+      if (source.mode === 'level') levelQuery = levelQuery.gte('level_number', source.level_from ?? 1).lte('level_number', source.level_to ?? source.level_from ?? 1)
+      const levels = await levelQuery.limit(500)
+      if (levels.error) throw new Error(levels.error.message)
+      let levelRows = levels.data ?? []
+      if (source.mode === 'book') {
+        if (!source.book_id) throw new Error('Choose a book for this match.')
+        const chapters = await this.client.from('chapters').select('id').eq('book_id', source.book_id).limit(200)
+        if (chapters.error) throw new Error(chapters.error.message)
+        const chapterIds = new Set((chapters.data ?? []).map((row) => row.id))
+        levelRows = levelRows.filter((row) => chapterIds.has(row.chapter_id))
+      }
+      const levelIds = levelRows.map((row) => row.id)
+      const words = levelIds.length ? await this.client.from('words').select('id').in('level_id', levelIds).limit(1600) : { data: [], error: null }
+      if (words.error) throw new Error(words.error.message)
+      wordIds = (words.data ?? []).map((row) => row.id)
+    } else if (source.mode === 'smart' && userIds.length >= 2) {
+      const progress = await this.client.from('user_word_progress').select('user_id, word_id, status').in('user_id', userIds).in('status', ['learned', 'mastered']).limit(5000)
+      if (progress.error) throw new Error(progress.error.message)
+      const byUser = new Map<UUID, Set<UUID>>()
+      for (const row of progress.data ?? []) {
+        const set = byUser.get(row.user_id) ?? new Set<UUID>()
+        set.add(row.word_id)
+        byUser.set(row.user_id, set)
+      }
+      const first = byUser.get(userIds[0]) ?? new Set<UUID>()
+      const second = byUser.get(userIds[1]) ?? new Set<UUID>()
+      wordIds = [...first].filter((id) => second.has(id))
+    }
+    if (wordIds && wordIds.length < 3) throw new Error('There are not enough shared words for that source.')
+    let query = this.client
       .from('quiz_questions')
       .select('id, word_id, question, options, correct_answer, explanation, question_type')
       .not('options', 'is', null)
       .in('question_type', ['meaning', 'synonym', 'antonym', 'context', 'bangla', 'usage', 'fill_blank'])
-      .limit(400)
+    if (wordIds) query = query.in('word_id', wordIds)
+    const result = await query.limit(600)
     if (result.error) throw new Error(result.error.message)
     const usable = (result.data ?? [])
       .map((row) => ({
@@ -326,15 +376,16 @@ export class SupabaseCombatRepository implements CombatRepository {
     return match
   }
 
-  async createMatch(userId: UUID, input: { preset: CombatPreset; question_count: number; time_limit_seconds: number; wager_xp?: 0 | 100 }): Promise<CombatMatch> {
+  async createMatch(userId: UUID, input: { preset: CombatPreset; question_count: number; time_limit_seconds: number; wager_xp?: 0 | 100; question_source?: CombatQuestionSource }): Promise<CombatMatch> {
     const preset = input.preset in PRESETS ? input.preset : 'sprint'
     const defaults = PRESETS[preset]
     const questionCount = Number.isInteger(input.question_count) ? input.question_count : defaults.question_count
     const timeLimit = Number.isInteger(input.time_limit_seconds) ? input.time_limit_seconds : defaults.time_limit_seconds
     const wagerXp: 0 | 100 = input.wager_xp === 100 ? 100 : 0
+    const questionSource = input.question_source ?? { mode: 'mixed' as const }
     if (questionCount < 3 || questionCount > 20) throw new Error('Choose between 3 and 20 questions.')
     if (timeLimit < 5 || timeLimit > 60) throw new Error('Choose a question timer between 5 and 60 seconds.')
-    const questions = await this.chooseQuestions(questionCount)
+    const questions = await this.chooseQuestions(questionCount, questionSource, [userId])
     const matchInsert = await this.client
       .from('combat_matches')
       .insert({
@@ -345,11 +396,17 @@ export class SupabaseCombatRepository implements CombatRepository {
         time_limit_seconds: timeLimit,
         wager_xp: wagerXp,
         wager_status: wagerXp > 0 ? 'pending' : 'none',
+        question_source: questionSource as unknown as Database['public']['Tables']['combat_matches']['Insert']['question_source'],
         expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       })
       .select('*')
       .single()
-    if (matchInsert.error) throw new Error(matchInsert.error.message)
+    if (matchInsert.error) {
+      if (/question_source|column .* does not exist/i.test(matchInsert.error.message)) {
+        throw new Error('Combat source selection needs the latest database migration before a match can be created.')
+      }
+      throw new Error(matchInsert.error.message)
+    }
     const playerInsert = await this.client.from('combat_match_players').insert({ match_id: matchInsert.data.id, user_id: userId, slot: 1 })
     if (playerInsert.error) {
       await this.client.from('combat_matches').delete().eq('id', matchInsert.data.id)
@@ -469,7 +526,8 @@ export class SupabaseCombatRepository implements CombatRepository {
     if (match.status === 'active' && match.current_question_index + 1 < questionCount) return null
     const first = scoreByUser.get(playerRows[0].user_id) as { correct: number; answered: number; total: number }
     const second = scoreByUser.get(playerRows[1].user_id) as { correct: number; answered: number; total: number }
-    const winnerId = first.correct === second.correct ? (first.total === second.total ? null : first.total < second.total ? playerRows[0].user_id : playerRows[1].user_id) : first.correct > second.correct ? playerRows[0].user_id : playerRows[1].user_id
+    const calculatedWinnerId = first.correct === second.correct ? (first.total === second.total ? null : first.total < second.total ? playerRows[0].user_id : playerRows[1].user_id) : first.correct > second.correct ? playerRows[0].user_id : playerRows[1].user_id
+    const winnerId = match.winner_id ?? calculatedWinnerId
     const status = winnerId ? 'completed' : 'draw'
     let finalData = match
     if (finalize) {
@@ -495,7 +553,7 @@ export class SupabaseCombatRepository implements CombatRepository {
       slot: player.slot as 1 | 2,
       profile: profiles.get(player.user_id) as SocialProfile,
     }))
-    const hydratedMatch: CombatMatch = { ...finalData, preset: finalData.preset as CombatPreset, status: finalData.status as CombatMatch['status'], visibility: 'private', wager_xp: finalData.wager_xp === 100 ? 100 : 0, wager_status: finalData.wager_status as CombatMatch['wager_status'], players: hydratedPlayers }
+    const hydratedMatch: CombatMatch = { ...finalData, preset: finalData.preset as CombatPreset, status: finalData.status as CombatMatch['status'], visibility: 'private', question_source: (finalData.question_source as unknown as CombatQuestionSource) ?? { mode: 'mixed' }, wager_xp: finalData.wager_xp === 100 ? 100 : 0, wager_status: finalData.wager_status as CombatMatch['wager_status'], players: hydratedPlayers }
     const questionRows = (questions.data ?? []) as MatchQuestionRow[]
     const answerRows = (answers.data ?? []) as AnswerRow[]
     const currentUser = currentUserId
@@ -532,49 +590,52 @@ export class SupabaseCombatRepository implements CombatRepository {
   }
 
   async submitAnswer(userId: UUID, matchId: UUID, questionId: UUID, selectedAnswer: string | null, responseTimeMs: number): Promise<{ next_position: number; match: CombatMatch; result: CombatResult | null }> {
-    const match = await this.assertParticipant(matchId, userId)
-    if (match.status !== 'active' || !match.started_at) throw new Error('This match is not accepting answers.')
-    const currentQuestion = await this.client.from('combat_match_questions').select('*').eq('match_id', matchId).eq('position', match.current_question_index).maybeSingle()
-    if (currentQuestion.error) throw new Error(currentQuestion.error.message)
-    if (!currentQuestion.data || currentQuestion.data.question_id !== questionId) throw new Error('That question is no longer active.')
-    const roundStartedAt = match.current_question_started_at ?? match.started_at
-    const elapsedRoundMs = Math.max(0, Date.now() - new Date(roundStartedAt as string).getTime())
-    const acceptedTime = Math.min(Math.max(Number.isFinite(responseTimeMs) ? responseTimeMs : elapsedRoundMs, 0), match.time_limit_seconds * 1000)
-    const timedOut = elapsedRoundMs > match.time_limit_seconds * 1000
-    const options = safeOptions(currentQuestion.data.options)
-    const answer = !timedOut && selectedAnswer && options.includes(selectedAnswer) ? selectedAnswer : null
-    const isCorrect = answer !== null && answer === currentQuestion.data.correct_answer
-    const insert = await this.client.from('combat_match_answers').insert({ match_id: matchId, user_id: userId, question_id: questionId, selected_answer: answer, is_correct: isCorrect, response_time_ms: timedOut ? match.time_limit_seconds * 1000 : acceptedTime })
-    if (insert.error && insert.error.code !== '23505') throw new Error(insert.error.message)
-    const allPlayers = await this.client.from('combat_match_players').select('user_id').eq('match_id', matchId)
-    if (allPlayers.error) throw new Error(allPlayers.error.message)
-    const playerIds = (allPlayers.data ?? []).map((player) => player.user_id)
-    const roundAnswers = await this.client.from('combat_match_answers').select('user_id').eq('match_id', matchId).eq('question_id', questionId)
-    if (roundAnswers.error) throw new Error(roundAnswers.error.message)
-    const answeredIds = new Set((roundAnswers.data ?? []).map((row) => row.user_id))
-    if (timedOut) {
-      for (const playerId of playerIds) {
-        if (!answeredIds.has(playerId)) {
-          await this.client.from('combat_match_answers').upsert({ match_id: matchId, user_id: playerId, question_id: questionId, selected_answer: null, is_correct: false, response_time_ms: match.time_limit_seconds * 1000 }, { onConflict: 'match_id,user_id,question_id' })
-        }
-      }
-      answeredIds.clear()
-      for (const playerId of playerIds) answeredIds.add(playerId)
+    const result = await this.client.rpc('submit_combat_answer', {
+      p_match_id: matchId,
+      p_user_id: userId,
+      p_question_id: questionId,
+      p_selected_answer: selectedAnswer,
+      p_response_time_ms: Number.isFinite(responseTimeMs) ? Math.max(0, Math.round(responseTimeMs)) : 0,
+    })
+    if (result.error) throw new Error(result.error.message)
+    const payload = result.data as { next_position?: number; match?: MatchRow } | null
+    if (!payload?.match) throw new Error('The answer could not be synchronized.')
+    const hydratedMatch = await this.hydrateMatch(payload.match)
+    const finalResult = isActiveStatus(payload.match.status) ? null : await this.buildResult(payload.match, userId, false)
+    return {
+      next_position: typeof payload.next_position === 'number' ? payload.next_position : hydratedMatch.current_question_index,
+      match: hydratedMatch,
+      result: finalResult,
     }
-    if (answeredIds.size === playerIds.length && playerIds.length === 2) {
-      const nextIndex = match.current_question_index + 1
-      if (nextIndex >= match.question_count) {
-        const result = await this.buildResult({ ...match, current_question_index: match.current_question_index }, userId, true)
-        const fresh = await this.client.from('combat_matches').select('*').eq('id', matchId).single()
-        if (fresh.error) throw new Error(fresh.error.message)
-        return { next_position: nextIndex, match: await this.hydrateMatch(fresh.data), result }
-      }
-      const advance = await this.client.from('combat_matches').update({ current_question_index: nextIndex, current_question_started_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', matchId).eq('status', 'active').eq('current_question_index', match.current_question_index)
-      if (advance.error) throw new Error(advance.error.message)
-    }
-    const fresh = await this.client.from('combat_matches').select('*').eq('id', matchId).single()
-    if (fresh.error) throw new Error(fresh.error.message)
-    return { next_position: fresh.data.current_question_index, match: await this.hydrateMatch(fresh.data), result: null }
+  }
+
+  async heartbeat(userId: UUID, matchId: UUID): Promise<CombatMatch> {
+    const result = await this.client.rpc('heartbeat_combat_match', { p_match_id: matchId, p_user_id: userId })
+    if (result.error) throw new Error(result.error.message)
+    if (!result.data) throw new Error('The match heartbeat could not be synchronized.')
+    return this.hydrateMatch(result.data as MatchRow)
+  }
+
+  async leaveMatch(userId: UUID, matchId: UUID): Promise<CombatMatch> {
+    const result = await this.client.rpc('leave_combat_match', { p_match_id: matchId, p_user_id: userId })
+    if (result.error) throw new Error(result.error.message)
+    if (!result.data) throw new Error('The match departure could not be synchronized.')
+    return this.hydrateMatch(result.data as MatchRow)
+  }
+
+  async sendQuickMessage(userId: UUID, matchId: UUID, message: CombatQuickMessage): Promise<{ id: UUID; match_id: UUID; sender_id: UUID; message: CombatQuickMessage; created_at: string }> {
+    const result = await this.client.rpc('send_combat_message', { p_match_id: matchId, p_sender_id: userId, p_message: message })
+    if (result.error) throw new Error(result.error.message)
+    if (!result.data) throw new Error('The quick message could not be sent.')
+    const row = result.data as MessageRow
+    return { id: row.id, match_id: row.match_id, sender_id: row.sender_id, message: row.message as CombatQuickMessage, created_at: row.created_at }
+  }
+
+  async getMessages(userId: UUID, matchId: UUID): Promise<Array<{ id: UUID; match_id: UUID; sender_id: UUID; message: CombatQuickMessage; created_at: string }>> {
+    await this.assertParticipant(matchId, userId)
+    const result = await this.client.from('combat_match_messages').select('id, match_id, sender_id, message, created_at').eq('match_id', matchId).order('created_at', { ascending: false }).limit(20)
+    if (result.error) throw new Error(result.error.message)
+    return ((result.data ?? []) as MessageRow[]).reverse().map((row) => ({ id: row.id, match_id: row.match_id, sender_id: row.sender_id, message: row.message as CombatQuickMessage, created_at: row.created_at }))
   }
 
   async getResult(userId: UUID, matchId: UUID): Promise<CombatResult | null> {

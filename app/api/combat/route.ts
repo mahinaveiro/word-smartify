@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminRepositories } from '@/lib/supabase/admin'
-import type { CombatPreset } from '@/types/database'
+import type { CombatPreset, CombatQuestionSource, CombatQuickMessage, CombatSourceMode } from '@/types/database'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -47,6 +47,10 @@ export async function GET(request: Request) {
       const matchId = uuid(url.searchParams.get('matchId'), 'matchId')
       return NextResponse.json(await repos.combat.getResult(user.id, matchId))
     }
+    if (url.searchParams.get('view') === 'messages') {
+      const matchId = uuid(url.searchParams.get('matchId'), 'matchId')
+      return NextResponse.json(await repos.combat.getMessages(user.id, matchId))
+    }
     const matchId = url.searchParams.get('matchId')
     const code = url.searchParams.get('code')
     if (matchId) return NextResponse.json(await repos.combat.getMatch(uuid(matchId, 'matchId'), user.id))
@@ -69,11 +73,26 @@ export async function POST(request: Request) {
     switch (action) {
       case 'create': {
         const preset = stringValue(parsed.preset ?? 'sprint', 'preset', 20) as CombatPreset
+        if (!(['sprint', 'standard', 'custom'] as string[]).includes(preset)) throw new Error('Invalid Combat preset.')
         const questionCount = integer(parsed.questionCount ?? (preset === 'standard' ? 10 : 5), 'questionCount', 3, 20)
         const timeLimitSeconds = integer(parsed.timeLimitSeconds ?? 15, 'timeLimitSeconds', 5, 60)
         const wagerXp = parsed.wagerXp === undefined ? 0 : integer(parsed.wagerXp, 'wagerXp', 0, 100)
         if (wagerXp !== 0 && wagerXp !== 100) throw new Error('The available XP wager is 100 XP.')
-        return NextResponse.json(await repos.combat.createMatch(user.id, { preset, question_count: questionCount, time_limit_seconds: timeLimitSeconds, wager_xp: wagerXp as 0 | 100 }))
+        const rawSource = isRecord(parsed.questionSource) ? parsed.questionSource : {}
+        const mode = (typeof rawSource.mode === 'string' ? rawSource.mode : 'mixed') as CombatSourceMode
+        if (!['mixed', 'level', 'book', 'letter', 'smart'].includes(mode)) throw new Error('Invalid question source.')
+        const questionSource: CombatQuestionSource = { mode }
+        if (mode === 'level') {
+          questionSource.level_from = integer(rawSource.levelFrom ?? 1, 'levelFrom', 1, 104)
+          questionSource.level_to = integer(rawSource.levelTo ?? questionSource.level_from, 'levelTo', questionSource.level_from, 104)
+        }
+        if (mode === 'book') questionSource.book_id = uuid(rawSource.bookId, 'bookId')
+        if (mode === 'letter') {
+          const letter = stringValue(rawSource.letter ?? 'A', 'letter', 1).toUpperCase()
+          if (!/^[A-Z]$/.test(letter)) throw new Error('Choose a letter from A to Z.')
+          questionSource.letter = letter
+        }
+        return NextResponse.json(await repos.combat.createMatch(user.id, { preset, question_count: questionCount, time_limit_seconds: timeLimitSeconds, wager_xp: wagerXp as 0 | 100, question_source: questionSource }))
       }
       case 'join':
         return NextResponse.json(await repos.combat.joinMatch(user.id, stringValue(parsed.joinCode, 'joinCode', 20)))
@@ -94,6 +113,15 @@ export async function POST(request: Request) {
           selectedAnswer,
           integer(parsed.responseTimeMs, 'responseTimeMs', 0, 60000),
         ))
+      }
+      case 'heartbeat':
+        return NextResponse.json(await repos.combat.heartbeat(user.id, uuid(parsed.matchId, 'matchId')))
+      case 'leave':
+        return NextResponse.json(await repos.combat.leaveMatch(user.id, uuid(parsed.matchId, 'matchId')))
+      case 'quick_message': {
+        const message = stringValue(parsed.message, 'message', 40)
+        if (!(['Good luck!', 'Nice one!', 'I’m ready!', 'That was close!'] as string[]).includes(message)) throw new Error('Invalid quick message.')
+        return NextResponse.json(await repos.combat.sendQuickMessage(user.id, uuid(parsed.matchId, 'matchId'), message as CombatQuickMessage))
       }
       case 'cancel':
         await repos.combat.cancelMatch(user.id, uuid(parsed.matchId, 'matchId'))

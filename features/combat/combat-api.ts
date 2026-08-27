@@ -87,3 +87,9 @@ export async function loadMatchQuestion(matchId: string, position: number): Prom
 export async function loadMatchResult(matchId: string): Promise<CombatResult | null> {
   return readCombat<CombatResult | null>({ view: 'result', matchId })
 }
+
+export type CombatMessageRecord = { id: string; match_id: string; sender_id: string; message: string; created_at: string }
+
+export async function loadMatchMessages(matchId: string): Promise<CombatMessageRecord[]> {
+  return readCombat<CombatMessageRecord[]>({ view: 'messages', matchId })
+}

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   ArrowRight,
+  BookOpen,
   Check,
   ChevronRight,
   Coins,
@@ -31,8 +32,9 @@ import { Input, Label } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { Avatar } from '@/features/shared/avatar'
 import { useAuth } from '@/features/auth/auth-provider'
+import { useBooks } from '@/hooks/use-data'
 import { cn } from '@/lib/utils'
-import type { CombatInvite, CombatMatch, CombatPreset, Friendship, SocialProfile } from '@/types/database'
+import type { CombatInvite, CombatMatch, CombatPreset, CombatQuestionSource, Friendship, SocialProfile } from '@/types/database'
 import {
   loadFriends,
   loadHistory,
@@ -83,20 +85,24 @@ function statusLabel(match: CombatMatch): string {
 export function CombatView() {
   const router = useRouter()
   const { user } = useAuth()
-  const [section, setSection] = React.useState<'overview' | 'friends' | 'circle'>('overview')
+  const [section, setSection] = React.useState<'overview' | 'match' | 'friends' | 'circle' | 'history'>('overview')
   const [createOpen, setCreateOpen] = React.useState(false)
   const [joinOpen, setJoinOpen] = React.useState(false)
   const [preset, setPreset] = React.useState<CombatPreset>('sprint')
   const [customQuestions, setCustomQuestions] = React.useState(8)
   const [customSeconds, setCustomSeconds] = React.useState(15)
   const [wagerXp, setWagerXp] = React.useState<0 | 100>(0)
+  const [questionSource, setQuestionSource] = React.useState<CombatQuestionSource>({ mode: 'mixed' })
+  const [levelFrom, setLevelFrom] = React.useState(1)
+  const [levelTo, setLevelTo] = React.useState(20)
+  const [bookId, setBookId] = React.useState('')
+  const [letter, setLetter] = React.useState('')
   const [friendToChallenge, setFriendToChallenge] = React.useState<Friendship | null>(null)
   const [joinCode, setJoinCode] = React.useState('')
   const [search, setSearch] = React.useState('')
   const [busy, setBusy] = React.useState<string | null>(null)
   const [error, setError] = React.useState<string | null>(null)
   const [notice, setNotice] = React.useState<string | null>(null)
-  const [copied, setCopied] = React.useState(false)
 
   const friends = useSWR(user ? ['combat-friends', user.id] : null, () => loadFriends())
   const requests = useSWR(user ? ['combat-requests', user.id] : null, () => loadRequests())
@@ -107,6 +113,7 @@ export function CombatView() {
   }))
   const history = useSWR(user ? ['combat-history', user.id] : null, () => loadHistory())
   const searchResults = useSWR<SocialProfile[]>(user && search.trim().length >= 2 ? ['combat-search', user.id, search.trim()] : null, () => searchSocialUsers(search))
+  const books = useBooks()
 
   React.useEffect(() => {
     if (!user) return
@@ -132,6 +139,21 @@ export function CombatView() {
   }
 
   const createMatch = async (selectedPreset: CombatPreset = preset, selectedWager: 0 | 100 = wagerXp, recipientId?: string) => {
+    if (questionSource.mode === 'book' && !bookId) {
+      setError('Choose a book before creating a book-sourced match.')
+      return
+    }
+    if (questionSource.mode === 'letter' && !letter) {
+      setError('Choose a starting letter before creating a letter-sourced match.')
+      return
+    }
+    const source: Record<string, unknown> = questionSource.mode === 'level'
+      ? { mode: 'level', levelFrom: Math.min(levelFrom, levelTo), levelTo: Math.max(levelFrom, levelTo) }
+      : questionSource.mode === 'book'
+        ? { mode: 'book', ...(bookId ? { bookId } : {}) }
+        : questionSource.mode === 'letter'
+          ? { mode: 'letter', ...(letter ? { letter: letter.toLowerCase().slice(0, 1) } : {}) }
+          : { mode: questionSource.mode }
     await run('create', async () => {
       const match = await postCombat<CombatMatch>({
         action: 'create',
@@ -139,6 +161,7 @@ export function CombatView() {
         questionCount: selectedPreset === 'custom' ? customQuestions : selectedPreset === 'standard' ? 10 : 5,
         timeLimitSeconds: selectedPreset === 'custom' ? customSeconds : 15,
         wagerXp: selectedWager,
+        questionSource: source,
       })
       if (recipientId) await postCombat({ action: 'invite_friend', matchId: match.id, recipientId })
       setCreateOpen(false)
@@ -159,6 +182,7 @@ export function CombatView() {
     setFriendToChallenge(friend)
     setPreset('sprint')
     setWagerXp(100)
+    setQuestionSource({ mode: 'mixed' })
     setCreateOpen(true)
   }
 
@@ -185,15 +209,9 @@ export function CombatView() {
     })
   }
 
-  const copyCode = async (code: string) => {
-    await navigator.clipboard?.writeText(code).catch(() => undefined)
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 1600)
-  }
-
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 pb-28 md:gap-6 md:pb-10">
-      <section className="relative overflow-hidden rounded-lg border-2 border-foreground bg-foreground px-5 py-6 text-primary-foreground shadow-brutal sm:px-7 sm:py-8">
+      {section === 'overview' ? <section className="relative overflow-hidden rounded-lg border-2 border-foreground bg-foreground px-5 py-6 text-primary-foreground shadow-brutal sm:px-7 sm:py-8">
         <div className="pointer-events-none absolute -right-12 -top-12 size-44 rounded-full border-[18px] border-coral/80 opacity-90" />
         <div className="pointer-events-none absolute -bottom-16 right-24 size-44 rounded-full border-[14px] border-mint/70 opacity-80" />
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
@@ -208,52 +226,37 @@ export function CombatView() {
             <Coins className="size-4 text-mint" aria-hidden /> Optional 100 XP stakes · friend matches only
           </div>
         </div>
-      </section>
+      </section> : null}
 
       {error ? <div role="alert" className="flex items-start gap-2 rounded-md border-2 border-destructive bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive"><ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />{error}<button className="ml-auto" onClick={() => setError(null)} aria-label="Dismiss error"><X className="size-4" aria-hidden /></button></div> : null}
       {notice ? <div role="status" className="flex items-start gap-2 rounded-md border-2 border-mint bg-mint/15 px-4 py-3 text-sm font-semibold"><Check className="mt-0.5 size-4 shrink-0" aria-hidden />{notice}</div> : null}
 
-      <div className="flex items-center gap-1 overflow-x-auto border-b-2 border-foreground/10 pb-1" role="tablist" aria-label="Combat sections">
-        <TabButton active={section === 'overview'} onClick={() => setSection('overview')}>Overview</TabButton>
-        <TabButton active={section === 'friends'} onClick={() => setSection('friends')}>Friends</TabButton>
-        <TabButton active={section === 'circle'} onClick={() => setSection('circle')} badge={requests.data?.incoming.length ?? 0}>Circle</TabButton>
+      <div className="flex justify-center overflow-x-auto border-b-2 border-foreground/10 pb-1" role="tablist" aria-label="Combat sections">
+        <div className="flex min-w-max items-center gap-1 rounded-lg border-2 border-foreground/10 bg-muted/30 p-1">
+          <TabButton active={section === 'overview'} onClick={() => setSection('overview')}>Overview</TabButton>
+          <TabButton active={section === 'friends'} onClick={() => setSection('friends')} icon={Search}>Friends</TabButton>
+          <TabButton active={section === 'match'} onClick={() => setSection('match')} icon={Swords}>Match</TabButton>
+          <TabButton active={section === 'circle'} onClick={() => setSection('circle')} badge={requests.data?.incoming.length ?? 0} icon={Users}>Circle</TabButton>
+          <TabButton active={section === 'history'} onClick={() => setSection('history')} icon={History}>History</TabButton>
+        </div>
       </div>
 
-      {section === 'overview' ? (
-        <div className="grid gap-5">
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-            <ActionCard icon={Zap} title="Quick duel" detail="Start a 5-question Sprint" accent="coral" onClick={() => void createMatch('sprint')} loading={busy === 'create'} />
-            <ActionCard icon={Swords} title="Create match" detail="Choose the pace yourself" accent="mint" onClick={() => setCreateOpen(true)} />
-            <ActionCard icon={Link2} title="Join by code" detail="Enter a private 6-character code" accent="ink" onClick={() => setJoinOpen(true)} />
-            <ActionCard icon={Users} title="Challenge a friend" detail="Invite from your trusted circle" accent="sand" onClick={() => setSection('circle')} />
-          </div>
-
-          <div className="grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
-            <Card>
-              <CardHeader className="flex-row items-start justify-between gap-4">
-                <div><CardTitle className="flex items-center gap-2"><Inbox className="size-5 text-coral" aria-hidden /> Invitations</CardTitle><CardDescription>Friend challenges stay private until you accept.</CardDescription></div>
-                <button className="text-xs font-bold text-muted-foreground underline-offset-4 hover:underline" onClick={() => setSection('circle')}>See Circle</button>
-              </CardHeader>
-              <CardContent>
-                {invites.isLoading ? <LoadingLine /> : invites.data?.length ? <div className="grid gap-3">{invites.data.slice(0, 3).map((invite) => <InviteRow key={invite.id} invite={invite} busy={busy === `invite-${invite.id}`} onRespond={(response) => void respondToInvite(invite, response)} />)}</div> : <EmptyPanel icon={Inbox} title="Your inbox is clear" detail="When a friend challenges you, it will appear here." />}
-              </CardContent>
-            </Card>
-            <Card className="bg-mint/10">
-              <CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck className="size-5 text-mint-foreground" aria-hidden /> Fair by design</CardTitle><CardDescription>Combat should strengthen learning, not punish it.</CardDescription></CardHeader>
-              <CardContent className="space-y-3 text-sm text-muted-foreground"><RuleLine title="Same questions" detail="Both players receive the same pre-generated set and order." /><RuleLine title="Shared timer" detail="The round advances when both answer or the deadline ends." /><RuleLine title="Knowledge first" detail="Correct answers decide the winner. Speed only breaks ties." /></CardContent>
-            </Card>
-          </div>
-
-          <HistorySection history={history.data ?? []} loading={history.isLoading} userId={user?.id} onOpen={(match) => router.push(`/combat/${match.id}`)} />
-        </div>
-      ) : null}
+      {section === 'match' ? <MatchSection onQuickDuel={() => void createMatch('sprint')} onCreate={() => setCreateOpen(true)} onJoin={() => setJoinOpen(true)} onChallenge={() => setSection('circle')} busy={busy} /> : null}
+      {section === 'history' ? <HistorySection history={history.data ?? []} loading={history.isLoading} userId={user?.id} onOpen={(match) => router.push(`/combat/${match.id}`)} /> : null}
 
       {section === 'friends' ? <SearchSection search={search} setSearch={setSearch} searchResults={searchResults.data ?? []} busy={busy} onAddFriend={(profile) => void addFriend(profile)} onRespondRequest={(id, response) => void respondToRequest(id, response)} /> : null}
-      {section === 'circle' ? <CircleSection friends={friends.data ?? []} requests={requests.data} busy={busy} onRespondRequest={(id, response) => void respondToRequest(id, response)} onChallenge={(friend) => void challengeFriend(friend)} /> : null}
+      {section === 'circle' ? <CircleSection invites={invites.data ?? []} invitesLoading={invites.isLoading} friends={friends.data ?? []} requests={requests.data} busy={busy} onRespondInvite={(invite, response) => void respondToInvite(invite, response)} onRespondRequest={(id, response) => void respondToRequest(id, response)} onChallenge={(friend) => void challengeFriend(friend)} /> : null}
 
-      <Modal open={createOpen} onClose={() => { setCreateOpen(false); setFriendToChallenge(null) }} title={friendToChallenge ? `Challenge ${friendToChallenge.other_user.display_name}` : 'Create a private match'} description={friendToChallenge ? 'Choose the rules together. They must accept the exact stake before joining.' : 'Pick a preset now. Advanced controls stay tucked away until you need them.'} footer={<><Button variant="ghost" size="sm" onClick={() => { setCreateOpen(false); setFriendToChallenge(null) }}>Cancel</Button><Button size="sm" onClick={() => void createMatch(preset, wagerXp, friendToChallenge?.other_user.id)} loading={busy === 'create'}>{friendToChallenge ? 'Send challenge' : 'Create match'} <ArrowRight className="size-4" aria-hidden /></Button></>}>
+      <Modal className="max-h-[88svh] max-w-[min(92vw,30rem)] overflow-y-auto" open={createOpen} onClose={() => { setCreateOpen(false); setFriendToChallenge(null) }} title={friendToChallenge ? `Challenge ${friendToChallenge.other_user.display_name}` : 'Create a private match'} description={friendToChallenge ? 'Choose the rules together. They must accept the exact stake before joining.' : 'Pick the rules and question source before you enter the room.'} footer={<><Button variant="ghost" size="sm" onClick={() => { setCreateOpen(false); setFriendToChallenge(null) }}>Cancel</Button><Button size="sm" onClick={() => void createMatch(preset, wagerXp, friendToChallenge?.other_user.id)} loading={busy === 'create'} disabled={questionSource.mode === 'book' && !bookId || questionSource.mode === 'letter' && !letter}>{friendToChallenge ? 'Send challenge' : 'Create match'} <ArrowRight className="size-4" aria-hidden /></Button></>}>
         <div className="grid gap-3">
-          {(Object.keys(PRESET_COPY) as CombatPreset[]).map((item) => <button key={item} type="button" onClick={() => setPreset(item)} className={cn('rounded-md border-2 border-foreground p-4 text-left transition-colors', preset === item ? 'bg-mint shadow-brutal-sm' : 'bg-card hover:bg-muted')}><div className="flex items-start justify-between gap-3"><div><p className="font-heading font-bold">{PRESET_COPY[item].title}</p><p className="mt-1 text-sm text-muted-foreground">{PRESET_COPY[item].detail}</p></div><span className="text-xs font-semibold text-muted-foreground">{PRESET_COPY[item].questions}</span></div></button>)}
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+            {([{ mode: 'mixed', label: 'Mixed' }, { mode: 'level', label: 'Levels' }, { mode: 'book', label: 'Book' }, { mode: 'letter', label: 'Letter' }, { mode: 'smart', label: 'Smart' }] as const).map((source) => <button key={source.mode} type="button" onClick={() => setQuestionSource({ mode: source.mode })} className={cn('rounded-md border-2 border-foreground px-2 py-2 text-xs font-bold transition-colors', questionSource.mode === source.mode ? 'bg-mint shadow-brutal-sm' : 'bg-card hover:bg-muted')}>{source.label}</button>)}
+          </div>
+          {questionSource.mode === 'level' ? <div className="grid grid-cols-2 gap-2 rounded-md border-2 border-foreground/15 bg-muted/40 p-3"><div><Label htmlFor="combat-level-from">From level</Label><Input id="combat-level-from" type="number" min={1} max={104} value={levelFrom} onChange={(event) => setLevelFrom(Math.min(104, Math.max(1, Number(event.target.value) || 1)))} /></div><div><Label htmlFor="combat-level-to">To level</Label><Input id="combat-level-to" type="number" min={1} max={104} value={levelTo} onChange={(event) => setLevelTo(Math.min(104, Math.max(1, Number(event.target.value) || 1)))} /></div></div> : null}
+          {questionSource.mode === 'book' ? <div className="rounded-md border-2 border-foreground/15 bg-muted/40 p-3"><Label htmlFor="combat-book">Book</Label><select id="combat-book" value={bookId} onChange={(event) => setBookId(event.target.value)} className="mt-1 h-10 w-full rounded-md border-2 border-foreground bg-background px-3 text-sm font-semibold outline-none focus-visible:outline-2 focus-visible:outline-foreground"><option value="">Choose a book</option>{(books.data ?? []).map((book) => <option key={book.id} value={book.id}>{book.name}</option>)}</select></div> : null}
+          {questionSource.mode === 'letter' ? <div className="rounded-md border-2 border-foreground/15 bg-muted/40 p-3"><Label htmlFor="combat-letter">Starting letter</Label><Input id="combat-letter" value={letter} maxLength={1} onChange={(event) => setLetter(event.target.value.replace(/[^a-z]/gi, '').slice(0, 1).toUpperCase())} placeholder="A" className="mt-1 uppercase" /></div> : null}
+          {questionSource.mode === 'smart' ? <p className="rounded-md border-2 border-mint/40 bg-mint/10 p-3 text-xs leading-5 text-muted-foreground"><BookOpen className="mr-1 inline size-3.5 text-mint-foreground" aria-hidden /> Smart mode uses only the words both players have learned or mastered. The match will not silently switch to another source.</p> : null}
+          {(Object.keys(PRESET_COPY) as CombatPreset[]).map((item) => <button key={item} type="button" onClick={() => setPreset(item)} className={cn('rounded-md border-2 border-foreground p-3 text-left transition-colors sm:p-4', preset === item ? 'bg-mint shadow-brutal-sm' : 'bg-card hover:bg-muted')}><div className="flex items-start justify-between gap-3"><div><p className="font-heading font-bold">{PRESET_COPY[item].title}</p><p className="mt-1 text-sm text-muted-foreground">{PRESET_COPY[item].detail}</p></div><span className="text-xs font-semibold text-muted-foreground">{PRESET_COPY[item].questions}</span></div></button>)}
           {preset === 'custom' ? <div className="grid grid-cols-2 gap-3 rounded-md border-2 border-foreground/15 bg-muted/40 p-3"><div><Label htmlFor="combat-question-count">Questions</Label><Input id="combat-question-count" type="number" min={3} max={20} value={customQuestions} onChange={(event) => setCustomQuestions(Math.min(20, Math.max(3, Number(event.target.value) || 3)))} /></div><div><Label htmlFor="combat-time-limit">Seconds each</Label><Input id="combat-time-limit" type="number" min={5} max={60} value={customSeconds} onChange={(event) => setCustomSeconds(Math.min(60, Math.max(5, Number(event.target.value) || 5)))} /></div></div> : null}
           <div className="grid gap-2 rounded-md border-2 border-foreground/15 bg-muted/40 p-3"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Stake</p><div className="grid gap-2 sm:grid-cols-2"><button type="button" onClick={() => setWagerXp(0)} className={cn('rounded-md border-2 px-3 py-3 text-left', wagerXp === 0 ? 'border-foreground bg-card shadow-brutal-sm' : 'border-foreground/15 bg-background hover:bg-card')}><p className="text-sm font-bold">Practice match</p><p className="mt-1 text-xs text-muted-foreground">No XP at risk</p></button><button type="button" onClick={() => setWagerXp(100)} className={cn('rounded-md border-2 px-3 py-3 text-left', wagerXp === 100 ? 'border-foreground bg-mint/25 shadow-brutal-sm' : 'border-foreground/15 bg-background hover:bg-mint/10')}><p className="flex items-center gap-1.5 text-sm font-bold"><Coins className="size-4 text-coral" aria-hidden />100 XP wager</p><p className="mt-1 text-xs text-muted-foreground">Winner receives 200 XP</p></button></div><p className="text-xs leading-5 text-muted-foreground">The stake is reserved before play. Your opponent sees and accepts the exact amount before joining. A draw, cancellation, expiry, or protected no-contest refunds both players.</p></div><p className="text-xs leading-5 text-muted-foreground">Questions are selected from the shared eligible pool. The correct answer is never sent to your device during the match.</p>
         </div>
@@ -263,9 +266,20 @@ export function CombatView() {
         <div className="space-y-3"><Label htmlFor="combat-join-code">Match code</Label><Input id="combat-join-code" value={joinCode} maxLength={6} autoComplete="off" className="text-center font-heading text-2xl font-black uppercase tracking-[0.25em]" placeholder="ABC123" onChange={(event) => setJoinCode(event.target.value.replace(/[^a-z0-9]/gi, '').slice(0, 6).toUpperCase())} /><p className="text-xs text-muted-foreground">Private matches expire after 30 minutes if nobody joins.</p></div>
       </Modal>
 
-      {copied ? <div className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-full border-2 border-foreground bg-foreground px-4 py-2 text-xs font-bold text-primary-foreground shadow-brutal-sm md:bottom-6">Code copied</div> : null}
     </div>
   )
+}
+
+function MatchSection({ onQuickDuel, onCreate, onJoin, onChallenge, busy }: { onQuickDuel: () => void; onCreate: () => void; onJoin: () => void; onChallenge: () => void; busy: string | null }) {
+  return <div className="grid gap-4">
+    <div className="rounded-lg border-2 border-foreground bg-muted/30 px-4 py-4 sm:px-6 sm:py-5"><p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Match desk</p><h2 className="mt-1 font-heading text-2xl font-black">Choose your next duel.</h2><p className="mt-1 max-w-xl text-sm text-muted-foreground">Start a quick sprint, tune the rules, join a private room, or challenge someone from your circle.</p></div>
+    <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+      <ActionCard icon={Zap} title="Quick duel" detail="Start a 5-question Sprint" accent="coral" onClick={onQuickDuel} loading={busy === 'create'} />
+      <ActionCard icon={Swords} title="Create match" detail="Choose the pace yourself" accent="mint" onClick={onCreate} />
+      <ActionCard icon={Link2} title="Join by code" detail="Enter a private 6-character code" accent="ink" onClick={onJoin} />
+      <ActionCard icon={Users} title="Challenge a friend" detail="Invite from your trusted circle" accent="sand" onClick={onChallenge} />
+    </div>
+  </div>
 }
 
 function ActionCard({ icon: Icon, title, detail, accent, onClick, loading }: { icon: typeof Swords; title: string; detail: string; accent: 'coral' | 'mint' | 'ink' | 'sand'; onClick: () => void; loading?: boolean }) {
@@ -273,8 +287,8 @@ function ActionCard({ icon: Icon, title, detail, accent, onClick, loading }: { i
   return <button type="button" onClick={onClick} disabled={loading} className={cn('group rounded-lg border-2 border-foreground p-3 text-left shadow-brutal transition-transform hover:-translate-y-0.5 disabled:opacity-70 sm:p-4', colors[accent])}><span className="flex items-start justify-between gap-2"><span className={cn('grid size-9 place-items-center rounded-md border-2 border-foreground bg-card text-foreground shadow-brutal-sm sm:size-10', accent === 'ink' && 'bg-primary text-primary-foreground')}><Icon className="size-4 sm:size-5" aria-hidden /></span>{loading ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />}</span><p className="mt-3 font-heading text-sm font-bold sm:mt-4 sm:text-base">{title}</p><p className={cn('mt-1 text-[11px] leading-4 sm:text-xs', accent === 'ink' ? 'text-primary-foreground/70' : 'text-muted-foreground')}>{detail}</p></button>
 }
 
-function TabButton({ active, badge, children, onClick }: { active: boolean; badge?: number; children: React.ReactNode; onClick: () => void }) {
-  return <button type="button" role="tab" aria-selected={active} onClick={onClick} className={cn('rounded-md px-3 py-2 text-sm font-heading font-bold transition-colors', active ? 'bg-foreground text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}>{children}{badge ? <span className="ml-2 rounded-full bg-coral px-1.5 py-0.5 text-[10px] text-coral-foreground">{badge}</span> : null}</button>
+function TabButton({ active, badge, icon: Icon, children, onClick }: { active: boolean; badge?: number; icon?: typeof Swords; children: React.ReactNode; onClick: () => void }) {
+  return <button type="button" role="tab" aria-selected={active} onClick={onClick} className={cn('inline-flex items-center gap-1.5 rounded-md px-2.5 py-2 text-xs font-heading font-bold transition-colors sm:px-3 sm:text-sm', active ? 'bg-foreground text-primary-foreground shadow-brutal-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}>{Icon ? <Icon className="size-3.5 sm:size-4" aria-hidden /> : null}<span>{children}</span>{badge ? <span className="rounded-full bg-coral px-1.5 py-0.5 text-[10px] text-coral-foreground">{badge}</span> : null}</button>
 }
 
 function InviteRow({ invite, busy, onRespond }: { invite: CombatInvite; busy: boolean; onRespond: (response: 'accepted' | 'declined') => void }) {
@@ -295,16 +309,20 @@ function SearchSection({ search, setSearch, searchResults, busy, onAddFriend, on
   </Card>
 }
 
-function CircleSection({ friends, requests, busy, onRespondRequest, onChallenge }: { friends: Friendship[]; requests?: { incoming: Friendship[]; outgoing: Friendship[] }; busy: string | null; onRespondRequest: (id: string, response: 'accepted' | 'declined' | 'cancelled') => void; onChallenge: (friend: Friendship) => void }) {
-  return <div className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
-    <Card>
-      <CardHeader><CardTitle className="flex items-center gap-2"><Inbox className="size-5 text-coral" aria-hidden /> Friend requests</CardTitle><CardDescription>Accept trusted learners before inviting them to a duel.</CardDescription></CardHeader>
-      <CardContent className="space-y-3">{requests?.incoming.length ? requests.incoming.map((request) => <div key={request.id} className="flex items-center justify-between gap-3 rounded-md border-2 border-coral/30 bg-coral/5 p-3"><Link href={`/profile/${request.other_user.id}`} className="flex min-w-0 items-center gap-2 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-foreground"><Avatar name={request.other_user.display_name} avatarId={request.other_user.avatar_id} avatarUrl={request.other_user.avatar_url} size="sm" /><p className="truncate text-sm font-bold">{request.other_user.display_name}</p></Link><div className="flex shrink-0 gap-1"><Button variant="ghost" size="sm" onClick={() => onRespondRequest(request.id, 'declined')} disabled={busy === `request-${request.id}`}>No</Button><Button variant="accent" size="sm" onClick={() => onRespondRequest(request.id, 'accepted')} loading={busy === `request-${request.id}`}>Accept</Button></div></div>) : <EmptyPanel icon={Inbox} title="No requests waiting" detail="New friend requests will appear here." />}</CardContent>
-    </Card>
+function CircleSection({ invites, invitesLoading, friends, requests, busy, onRespondInvite, onRespondRequest, onChallenge }: { invites: CombatInvite[]; invitesLoading: boolean; friends: Friendship[]; requests?: { incoming: Friendship[]; outgoing: Friendship[] }; busy: string | null; onRespondInvite: (invite: CombatInvite, response: 'accepted' | 'declined') => void; onRespondRequest: (id: string, response: 'accepted' | 'declined' | 'cancelled') => void; onChallenge: (friend: Friendship) => void }) {
+  return <div className="grid gap-5">
     <Card>
       <CardHeader><CardTitle className="flex items-center gap-2"><Users className="size-5 text-mint" aria-hidden /> Your circle</CardTitle><CardDescription>Friends can challenge you privately. Presence is compact and optional.</CardDescription></CardHeader>
       <CardContent>{friends.length ? <div className="grid gap-2">{friends.map((friend) => <div key={friend.id} className="flex items-center justify-between gap-3 rounded-md border-2 border-foreground/10 p-3"><Link href={`/profile/${friend.other_user.id}`} className="flex min-w-0 items-center gap-3 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-foreground"><span className="relative"><Avatar name={friend.other_user.display_name} avatarId={friend.other_user.avatar_id} avatarUrl={friend.other_user.avatar_url} size="sm" />{friend.other_user.presence === 'online' || friend.other_user.presence === 'in_combat' ? <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-card bg-mint" /> : null}</span><span className="min-w-0"><span className="block truncate text-sm font-bold">{friend.other_user.display_name}</span><span className="block text-xs text-muted-foreground">{presenceLabel(friend.other_user)}</span></span></Link><Button variant="coral" size="sm" className="shrink-0" onClick={() => onChallenge(friend)} loading={busy === `challenge-${friend.other_user.id}`}><Swords className="size-3.5" aria-hidden /> Challenge</Button></div>)}</div> : <EmptyPanel icon={Users} title="No friends yet" detail="Search the Friends tab to build your circle." />}</CardContent>
     </Card>
+    <Card>
+      <CardHeader className="flex-row items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2"><Inbox className="size-5 text-coral" aria-hidden /> Invitations</CardTitle><CardDescription>Friend challenges stay private until you accept.</CardDescription></div><span className="rounded-full bg-muted px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{invites.length}</span></CardHeader>
+      <CardContent>{invitesLoading ? <LoadingLine /> : invites.length ? <div className="grid gap-3">{invites.slice(0, 3).map((invite) => <InviteRow key={invite.id} invite={invite} busy={busy === `invite-${invite.id}`} onRespond={(response) => onRespondInvite(invite, response)} />)}</div> : <EmptyPanel icon={Inbox} title="No invitations" detail="Friend challenges will appear here." />}</CardContent>
+    </Card>
+    <details className="group rounded-lg border-2 border-foreground/15 bg-card">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 font-heading font-bold [&::-webkit-details-marker]:hidden"><span className="flex items-center gap-2"><Inbox className="size-5 text-coral" aria-hidden /> Friend requests {requests?.incoming.length ? <span className="rounded-full bg-coral px-1.5 py-0.5 text-[10px] text-coral-foreground">{requests.incoming.length}</span> : null}</span><span className="text-xs text-muted-foreground transition-transform group-open:rotate-180">⌄</span></summary>
+      <div className="border-t-2 border-foreground/10 p-4"><p className="mb-3 text-sm text-muted-foreground">Accept trusted learners before inviting them to a duel.</p>{requests?.incoming.length ? <div className="grid gap-2">{requests.incoming.map((request) => <div key={request.id} className="flex items-center justify-between gap-3 rounded-md border-2 border-coral/30 bg-coral/5 p-3"><Link href={`/profile/${request.other_user.id}`} className="flex min-w-0 items-center gap-2 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-foreground"><Avatar name={request.other_user.display_name} avatarId={request.other_user.avatar_id} avatarUrl={request.other_user.avatar_url} size="sm" /><p className="truncate text-sm font-bold">{request.other_user.display_name}</p></Link><div className="flex shrink-0 gap-1"><Button variant="ghost" size="sm" onClick={() => onRespondRequest(request.id, 'declined')} disabled={busy === `request-${request.id}`}>No</Button><Button variant="accent" size="sm" onClick={() => onRespondRequest(request.id, 'accepted')} loading={busy === `request-${request.id}`}>Accept</Button></div></div>)}</div> : <EmptyPanel icon={Inbox} title="No requests waiting" detail="New friend requests will appear here." />}</div>
+    </details>
   </div>
 }
 
@@ -312,10 +330,10 @@ function RelationshipButton({ profile, busy, onAddFriend, onRespondRequest }: { 
   const relationship = profile.relationship ?? 'none'
   const relationshipId = profile.relationship_id ?? null
   if (relationship === 'blocked') return <Button variant="ghost" size="sm" disabled>Unavailable</Button>
-  if (relationship === 'friends') return <Button variant="outline" size="sm" disabled><UserCheck className="size-3.5" aria-hidden /> Friends</Button>
-  if (relationship === 'incoming_pending') return <Button variant="accent" size="sm" className="shrink-0" onClick={() => { if (relationshipId) onRespondRequest(relationshipId, 'accepted') }} loading={busy === `request-${relationshipId}`} disabled={!relationshipId}><UserCheck className="size-3.5" aria-hidden /> Accept</Button>
-  if (relationship === 'outgoing_pending') return <Button variant="outline" size="sm" className="shrink-0" onClick={() => { if (relationshipId) onRespondRequest(relationshipId, 'cancelled') }} loading={busy === `request-${relationshipId}`} disabled={!relationshipId}><Clock3 className="size-3.5" aria-hidden /> Cancel</Button>
-  return <Button variant="outline" size="sm" className="shrink-0" onClick={() => onAddFriend(profile)} loading={busy === `add-${profile.id}`}><UserPlus className="size-3.5" aria-hidden /> Add</Button>
+  if (relationship === 'friends') return <Button variant="outline" size="sm" className="shrink-0" disabled aria-label={`Friends with ${profile.display_name}`}><UserCheck className="size-3.5" aria-hidden /><span className="hidden sm:inline">Friends</span></Button>
+  if (relationship === 'incoming_pending') return <Button variant="accent" size="sm" className="shrink-0" aria-label={`Accept ${profile.display_name}'s friend request`} onClick={() => { if (relationshipId) onRespondRequest(relationshipId, 'accepted') }} loading={busy === `request-${relationshipId}`} disabled={!relationshipId}><UserCheck className="size-3.5" aria-hidden /><span className="hidden sm:inline">Accept</span></Button>
+  if (relationship === 'outgoing_pending') return <Button variant="outline" size="sm" className="shrink-0" aria-label={`Cancel friend request to ${profile.display_name}`} onClick={() => { if (relationshipId) onRespondRequest(relationshipId, 'cancelled') }} loading={busy === `request-${relationshipId}`} disabled={!relationshipId}><Clock3 className="size-3.5" aria-hidden /><span className="hidden sm:inline">Cancel</span></Button>
+  return <Button variant="outline" size="sm" className="shrink-0" aria-label={`Add ${profile.display_name} as a friend`} onClick={() => onAddFriend(profile)} loading={busy === `add-${profile.id}`}><UserPlus className="size-3.5" aria-hidden /><span className="hidden sm:inline">Add</span></Button>
 }
 
 function HistorySection({ history, loading, userId, onOpen }: { history: CombatMatch[]; loading: boolean; userId?: string; onOpen: (match: CombatMatch) => void }) {

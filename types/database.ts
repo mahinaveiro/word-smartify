@@ -331,6 +331,14 @@ export const TOTAL_WORD_COUNT = WORD_SMART_1_COUNT + WORD_SMART_2_COUNT // 1888
 export type FriendshipStatus = 'pending' | 'accepted' | 'declined' | 'cancelled' | 'removed'
 export type PresenceState = 'online' | 'learning' | 'reviewing' | 'mock_test' | 'in_combat' | 'idle' | 'offline'
 export type CombatPreset = 'sprint' | 'standard' | 'custom'
+export type CombatSourceMode = 'mixed' | 'level' | 'book' | 'letter' | 'smart'
+export interface CombatQuestionSource {
+  mode: CombatSourceMode
+  level_from?: number
+  level_to?: number
+  book_id?: UUID
+  letter?: string
+}
 export type CombatMatchStatus = 'waiting' | 'ready' | 'active' | 'completed' | 'draw' | 'cancelled' | 'expired' | 'abandoned' | 'no_contest'
 
 export interface SocialProfile {
@@ -377,6 +385,7 @@ export interface CombatMatchPlayer {
 }
 
 export type CombatInviteStatus = 'pending' | 'accepted' | 'declined' | 'cancelled' | 'expired'
+export type CombatQuickMessage = 'Good luck!' | 'Nice one!' | 'I’m ready!' | 'That was close!'
 
 export interface CombatInvite {
   id: UUID
@@ -410,6 +419,13 @@ export interface CombatMatch {
   updated_at: ISOTimestamp
   wager_xp: 0 | 100
   wager_status: 'none' | 'pending' | 'reserved' | 'settled' | 'refunded'
+  question_source: CombatQuestionSource
+  /** Current-round submission metadata, populated by the repository when available. */
+  current_question_submissions?: UUID[]
+  /** Authoritative winner for completed or abandonment outcomes; null for draws. */
+  winner_id?: UUID | null
+  /** Server-authoritative opponent grace deadline; absent on legacy matches. */
+  round_grace_deadline?: ISOTimestamp | null
   wager_winner_id: UUID | null
   wager_settled_at: ISOTimestamp | null
   players: CombatMatchPlayer[]

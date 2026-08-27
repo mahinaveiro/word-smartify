@@ -36,6 +36,8 @@ import type {
   CombatQuestion,
   CombatResult,
   CombatPreset,
+  CombatQuestionSource,
+  CombatQuickMessage,
   Friendship,
   SocialProfile,
   ViewerFriendshipState,
@@ -129,12 +131,16 @@ export interface CombatRepository {
   getInvites(userId: UUID): Promise<CombatInvite[]>
   inviteFriend(userId: UUID, matchId: UUID, recipientId: UUID): Promise<CombatInvite>
   respondToInvite(userId: UUID, inviteId: UUID, response: 'accepted' | 'declined'): Promise<CombatMatch | null>
-  createMatch(userId: UUID, input: { preset: CombatPreset; question_count: number; time_limit_seconds: number; wager_xp?: 0 | 100 }): Promise<CombatMatch>
+  createMatch(userId: UUID, input: { preset: CombatPreset; question_count: number; time_limit_seconds: number; wager_xp?: 0 | 100; question_source?: CombatQuestionSource }): Promise<CombatMatch>
   joinMatch(userId: UUID, joinCode: string): Promise<CombatMatch>
   setReady(userId: UUID, matchId: UUID, ready: boolean): Promise<CombatMatch>
   startMatch(userId: UUID, matchId: UUID): Promise<CombatMatch>
   getQuestion(userId: UUID, matchId: UUID, position: number): Promise<CombatQuestion | null>
   submitAnswer(userId: UUID, matchId: UUID, questionId: UUID, selectedAnswer: string | null, responseTimeMs: number): Promise<{ next_position: number; match: CombatMatch; result: CombatResult | null }>
+  heartbeat(userId: UUID, matchId: UUID): Promise<CombatMatch>
+  leaveMatch(userId: UUID, matchId: UUID): Promise<CombatMatch>
+  sendQuickMessage(userId: UUID, matchId: UUID, message: CombatQuickMessage): Promise<{ id: UUID; match_id: UUID; sender_id: UUID; message: CombatQuickMessage; created_at: string }>
+  getMessages(userId: UUID, matchId: UUID): Promise<Array<{ id: UUID; match_id: UUID; sender_id: UUID; message: CombatQuickMessage; created_at: string }>>
   getResult(userId: UUID, matchId: UUID): Promise<CombatResult | null>
   cancelMatch(userId: UUID, matchId: UUID): Promise<void>
   reportMatch(userId: UUID, matchId: UUID, reason: 'question' | 'connection' | 'cheating' | 'harassment' | 'other', note?: string): Promise<void>
