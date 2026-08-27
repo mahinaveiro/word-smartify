@@ -364,48 +364,29 @@ export class SupabaseCombatRepository implements CombatRepository {
   }
 
   async respondToInvite(userId: UUID, inviteId: UUID, response: 'accepted' | 'declined'): Promise<CombatMatch | null> {
-    const inviteResult = await this.client.from('combat_match_invites').select('*').eq('id', inviteId).maybeSingle()
-    if (inviteResult.error) throw new Error(inviteResult.error.message)
-    if (!inviteResult.data || inviteResult.data.recipient_id !== userId || inviteResult.data.status !== 'pending') throw new Error('This challenge is no longer active.')
-    const matchResult = await this.client.from('combat_matches').select('*').eq('id', inviteResult.data.match_id).maybeSingle()
-    if (matchResult.error) throw new Error(matchResult.error.message)
-    if (!matchResult.data || matchResult.data.status !== 'waiting' || matchResult.data.opponent_id || new Date(matchResult.data.expires_at).getTime() <= Date.now()) {
-      await this.client.from('combat_match_invites').update({ status: 'expired', responded_at: new Date().toISOString() }).eq('id', inviteId).eq('status', 'pending')
-      if (matchResult.data?.status === 'waiting') {
-        const expiredMatch = await this.client
-          .from('combat_matches')
-          .update({ status: 'expired', updated_at: new Date().toISOString() })
-          .eq('id', matchResult.data.id)
-          .eq('status', 'waiting')
-          .select('id')
-          .maybeSingle()
-        if (expiredMatch.error) throw new Error(expiredMatch.error.message)
-        if (expiredMatch.data && matchResult.data.wager_xp > 0 && !['settled', 'refunded'].includes(matchResult.data.wager_status)) await this.settleWager(matchResult.data.id, null)
-      }
-      throw new Error('This challenge has expired.')
-    }
-    if (response === 'declined') {
-      const declined = await this.client.from('combat_match_invites').update({ status: 'declined', responded_at: new Date().toISOString() }).eq('id', inviteId).eq('status', 'pending')
-      if (declined.error) throw new Error(declined.error.message)
-      const cancelled = await this.client.from('combat_matches').update({ status: 'cancelled', cancelled_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', matchResult.data.id).eq('status', 'waiting')
-      if (cancelled.error) throw new Error(cancelled.error.message)
-      if (matchResult.data.wager_xp > 0) await this.settleWager(matchResult.data.id, null)
-      return null
-    }
-    const match = await this.joinMatch(userId, matchResult.data.join_code)
-    const accepted = await this.client.from('combat_match_invites').update({ status: 'accepted', responded_at: new Date().toISOString() }).eq('id', inviteId).eq('status', 'pending')
-    if (accepted.error) throw new Error(accepted.error.message)
-    return match
+    const result = await this.client.rpc('respond_combat_invite', {
+      p_invite_id: inviteId,
+      p_user_id: userId,
+      p_response: response,
+    })
+    if (result.error) throw new Error(result.error.message)
+    const matchRow = result.data as MatchRow | null
+    if (!matchRow) throw new Error('The invitation could not be processed.')
+    if (matchRow.status === 'expired') throw new Error('This challenge has expired.')
+    if (matchRow.status !== 'waiting') throw new Error('This challenge is no longer active.')
+    if (response === 'declined') return null
+    return this.hydrateMatch(matchRow)
   }
 
   async createMatch(userId: UUID, input: { preset: CombatPreset; question_count: number; time_limit_seconds: number; wager_xp?: 0 | 100; question_source?: CombatQuestionSource }): Promise<CombatMatch> {
     const preset = input.preset in PRESETS ? input.preset : 'sprint'
     const defaults = PRESETS[preset]
-    const questionCount = Number.isInteger(input.question_count) ? input.question_count : defaults.question_count
-    const timeLimit = 15
+    const questionCount = preset === 'custom' && Number.isInteger(input.question_count) ? input.question_count : defaults.question_count
+    const timeLimit = Number.isInteger(input.time_limit_seconds) ? input.time_limit_seconds : defaults.time_limit_seconds
     const wagerXp: 0 | 100 = input.wager_xp === 100 ? 100 : 0
     const questionSource = input.question_source ?? { mode: 'mixed' as const }
     if (questionCount < 3 || questionCount > 20) throw new Error('Choose between 3 and 20 questions.')
+    if (timeLimit < 5 || timeLimit > 60) throw new Error('Choose a response time between 5 and 60 seconds.')
     const questions = await this.chooseQuestions(questionCount, questionSource, [userId])
     const matchInsert = await this.client
       .from('combat_matches')

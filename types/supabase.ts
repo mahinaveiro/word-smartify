@@ -1305,6 +1305,41 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      respond_combat_invite: {
+        Args: { p_invite_id: string; p_response: string; p_user_id: string }
+        Returns: {
+          cancelled_at: string | null
+          created_at: string
+          current_question_index: number
+          current_question_started_at: string | null
+          expires_at: string
+          finished_at: string | null
+          host_id: string
+          id: string
+          join_code: string
+          opponent_id: string | null
+          preset: string
+          question_count: number
+          question_source: Json
+          round_grace_deadline: string | null
+          started_at: string | null
+          status: string
+          time_limit_seconds: number
+          updated_at: string
+          visibility: string
+          wager_settled_at: string | null
+          wager_status: string
+          wager_winner_id: string | null
+          wager_xp: number
+          winner_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "combat_matches"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       set_combat_ready: {
         Args: { p_match_id: string; p_ready: boolean; p_user_id: string }
         Returns: {
