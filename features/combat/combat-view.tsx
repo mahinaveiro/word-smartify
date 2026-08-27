@@ -22,6 +22,7 @@ import {
   Swords,
   UserPlus,
   UserCheck,
+  UserMinus,
   Users,
   X,
   Zap,
@@ -205,6 +206,15 @@ export function CombatView() {
     })
   }
 
+  const removeFriend = async (profile: SocialProfile) => {
+    if (!profile.relationship_id) return
+    await run(`remove-${profile.id}`, async () => {
+      await postSocial({ action: 'remove_friend', friendshipId: profile.relationship_id })
+      setNotice(`${profile.display_name} was removed from your friends.`)
+      await Promise.all([friends.mutate(), requests.mutate(), searchResults.mutate()])
+    })
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 pb-28 md:gap-6 md:pb-10">
       {section === 'overview' ? <section className="relative hidden overflow-hidden rounded-lg border-2 border-foreground bg-foreground px-5 py-6 text-primary-foreground shadow-brutal sm:block sm:px-7 sm:py-8">
@@ -239,7 +249,7 @@ export function CombatView() {
       {section === 'overview' ? <div className="grid gap-5"><MatchSection onQuickDuel={() => void createMatch('sprint')} onCreate={() => setCreateOpen(true)} onJoin={() => setJoinOpen(true)} onChallenge={() => setSection('circle')} busy={busy} /><HistorySection history={history.data ?? []} loading={history.isLoading} userId={user?.id} onOpen={(match) => router.push(`/combat/${match.id}`)} /></div> : null}
       {section === 'match' ? <MatchSection onQuickDuel={() => void createMatch('sprint')} onCreate={() => setCreateOpen(true)} onJoin={() => setJoinOpen(true)} onChallenge={() => setSection('circle')} busy={busy} /> : null}
 
-      {section === 'friends' ? <SearchSection search={search} setSearch={setSearch} searchResults={searchResults.data ?? []} busy={busy} onAddFriend={(profile) => void addFriend(profile)} onRespondRequest={(id, response) => void respondToRequest(id, response)} /> : null}
+      {section === 'friends' ? <SearchSection search={search} setSearch={setSearch} searchResults={searchResults.data ?? []} busy={busy} onAddFriend={(profile) => void addFriend(profile)} onRemoveFriend={(profile) => void removeFriend(profile)} onRespondRequest={(id, response) => void respondToRequest(id, response)} /> : null}
       {section === 'circle' ? <CircleSection invites={invites.data ?? []} invitesLoading={invites.isLoading} friends={friends.data ?? []} requests={requests.data} busy={busy} onRespondInvite={(invite, response) => void respondToInvite(invite, response)} onRespondRequest={(id, response) => void respondToRequest(id, response)} onChallenge={(friend) => void challengeFriend(friend)} /> : null}
 
       <Modal className="max-h-[88svh] max-w-[min(92vw,30rem)] overflow-y-auto" open={createOpen} onClose={() => { setCreateOpen(false); setFriendToChallenge(null) }} title={friendToChallenge ? `Challenge ${friendToChallenge.other_user.display_name}` : 'Create a private match'} description={friendToChallenge ? 'Choose the rules together. They must accept the exact stake before joining.' : 'Pick the rules and question source before you enter the room.'} footer={<><Button variant="ghost" size="sm" onClick={() => { setCreateOpen(false); setFriendToChallenge(null) }}>Cancel</Button><Button size="sm" onClick={() => void createMatch(preset, wagerXp, friendToChallenge?.other_user.id)} loading={busy === 'create'} disabled={questionSource.mode === 'book' && !bookId || questionSource.mode === 'letter' && !letter}>{friendToChallenge ? 'Send challenge' : 'Create match'} <ArrowRight className="size-4" aria-hidden /></Button></>}>
@@ -291,7 +301,7 @@ function InviteRow({ invite, busy, onRespond }: { invite: CombatInvite; busy: bo
   return <div className="flex flex-col gap-3 rounded-md border-2 border-foreground/15 bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"><div className="flex min-w-0 items-center gap-3"><Avatar name={invite.sender.display_name} avatarId={invite.sender.avatar_id} avatarUrl={invite.sender.avatar_url} size="sm" /><div className="min-w-0"><p className="truncate text-sm font-bold">{invite.sender.display_name} challenged you</p><p className="text-xs text-muted-foreground">{invite.match?.question_count ?? 5} questions · private Sprint{invite.match?.wager_xp ? ` · ${invite.match.wager_xp} XP stake each` : ' · no stake'}</p></div></div><div className="flex gap-2 sm:shrink-0"><Button variant="ghost" size="sm" onClick={() => onRespond('declined')} disabled={busy}>Decline</Button><Button variant="accent" size="sm" onClick={() => onRespond('accepted')} loading={busy}>Accept <ArrowRight className="size-3.5" aria-hidden /></Button></div></div>
 }
 
-function SearchSection({ search, setSearch, searchResults, busy, onAddFriend, onRespondRequest }: { search: string; setSearch: (value: string) => void; searchResults: SocialProfile[]; busy: string | null; onAddFriend: (profile: SocialProfile) => void; onRespondRequest: (id: string, response: 'accepted' | 'declined' | 'cancelled') => void }) {
+function SearchSection({ search, setSearch, searchResults, busy, onAddFriend, onRemoveFriend, onRespondRequest }: { search: string; setSearch: (value: string) => void; searchResults: SocialProfile[]; busy: string | null; onAddFriend: (profile: SocialProfile) => void; onRemoveFriend: (profile: SocialProfile) => void; onRespondRequest: (id: string, response: 'accepted' | 'declined' | 'cancelled') => void }) {
   return <Card>
     <CardHeader>
       <CardTitle className="flex items-center gap-2"><Search className="size-5 text-coral" aria-hidden /> Find learners</CardTitle>
@@ -299,7 +309,7 @@ function SearchSection({ search, setSearch, searchResults, busy, onAddFriend, on
       <div className="relative mt-3"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden /><Input value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="Search a name" aria-label="Search learners" /></div>
     </CardHeader>
     <CardContent>{search.trim().length < 2 ? <EmptyPanel icon={UserPlus} title="Find your next rival" detail="Type at least two letters to discover a learner." /> : searchResults.length ? <div className="grid gap-2">{searchResults.map((profile) => <div key={profile.id} className="flex min-w-0 items-center gap-3 rounded-md border-2 border-foreground/10 p-3">
-      <Avatar name={profile.display_name} avatarId={profile.avatar_id} avatarUrl={profile.avatar_url} size="sm" /><div className="flex min-w-0 flex-1 items-center gap-2"><Link href={`/profile/${profile.id}`} className="min-w-0 flex-1 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-foreground"><span className="block truncate text-sm font-bold">{profile.display_name}</span><span className="block text-xs text-muted-foreground">{presenceLabel(profile)}</span></Link><RelationshipButton profile={profile} busy={busy} onAddFriend={onAddFriend} onRespondRequest={onRespondRequest} /></div>
+      <Avatar name={profile.display_name} avatarId={profile.avatar_id} avatarUrl={profile.avatar_url} size="sm" /><div className="flex min-w-0 flex-1 items-center gap-2"><Link href={`/profile/${profile.id}`} className="min-w-0 flex-1 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-foreground"><span className="block truncate text-sm font-bold">{profile.display_name}</span><span className="block text-xs text-muted-foreground">{presenceLabel(profile)}</span></Link><RelationshipButton profile={profile} busy={busy} onAddFriend={onAddFriend} onRemoveFriend={onRemoveFriend} onRespondRequest={onRespondRequest} /></div>
     </div>)}</div> : <EmptyPanel icon={Search} title="No learners found" detail="Try a different display name." />}</CardContent>
   </Card>
 }
@@ -321,12 +331,18 @@ function CircleSection({ invites, invitesLoading, friends, requests, busy, onRes
   </div>
 }
 
-function RelationshipButton({ profile, busy, onAddFriend, onRespondRequest }: { profile: SocialProfile; busy: string | null; onAddFriend: (profile: SocialProfile) => void; onRespondRequest: (id: string, response: 'accepted' | 'declined' | 'cancelled') => void }) {
+function RelationshipButton({ profile, busy, onAddFriend, onRemoveFriend, onRespondRequest }: { profile: SocialProfile; busy: string | null; onAddFriend: (profile: SocialProfile) => void; onRemoveFriend: (profile: SocialProfile) => void; onRespondRequest: (id: string, response: 'accepted' | 'declined' | 'cancelled') => void }) {
+  const [confirmOpen, setConfirmOpen] = React.useState(false)
   const relationship = profile.relationship ?? 'none'
   const relationshipId = profile.relationship_id ?? null
   if (relationship === 'blocked') return <Button variant="ghost" size="sm" disabled>Unavailable</Button>
   const compactClass = 'size-8 shrink-0 rounded-full p-0 sm:h-8 sm:w-auto sm:rounded-md sm:px-2.5'
-  if (relationship === 'friends') return <Button variant="outline" size="sm" className={compactClass} disabled aria-label={`Friends with ${profile.display_name}`}><UserCheck className="size-3.5" aria-hidden /><span className="hidden sm:inline">Friends</span></Button>
+  if (relationship === 'friends') return <>
+    <Button variant="outline" size="sm" className={compactClass} aria-label={`Unfriend ${profile.display_name}`} onClick={() => setConfirmOpen(true)} loading={busy === `remove-${profile.id}`} disabled={!relationshipId || busy === `remove-${profile.id}`}><UserMinus className="size-3.5" aria-hidden /><span className="hidden sm:inline">Unfriend</span></Button>
+    <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title={`Unfriend ${profile.display_name}?`} description="They will be removed from your friends list. You can send a new request later." footer={<><Button variant="ghost" size="sm" onClick={() => setConfirmOpen(false)}>Keep friend</Button><Button variant="coral" size="sm" onClick={() => { setConfirmOpen(false); onRemoveFriend(profile) }} loading={busy === `remove-${profile.id}`}>Unfriend <UserMinus className="size-3.5" aria-hidden /></Button></>}>
+      <p className="text-sm text-muted-foreground">This only removes the friendship. It does not block the learner or affect your Combat history.</p>
+    </Modal>
+  </>
   if (relationship === 'incoming_pending') return <Button variant="accent" size="sm" className={compactClass} aria-label={`Accept ${profile.display_name}'s friend request`} onClick={() => { if (relationshipId) onRespondRequest(relationshipId, 'accepted') }} loading={busy === `request-${relationshipId}`} disabled={!relationshipId}><UserCheck className="size-3.5" aria-hidden /><span className="hidden sm:inline">Accept</span></Button>
   if (relationship === 'outgoing_pending') return <Button variant="outline" size="sm" className={compactClass} aria-label={`Cancel friend request to ${profile.display_name}`} onClick={() => { if (relationshipId) onRespondRequest(relationshipId, 'cancelled') }} loading={busy === `request-${relationshipId}`} disabled={!relationshipId}><Clock3 className="size-3.5" aria-hidden /><span className="hidden sm:inline">Cancel</span></Button>
   return <Button variant="outline" size="sm" className={compactClass} aria-label={`Add ${profile.display_name} as a friend`} onClick={() => onAddFriend(profile)} loading={busy === `add-${profile.id}`}><UserPlus className="size-3.5" aria-hidden /><span className="hidden sm:inline">Add</span></Button>

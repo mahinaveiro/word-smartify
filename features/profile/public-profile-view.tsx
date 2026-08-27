@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, Award, BarChart3, BookOpen, Clock3, ExternalLink, Flame, Loader2, Medal, MessageCircle, Send, Target, Trophy, UserCheck, UserPlus } from 'lucide-react'
+import { ArrowLeft, Award, BarChart3, BookOpen, Clock3, ExternalLink, Flame, Loader2, Medal, MessageCircle, Send, Target, Trophy, UserCheck, UserMinus, UserPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Modal } from '@/components/ui/modal'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { PageHeader } from '@/components/ui/page-header'
@@ -23,6 +24,7 @@ export function PublicProfileView({ userId }: { userId: string }) {
   const { data: books } = useBooks()
   const [relationshipBusy, setRelationshipBusy] = useState(false)
   const [relationshipError, setRelationshipError] = useState<string | null>(null)
+  const [unfriendOpen, setUnfriendOpen] = useState(false)
 
   const handleRelationshipAction = async () => {
     if (!profile || profile.id === user?.id || relationshipBusy) return
@@ -40,6 +42,21 @@ export function PublicProfileView({ userId }: { userId: string }) {
       await mutate()
     } catch (actionError) {
       setRelationshipError(actionError instanceof Error ? actionError.message : 'Friend action could not be completed.')
+    } finally {
+      setRelationshipBusy(false)
+    }
+  }
+
+  const handleUnfriend = async () => {
+    if (!profile || profile.id === user?.id || profile.relationship !== 'friends' || !profile.relationship_id || relationshipBusy) return
+    setRelationshipBusy(true)
+    setRelationshipError(null)
+    try {
+      await postSocial({ action: 'remove_friend', friendshipId: profile.relationship_id })
+      setUnfriendOpen(false)
+      await mutate()
+    } catch (actionError) {
+      setRelationshipError(actionError instanceof Error ? actionError.message : 'Unfriend action could not be completed.')
     } finally {
       setRelationshipBusy(false)
     }
@@ -88,7 +105,7 @@ export function PublicProfileView({ userId }: { userId: string }) {
           <div className="min-w-0">
             <h2 className="flex items-center justify-center gap-2 font-heading text-2xl font-bold sm:justify-start">
               <span className="min-w-0 truncate"><OwnerDisplayName userId={profile.id} name={profile.display_name} badges={profile.badges} /></span>
-              {user && user.id !== profile.id && profile.relationship !== 'blocked' ? profile.relationship === 'friends' ? <Button variant="outline" size="sm" className="size-8 shrink-0 rounded-full p-0 sm:h-9 sm:w-auto sm:rounded-md sm:px-2.5" disabled aria-label={`Friends with ${profile.display_name}`}><UserCheck className="size-4" aria-hidden /><span className="hidden sm:inline">Friends</span></Button> : <Button variant={profile.relationship === 'incoming_pending' ? 'accent' : 'outline'} size="sm" className="size-8 shrink-0 rounded-full p-0 sm:h-9 sm:w-auto sm:rounded-md sm:px-2.5" onClick={() => void handleRelationshipAction()} disabled={relationshipBusy || (profile.relationship !== 'none' && !profile.relationship_id)} aria-label={profile.relationship === 'incoming_pending' ? `Accept ${profile.display_name}'s friend request` : profile.relationship === 'outgoing_pending' ? `Cancel friend request to ${profile.display_name}` : `Add ${profile.display_name} as a friend`}>{relationshipBusy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : profile.relationship === 'incoming_pending' ? <UserCheck className="size-4" aria-hidden /> : profile.relationship === 'outgoing_pending' ? <Clock3 className="size-4" aria-hidden /> : <UserPlus className="size-4" aria-hidden />}<span className="hidden sm:inline">{profile.relationship === 'incoming_pending' ? 'Accept request' : profile.relationship === 'outgoing_pending' ? 'Cancel request' : 'Add friend'}</span></Button> : null}
+              {user && user.id !== profile.id && profile.relationship !== 'blocked' ? profile.relationship === 'friends' ? <Button variant="outline" size="sm" className="size-8 shrink-0 rounded-full p-0 sm:h-9 sm:w-auto sm:rounded-md sm:px-2.5" onClick={() => setUnfriendOpen(true)} disabled={relationshipBusy || !profile.relationship_id} aria-label={`Unfriend ${profile.display_name}`}><UserMinus className="size-4" aria-hidden /><span className="hidden sm:inline">Unfriend</span></Button> : <Button variant={profile.relationship === 'incoming_pending' ? 'accent' : 'outline'} size="sm" className="size-8 shrink-0 rounded-full p-0 sm:h-9 sm:w-auto sm:rounded-md sm:px-2.5" onClick={() => void handleRelationshipAction()} disabled={relationshipBusy || (profile.relationship !== 'none' && !profile.relationship_id)} aria-label={profile.relationship === 'incoming_pending' ? `Accept ${profile.display_name}'s friend request` : profile.relationship === 'outgoing_pending' ? `Cancel friend request to ${profile.display_name}` : `Add ${profile.display_name} as a friend`}>{relationshipBusy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : profile.relationship === 'incoming_pending' ? <UserCheck className="size-4" aria-hidden /> : profile.relationship === 'outgoing_pending' ? <Clock3 className="size-4" aria-hidden /> : <UserPlus className="size-4" aria-hidden />}<span className="hidden sm:inline">{profile.relationship === 'incoming_pending' ? 'Accept request' : profile.relationship === 'outgoing_pending' ? 'Cancel request' : 'Add friend'}</span></Button> : null}
             </h2>
             <div className="mt-2 flex flex-wrap justify-center gap-2 sm:justify-start">
               <span className="inline-flex items-center gap-1 rounded-md border-2 border-foreground bg-coral px-2.5 py-1 text-sm font-heading font-bold text-coral-foreground">
@@ -107,6 +124,10 @@ export function PublicProfileView({ userId }: { userId: string }) {
           </div>
         </CardContent>
       </Card>
+
+      <Modal open={unfriendOpen} onClose={() => setUnfriendOpen(false)} title={`Unfriend ${profile.display_name}?`} description="They will be removed from your friends list. You can send a new request later." footer={<><Button variant="ghost" size="sm" onClick={() => setUnfriendOpen(false)}>Keep friend</Button><Button variant="coral" size="sm" onClick={() => void handleUnfriend()} loading={relationshipBusy}>Unfriend <UserMinus className="size-3.5" aria-hidden /></Button></>}>
+        <p className="text-sm text-muted-foreground">This only removes the friendship. It does not block the learner or affect your Combat history.</p>
+      </Modal>
 
       {isOwnerUserId(profile.id) ? <StudyGcCommunityCard /> : null}
 
