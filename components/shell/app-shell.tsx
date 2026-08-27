@@ -98,7 +98,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="grid size-8 shrink-0 place-items-center rounded-full bg-coral/15 text-coral-foreground" aria-hidden>{leaveReminder.seconds}</span>
               <Link href={`/combat/${leaveReminder.matchId}`} className="min-w-0 flex-1 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-foreground">
                 <span className="block text-xs font-bold">Resume your Combat match</span>
-                <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">Return within {leaveReminder.seconds}s or the match may be forfeited.</span>
+                <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">Resume within {leaveReminder.seconds}s. Use × to end the match explicitly.</span>
               </Link>
               <button type="button" onClick={() => void forfeitMatch()} disabled={forfeiting} className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-coral/15 hover:text-coral-foreground disabled:opacity-60" aria-label="Forfeit and end Combat match" title="Forfeit and end match">
                 <span aria-hidden>{forfeiting ? '…' : '×'}</span>
