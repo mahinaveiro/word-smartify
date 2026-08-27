@@ -309,7 +309,7 @@ export class SupabaseCombatRepository implements CombatRepository {
         .eq('id', invite.id)
         .eq('status', 'pending')
       if (expiredInvite.error) throw new Error(expiredInvite.error.message)
-      if (matchExpired && match && match.wager_xp > 0 && !['settled', 'refunded'].includes(match.wager_status)) {
+      if (matchExpired && match) {
         const expiredMatch = await this.client
           .from('combat_matches')
           .update({ status: 'expired', updated_at: nowIso })
@@ -318,7 +318,7 @@ export class SupabaseCombatRepository implements CombatRepository {
           .select('id')
           .maybeSingle()
         if (expiredMatch.error) throw new Error(expiredMatch.error.message)
-        if (expiredMatch.data) await this.settleWager(match.id, null)
+        if (expiredMatch.data && match.wager_xp > 0 && !['settled', 'refunded'].includes(match.wager_status)) await this.settleWager(match.id, null)
       }
     }
     const profiles = await this.profilesFor(activeRows.map(({ invite }) => invite.sender_id))
@@ -371,9 +371,16 @@ export class SupabaseCombatRepository implements CombatRepository {
     if (matchResult.error) throw new Error(matchResult.error.message)
     if (!matchResult.data || matchResult.data.status !== 'waiting' || matchResult.data.opponent_id || new Date(matchResult.data.expires_at).getTime() <= Date.now()) {
       await this.client.from('combat_match_invites').update({ status: 'expired', responded_at: new Date().toISOString() }).eq('id', inviteId).eq('status', 'pending')
-      if (matchResult.data?.wager_xp && !['settled', 'refunded'].includes(matchResult.data.wager_status)) {
-        await this.client.from('combat_matches').update({ status: 'expired', updated_at: new Date().toISOString() }).eq('id', matchResult.data.id).eq('status', 'waiting')
-        await this.settleWager(matchResult.data.id, null)
+      if (matchResult.data?.status === 'waiting') {
+        const expiredMatch = await this.client
+          .from('combat_matches')
+          .update({ status: 'expired', updated_at: new Date().toISOString() })
+          .eq('id', matchResult.data.id)
+          .eq('status', 'waiting')
+          .select('id')
+          .maybeSingle()
+        if (expiredMatch.error) throw new Error(expiredMatch.error.message)
+        if (expiredMatch.data && matchResult.data.wager_xp > 0 && !['settled', 'refunded'].includes(matchResult.data.wager_status)) await this.settleWager(matchResult.data.id, null)
       }
       throw new Error('This challenge has expired.')
     }
