@@ -124,8 +124,7 @@ export function CombatView() {
 
   React.useEffect(() => {
     if (!user) return
-    void postSocial({ action: 'presence', state: 'in_combat' }).catch(() => undefined)
-    return () => { void postSocial({ action: 'presence', state: 'online' }).catch(() => undefined) }
+    void postSocial({ action: 'presence', state: 'online' }).catch(() => undefined)
   }, [user])
 
   const refreshSocial = async () => {

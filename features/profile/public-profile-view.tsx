@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Award, BarChart3, BookOpen, Clock3, ExternalLink, Flame, Loader2, Medal, MessageCircle, Send, Target, Trophy, UserCheck, UserMinus, UserPlus } from 'lucide-react'
+import { ArrowLeft, Award, BarChart3, BookOpen, Clock3, ExternalLink, Flame, Loader2, Medal, MessageCircle, Send, ShieldAlert, Target, Trophy, UserCheck, UserMinus, UserPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -128,13 +128,15 @@ export function PublicProfileView({ userId }: { userId: string }) {
                 </span>
               ) : null}
             </div>
-            {relationshipError ? <p className="mt-2 max-w-xs text-xs font-semibold text-destructive" role="alert">{relationshipError}</p> : null}
           </div>
         </CardContent>
       </Card>
 
       <Modal open={unfriendOpen} onClose={() => setUnfriendOpen(false)} title={`Unfriend ${profile.display_name}?`} description="They will be removed from your friends list. You can send a new request later." footer={<><Button variant="ghost" size="sm" onClick={() => setUnfriendOpen(false)}>Keep friend</Button><Button variant="coral" size="sm" onClick={() => void handleUnfriend()} loading={relationshipBusy}>Unfriend <UserMinus className="size-3.5" aria-hidden /></Button></>}>
         <p className="text-sm text-muted-foreground">This only removes the friendship. It does not block the learner or affect your Combat history.</p>
+      </Modal>
+      <Modal open={Boolean(relationshipError)} onClose={() => setRelationshipError(null)} title="Friend action could not be completed" className="max-w-sm">
+        <div role="alert" className="flex items-start gap-3 rounded-md border-2 border-destructive bg-destructive/10 p-3 text-sm font-semibold text-destructive"><ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden /><p>{relationshipError}</p></div>
       </Modal>
 
       {isOwnerUserId(profile.id) ? <StudyGcCommunityCard /> : null}

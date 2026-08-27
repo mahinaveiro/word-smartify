@@ -41,8 +41,9 @@ export async function GET(request: Request) {
     if (url.searchParams.get('view') === 'invites') return NextResponse.json(await repos.combat.getInvites(user.id))
     if (url.searchParams.get('view') === 'question') {
       const matchId = uuid(url.searchParams.get('matchId'), 'matchId')
-      const positionValue = Number(url.searchParams.get('position'))
-      const position = integer(positionValue, 'position', 0, 20)
+      const rawPosition = url.searchParams.get('position')
+      if (rawPosition === null || rawPosition.trim().length === 0) throw new Error('A question position is required.')
+      const position = integer(Number(rawPosition), 'position', 0, 20)
       return NextResponse.json(await repos.combat.getQuestion(user.id, matchId, position))
     }
     if (url.searchParams.get('view') === 'result') {
@@ -56,7 +57,11 @@ export async function GET(request: Request) {
     const matchId = url.searchParams.get('matchId')
     const code = url.searchParams.get('code')
     if (matchId) return NextResponse.json(await repos.combat.getMatch(uuid(matchId, 'matchId'), user.id))
-    if (code) return NextResponse.json(await repos.combat.getMatchByCode(code, user.id))
+    if (code !== null) {
+      const normalizedCode = stringValue(code, 'code', 6).toUpperCase()
+      if (!/^[A-Z0-9]{6}$/.test(normalizedCode)) throw new Error('Invalid match code.')
+      return NextResponse.json(await repos.combat.getMatchByCode(normalizedCode, user.id))
+    }
     throw new Error('A match or view is required.')
   } catch (error) {
     const message = error instanceof Error ? error.message : 'The Combat request could not be completed.'
@@ -102,8 +107,11 @@ export async function POST(request: Request) {
         return NextResponse.json(await repos.combat.joinMatch(user.id, stringValue(parsed.joinCode, 'joinCode', 20)))
       case 'invite_friend':
         return NextResponse.json(await repos.combat.inviteFriend(user.id, uuid(parsed.matchId, 'matchId'), uuid(parsed.recipientId, 'recipientId')))
-      case 'respond_invite':
-        return NextResponse.json(await repos.combat.respondToInvite(user.id, uuid(parsed.inviteId, 'inviteId'), parsed.response === 'accepted' ? 'accepted' : 'declined'))
+      case 'respond_invite': {
+        const response = stringValue(parsed.response, 'response', 20)
+        if (!['accepted', 'declined'].includes(response)) throw new Error('Invalid invitation response.')
+        return NextResponse.json(await repos.combat.respondToInvite(user.id, uuid(parsed.inviteId, 'inviteId'), response as 'accepted' | 'declined'))
+      }
       case 'ready':
         return NextResponse.json(await repos.combat.setReady(user.id, uuid(parsed.matchId, 'matchId'), parsed.ready === true))
       case 'start':
@@ -132,14 +140,17 @@ export async function POST(request: Request) {
       case 'cancel':
         await repos.combat.cancelMatch(user.id, uuid(parsed.matchId, 'matchId'))
         return NextResponse.json({ ok: true })
-      case 'report':
+      case 'report': {
+        const reason = stringValue(parsed.reason, 'reason', 30)
+        if (!['question', 'connection', 'cheating', 'harassment', 'other'].includes(reason)) throw new Error('Invalid report reason.')
         await repos.combat.reportMatch(
           user.id,
           uuid(parsed.matchId, 'matchId'),
-          stringValue(parsed.reason, 'reason', 30) as 'question' | 'connection' | 'cheating' | 'harassment' | 'other',
+          reason as 'question' | 'connection' | 'cheating' | 'harassment' | 'other',
           typeof parsed.note === 'string' ? parsed.note : undefined,
         )
         return NextResponse.json({ ok: true })
+      }
       default:
         throw new Error('Unknown Combat action.')
     }

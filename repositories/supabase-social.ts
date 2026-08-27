@@ -237,7 +237,10 @@ export class SupabaseSocialRepository implements SocialRepository {
       .update({ status: response, responded_at: new Date().toISOString() })
       .eq('id', friendshipId)
       .eq('status', 'pending')
+      .select('id')
+      .maybeSingle()
     if (result.error) throw new Error(result.error.message)
+    if (!result.data) throw new Error('This friend request is no longer active.')
   }
 
   async removeFriend(userId: UUID, friendshipId: UUID): Promise<void> {
@@ -247,7 +250,10 @@ export class SupabaseSocialRepository implements SocialRepository {
       .eq('id', friendshipId)
       .eq('status', 'accepted')
       .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)
+      .select('id')
+      .maybeSingle()
     if (result.error) throw new Error(result.error.message)
+    if (!result.data) throw new Error('This friendship is no longer active.')
   }
 
   async blockUser(userId: UUID, otherUserId: UUID): Promise<void> {
