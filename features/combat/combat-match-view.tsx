@@ -316,16 +316,29 @@ export function CombatMatchView({ matchId }: { matchId: string }) {
   if (!currentMatch) return <div className="mx-auto max-w-md py-12"><Card><CardContent className="p-6 text-center"><XCircle className="mx-auto size-8 text-destructive" aria-hidden /><h1 className="mt-3 font-heading text-xl font-bold">Match unavailable</h1><p className="mt-2 text-sm text-muted-foreground">This room may have expired or you may no longer be a participant.</p><Button className="mt-5" onClick={() => router.push('/combat')}>Back to Combat</Button></CardContent></Card></div>
 
   const rematch = () => void run('rematch', async () => {
-    const rematchMatch = await postCombat<CombatMatch>({
-      action: 'create',
-      preset: currentMatch.preset,
-      questionCount: currentMatch.question_count,
-      timeLimitSeconds: 15,
-      wagerXp: currentMatch.wager_xp,
-      questionSource: currentMatch.question_source,
-    })
-    const opponentId = currentMatch.players.find((player) => player.user_id !== user?.id)?.user_id
-    if (opponentId) await postCombat({ action: 'invite_friend', matchId: rematchMatch.id, recipientId: opponentId })
+    let rematchMatch: CombatMatch | null = null
+    try {
+      rematchMatch = await postCombat<CombatMatch>({
+        action: 'create',
+        preset: currentMatch.preset,
+        questionCount: currentMatch.question_count,
+        timeLimitSeconds: 15,
+        wagerXp: currentMatch.wager_xp,
+        questionSource: currentMatch.question_source,
+      })
+      const opponentId = currentMatch.players.find((player) => player.user_id !== user?.id)?.user_id
+      if (opponentId) await postCombat({ action: 'invite_friend', matchId: rematchMatch.id, recipientId: opponentId })
+    } catch (actionError) {
+      if (rematchMatch) {
+        try {
+          await postCombat({ action: 'cancel', matchId: rematchMatch.id })
+        } catch {
+          throw new Error('The rematch could not be sent and its waiting room could not be closed. Open Combat history and cancel that room.')
+        }
+      }
+      throw actionError
+    }
+    if (!rematchMatch) throw new Error('The rematch could not be created.')
     router.push(`/combat/${rematchMatch.id}`)
   })
 

@@ -372,9 +372,9 @@ export class SupabaseCombatRepository implements CombatRepository {
     if (result.error) throw new Error(result.error.message)
     const matchRow = result.data as MatchRow | null
     if (!matchRow) throw new Error('The invitation could not be processed.')
+    if (response === 'declined') return null
     if (matchRow.status === 'expired') throw new Error('This challenge has expired.')
     if (matchRow.status !== 'waiting') throw new Error('This challenge is no longer active.')
-    if (response === 'declined') return null
     return this.hydrateMatch(matchRow)
   }
 

@@ -113,7 +113,8 @@ export async function POST(request: Request) {
         return NextResponse.json(await repos.combat.respondToInvite(user.id, uuid(parsed.inviteId, 'inviteId'), response as 'accepted' | 'declined'))
       }
       case 'ready':
-        return NextResponse.json(await repos.combat.setReady(user.id, uuid(parsed.matchId, 'matchId'), parsed.ready === true))
+        if (typeof parsed.ready !== 'boolean') throw new Error('Invalid ready state.')
+        return NextResponse.json(await repos.combat.setReady(user.id, uuid(parsed.matchId, 'matchId'), parsed.ready))
       case 'start':
         return NextResponse.json(await repos.combat.startMatch(user.id, uuid(parsed.matchId, 'matchId')))
       case 'answer': {

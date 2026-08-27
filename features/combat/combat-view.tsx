@@ -173,15 +173,28 @@ export function CombatView() {
           ? { mode: 'letter', ...(letter ? { letter: letter.toLowerCase().slice(0, 1) } : {}) }
           : { mode: questionSource.mode }
     await run('create', async () => {
-      const match = await postCombat<CombatMatch>({
-        action: 'create',
-        preset: selectedPreset,
-        questionCount: selectedPreset === 'custom' ? customQuestions : selectedPreset === 'standard' ? 10 : 5,
-        timeLimitSeconds: 15,
-        wagerXp: selectedWager,
-        questionSource: source,
-      })
-      if (recipientId) await postCombat({ action: 'invite_friend', matchId: match.id, recipientId })
+      let match: CombatMatch | null = null
+      try {
+        match = await postCombat<CombatMatch>({
+          action: 'create',
+          preset: selectedPreset,
+          questionCount: selectedPreset === 'custom' ? customQuestions : selectedPreset === 'standard' ? 10 : 5,
+          timeLimitSeconds: 15,
+          wagerXp: selectedWager,
+          questionSource: source,
+        })
+        if (recipientId) await postCombat({ action: 'invite_friend', matchId: match.id, recipientId })
+      } catch (actionError) {
+        if (recipientId && match) {
+          try {
+            await postCombat({ action: 'cancel', matchId: match.id })
+          } catch {
+            throw new Error('The challenge could not be sent and its waiting room could not be closed. Open Combat history and cancel that room.')
+          }
+        }
+        throw actionError
+      }
+      if (!match) throw new Error('The match could not be created.')
       setCreateOpen(false)
       setFriendToChallenge(null)
       router.push(`/combat/${match.id}`)
