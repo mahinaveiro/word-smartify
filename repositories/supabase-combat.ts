@@ -472,23 +472,14 @@ export class SupabaseCombatRepository implements CombatRepository {
   }
 
   async setReady(userId: UUID, matchId: UUID, ready: boolean): Promise<CombatMatch> {
-    const match = await this.assertParticipant(matchId, userId)
-    if (!isActiveStatus(match.status) || !match.opponent_id) throw new Error('This match is not ready for play.')
-    if (match.wager_xp > 0 && match.wager_status !== 'reserved') throw new Error('Both XP stakes must be reserved before readiness can be confirmed.')
-    const result = await this.client
-      .from('combat_match_players')
-      .update({ is_ready: ready, last_seen_at: new Date().toISOString() })
-      .eq('match_id', matchId)
-      .eq('user_id', userId)
+    const result = await this.client.rpc('set_combat_ready', {
+      p_match_id: matchId,
+      p_user_id: userId,
+      p_ready: ready,
+    })
     if (result.error) throw new Error(result.error.message)
-    const players = await this.client.from('combat_match_players').select('is_ready').eq('match_id', matchId)
-    if (players.error) throw new Error(players.error.message)
-    const bothReady = (players.data ?? []).length === 2 && (players.data ?? []).every((player) => player.is_ready)
-    const nextStatus = bothReady ? 'ready' : 'waiting'
-    await this.client.from('combat_matches').update({ status: nextStatus, updated_at: new Date().toISOString() }).eq('id', matchId).in('status', ['waiting', 'ready'])
-    const fresh = await this.client.from('combat_matches').select('*').eq('id', matchId).single()
-    if (fresh.error) throw new Error(fresh.error.message)
-    return this.hydrateMatch(fresh.data)
+    if (!result.data) throw new Error('The readiness change could not be synchronized.')
+    return this.hydrateMatch(result.data as MatchRow)
   }
 
   async startMatch(userId: UUID, matchId: UUID): Promise<CombatMatch> {
@@ -551,8 +542,7 @@ export class SupabaseCombatRepository implements CombatRepository {
     if (match.status === 'active' && match.current_question_index + 1 < questionCount) return null
     const first = scoreByUser.get(playerRows[0].user_id) as { correct: number; answered: number; total: number }
     const second = scoreByUser.get(playerRows[1].user_id) as { correct: number; answered: number; total: number }
-    const calculatedWinnerId = first.correct === second.correct ? (first.total === second.total ? null : first.total < second.total ? playerRows[0].user_id : playerRows[1].user_id) : first.correct > second.correct ? playerRows[0].user_id : playerRows[1].user_id
-    const winnerId = match.winner_id ?? calculatedWinnerId
+    const winnerId = match.winner_id
     const status = winnerId ? 'completed' : 'draw'
     let finalData = match
     if (finalize) {
@@ -677,12 +667,9 @@ export class SupabaseCombatRepository implements CombatRepository {
   }
 
   async cancelMatch(userId: UUID, matchId: UUID): Promise<void> {
-    const match = await this.assertParticipant(matchId, userId)
-    if (match.host_id !== userId) throw new Error('Only the match host can cancel this lobby.')
-    if (!['waiting', 'ready'].includes(match.status)) throw new Error('This match can no longer be cancelled.')
-    const result = await this.client.from('combat_matches').update({ status: 'cancelled', cancelled_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', matchId).in('status', ['waiting', 'ready'])
+    const result = await this.client.rpc('cancel_combat_match', { p_match_id: matchId, p_user_id: userId })
     if (result.error) throw new Error(result.error.message)
-    if (match.wager_xp > 0) await this.settleWager(matchId, null)
+    if (!result.data) throw new Error('The match cancellation could not be synchronized.')
   }
 
   async reportMatch(userId: UUID, matchId: UUID, reason: 'question' | 'connection' | 'cheating' | 'harassment' | 'other', note?: string): Promise<void> {

@@ -84,7 +84,7 @@ function statusLabel(match: CombatMatch): string {
 export function CombatView() {
   const router = useRouter()
   const { user } = useAuth()
-  const [section, setSection] = React.useState<'overview' | 'match' | 'friends' | 'circle'>('overview')
+  const [section, setSection] = React.useState<'overview' | 'friends' | 'circle'>('overview')
   const [createOpen, setCreateOpen] = React.useState(false)
   const [joinOpen, setJoinOpen] = React.useState(false)
   const [preset, setPreset] = React.useState<CombatPreset>('sprint')
@@ -121,6 +121,14 @@ export function CombatView() {
     const override = relationshipOverrides[profile.id]
     return override ? { ...profile, ...override } : profile
   })
+  const clearRelationshipOverride = (profileId: string) => {
+    setRelationshipOverrides((current) => {
+      if (!current[profileId]) return current
+      const next = { ...current }
+      delete next[profileId]
+      return next
+    })
+  }
 
   React.useEffect(() => {
     if (!user) return
@@ -214,6 +222,7 @@ export function CombatView() {
       await postSocial({ action: 'respond_request', friendshipId: id, response })
       if (affectedProfile) setRelationshipOverrides((current) => ({ ...current, [affectedProfile.id]: { relationship: response === 'accepted' ? 'friends' : 'none', relationship_id: response === 'accepted' ? id : null } }))
       await refreshSocial()
+      if (affectedProfile) clearRelationshipOverride(affectedProfile.id)
     })
   }
 
@@ -223,6 +232,7 @@ export function CombatView() {
       setRelationshipOverrides((current) => ({ ...current, [profile.id]: { relationship: 'outgoing_pending', relationship_id: friendship.id } }))
       setNotice(`Friend request sent to ${profile.display_name}.`)
       await Promise.all([friends.mutate(), requests.mutate(), searchResults.mutate()])
+      clearRelationshipOverride(profile.id)
     })
   }
 
@@ -233,6 +243,7 @@ export function CombatView() {
       setRelationshipOverrides((current) => ({ ...current, [profile.id]: { relationship: 'none', relationship_id: null } }))
       setNotice(`${profile.display_name} was removed from your friends.`)
       await Promise.all([friends.mutate(), requests.mutate(), searchResults.mutate()])
+      clearRelationshipOverride(profile.id)
     })
   }
 
@@ -266,15 +277,12 @@ export function CombatView() {
         <div className="flex min-w-max items-center gap-1 rounded-lg border-2 border-foreground/10 bg-muted/30 p-1">
           <TabButton active={section === 'overview'} onClick={() => setSection('overview')}>Overview</TabButton>
           <TabButton active={section === 'friends'} onClick={() => setSection('friends')} icon={Search}>Friends</TabButton>
-          <TabButton active={section === 'match'} onClick={() => setSection('match')} icon={Swords}>Match</TabButton>
           <TabButton active={section === 'circle'} onClick={() => setSection('circle')} badge={requests.data?.incoming.length ?? 0} icon={Users}>Circle</TabButton>
         </div>
       </div>
 
       {section === 'overview' ? <div className="grid gap-5"><MatchSection onQuickDuel={() => void createMatch('sprint')} onCreate={() => setCreateOpen(true)} onJoin={() => setJoinOpen(true)} onChallenge={() => setSection('circle')} busy={busy} /><HistorySection history={history.data ?? []} loading={history.isLoading} userId={user?.id} onOpen={(match) => router.push(`/combat/${match.id}`)} /></div> : null}
-      {section === 'match' ? <MatchSection onQuickDuel={() => void createMatch('sprint')} onCreate={() => setCreateOpen(true)} onJoin={() => setJoinOpen(true)} onChallenge={() => setSection('circle')} busy={busy} /> : null}
-
-      {section === 'friends' ? <SearchSection search={search} setSearch={setSearch} searchResults={visibleSearchResults} busy={busy} onAddFriend={(profile) => void addFriend(profile)} onRemoveFriend={(profile) => void removeFriend(profile)} onRespondRequest={(id, response) => void respondToRequest(id, response)} /> : null}
+      {section === 'friends' ? <SearchSection search={search} setSearch={setSearch} searchResults={visibleSearchResults} loading={searchResults.isLoading} busy={busy} onAddFriend={(profile) => void addFriend(profile)} onRemoveFriend={(profile) => void removeFriend(profile)} onRespondRequest={(id, response) => void respondToRequest(id, response)} /> : null}
       {section === 'circle' ? <CircleSection invites={invites.data ?? []} invitesLoading={invites.isLoading} friends={friends.data ?? []} requests={requests.data} busy={busy} onRespondInvite={(invite, response) => void respondToInvite(invite, response)} onRespondRequest={(id, response) => void respondToRequest(id, response)} onChallenge={(friend) => void challengeFriend(friend)} /> : null}
 
       <Modal className="max-h-[88svh] max-w-[min(92vw,30rem)] overflow-y-auto" open={createOpen} onClose={() => { setCreateOpen(false); setFriendToChallenge(null) }} title={friendToChallenge ? `Challenge ${friendToChallenge.other_user.display_name}` : 'Create a private match'} description={friendToChallenge ? 'Choose the rules together.' : 'Pick the rules and question source.'} footer={<><Button variant="ghost" size="sm" onClick={() => { setCreateOpen(false); setFriendToChallenge(null) }}>Cancel</Button><Button size="sm" onClick={() => void createMatch(preset, wagerXp, friendToChallenge?.other_user.id)} loading={busy === 'create'} disabled={!levelSourceValid || questionSource.mode === 'book' && !bookId || questionSource.mode === 'letter' && !letter}>{friendToChallenge ? 'Send challenge' : 'Create match'} <ArrowRight className="size-4" aria-hidden /></Button></>}>
@@ -287,7 +295,7 @@ export function CombatView() {
           {questionSource.mode === 'letter' ? <div className="rounded-md border-2 border-foreground/15 bg-muted/40 p-3"><Label htmlFor="combat-letter">Starting letter</Label><Input id="combat-letter" value={letter} maxLength={1} onChange={(event) => setLetter(event.target.value.replace(/[^a-z]/gi, '').slice(0, 1).toUpperCase())} placeholder="A" className="mt-1 uppercase" /></div> : null}
           {(Object.keys(PRESET_COPY) as CombatPreset[]).map((item) => <button key={item} type="button" onClick={() => setPreset(item)} className={cn('rounded-md border-2 border-foreground p-3 text-left transition-colors sm:p-4', preset === item ? 'bg-mint shadow-brutal-sm' : 'bg-card hover:bg-muted')}><div className="flex items-start justify-between gap-3"><div><p className="font-heading font-bold">{PRESET_COPY[item].title}</p><p className="mt-1 text-sm text-muted-foreground">{PRESET_COPY[item].detail}</p></div><span className="text-xs font-semibold text-muted-foreground">{PRESET_COPY[item].questions}</span></div></button>)}
           {preset === 'custom' ? <div className="rounded-md border-2 border-foreground/15 bg-muted/40 p-3"><Label htmlFor="combat-question-count">Questions</Label><Input id="combat-question-count" type="number" min={3} max={20} value={customQuestions} onChange={(event) => setCustomQuestions(Math.min(20, Math.max(3, Number(event.target.value) || 3)))} /></div> : null}
-          <div className="grid gap-2 rounded-md border-2 border-foreground/15 bg-muted/40 p-3"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Stake</p><div className="grid gap-2 sm:grid-cols-2"><button type="button" onClick={() => setWagerXp(0)} className={cn('rounded-md border-2 px-3 py-3 text-left', wagerXp === 0 ? 'border-foreground bg-card shadow-brutal-sm' : 'border-foreground/15 bg-background hover:bg-card')}><p className="text-sm font-bold">Practice match</p><p className="mt-1 text-xs text-muted-foreground">No XP at risk</p></button><button type="button" onClick={() => setWagerXp(100)} className={cn('rounded-md border-2 px-3 py-3 text-left', wagerXp === 100 ? 'border-foreground bg-mint/25 shadow-brutal-sm' : 'border-foreground/15 bg-background hover:bg-mint/10')}><p className="flex items-center gap-1.5 text-sm font-bold"><Coins className="size-4 text-coral" aria-hidden />100 XP wager</p><p className="mt-1 text-xs text-muted-foreground">Winner receives 200 XP</p></button></div><p className="text-xs leading-5 text-muted-foreground">The stake is reserved before play. Your opponent sees and accepts the exact amount before joining. A draw, cancellation, expiry, or protected no-contest refunds both players.</p></div>
+          <div className="grid gap-2 rounded-md border-2 border-foreground/15 bg-muted/40 p-3"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Stake</p><div className="grid gap-2 sm:grid-cols-2"><button type="button" onClick={() => setWagerXp(0)} className={cn('rounded-md border-2 px-3 py-3 text-left', wagerXp === 0 ? 'border-foreground bg-card shadow-brutal-sm' : 'border-foreground/15 bg-background hover:bg-card')}><p className="text-sm font-bold">Practice match</p><p className="mt-1 text-xs text-muted-foreground">No XP at risk</p></button><button type="button" onClick={() => setWagerXp(100)} className={cn('rounded-md border-2 px-3 py-3 text-left', wagerXp === 100 ? 'border-foreground bg-mint/25 shadow-brutal-sm' : 'border-foreground/15 bg-background hover:bg-mint/10')}><p className="flex items-center gap-1.5 text-sm font-bold"><Coins className="size-4 text-coral" aria-hidden />100 XP wager</p><p className="mt-1 text-xs text-muted-foreground">Winner receives 200 XP</p></button></div><p className="text-xs leading-5 text-muted-foreground">The stake is reserved before play. Your opponent sees and accepts the exact amount before joining. A draw, cancellation, expiry, or protected no-contest returns reserved stakes safely.</p></div>
         </div>
       </Modal>
 
@@ -326,14 +334,14 @@ function InviteRow({ invite, busy, onRespond }: { invite: CombatInvite; busy: bo
   return <div className="flex flex-col gap-3 rounded-md border-2 border-foreground/15 bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"><div className="flex min-w-0 items-center gap-3"><Avatar name={invite.sender.display_name} avatarId={invite.sender.avatar_id} avatarUrl={invite.sender.avatar_url} size="sm" /><div className="min-w-0"><p className="truncate text-sm font-bold">{invite.sender.display_name} challenged you</p><p className="text-xs text-muted-foreground">{invite.match?.question_count ?? 5} questions · private {presetLabel}{invite.match?.wager_xp ? ` · ${invite.match.wager_xp} XP stake each` : ' · no stake'}</p></div></div><div className="flex gap-2 sm:shrink-0"><Button variant="ghost" size="sm" onClick={() => onRespond('declined')} disabled={busy}>Decline</Button><Button variant="accent" size="sm" onClick={() => onRespond('accepted')} loading={busy}>Accept <ArrowRight className="size-3.5" aria-hidden /></Button></div></div>
 }
 
-function SearchSection({ search, setSearch, searchResults, busy, onAddFriend, onRemoveFriend, onRespondRequest }: { search: string; setSearch: (value: string) => void; searchResults: SocialProfile[]; busy: string | null; onAddFriend: (profile: SocialProfile) => void; onRemoveFriend: (profile: SocialProfile) => void; onRespondRequest: (id: string, response: 'accepted' | 'declined' | 'cancelled') => void }) {
+function SearchSection({ search, setSearch, searchResults, loading, busy, onAddFriend, onRemoveFriend, onRespondRequest }: { search: string; setSearch: (value: string) => void; searchResults: SocialProfile[]; loading: boolean; busy: string | null; onAddFriend: (profile: SocialProfile) => void; onRemoveFriend: (profile: SocialProfile) => void; onRespondRequest: (id: string, response: 'accepted' | 'declined' | 'cancelled') => void }) {
   return <Card>
     <CardHeader>
       <CardTitle className="flex items-center gap-2"><Search className="size-5 text-coral" aria-hidden /> Find learners</CardTitle>
       <CardDescription>Search by display name, then open a profile or manage the connection here.</CardDescription>
       <div className="relative mt-3"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden /><Input value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="Search a name" aria-label="Search learners" /></div>
     </CardHeader>
-    <CardContent>{search.trim().length < 2 ? <EmptyPanel icon={UserPlus} title="Find your next rival" detail="Type at least two letters to discover a learner." /> : searchResults.length ? <div className="grid gap-2">{searchResults.map((profile) => <div key={profile.id} className="flex min-w-0 items-center gap-3 rounded-md border-2 border-foreground/10 p-3">
+    <CardContent>{search.trim().length < 2 ? <EmptyPanel icon={UserPlus} title="Find your next rival" detail="Type at least two letters to discover a learner." /> : loading ? <LoadingLine /> : searchResults.length ? <div className="grid gap-2">{searchResults.map((profile) => <div key={profile.id} className="flex min-w-0 items-center gap-3 rounded-md border-2 border-foreground/10 p-3">
       <Avatar name={profile.display_name} avatarId={profile.avatar_id} avatarUrl={profile.avatar_url} size="sm" /><div className="flex min-w-0 flex-1 items-center gap-2"><Link href={`/profile/${profile.id}?from=combat`} className="min-w-0 flex-1 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-foreground"><span className="block truncate text-sm font-bold">{profile.display_name}</span><span className="block text-xs text-muted-foreground">{presenceLabel(profile)}</span></Link><RelationshipButton profile={profile} busy={busy} onAddFriend={onAddFriend} onRemoveFriend={onRemoveFriend} onRespondRequest={onRespondRequest} /></div>
     </div>)}</div> : <EmptyPanel icon={Search} title="No learners found" detail="Try a different display name." />}</CardContent>
   </Card>
