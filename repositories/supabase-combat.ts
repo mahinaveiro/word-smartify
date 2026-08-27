@@ -133,7 +133,7 @@ export class SupabaseCombatRepository implements CombatRepository {
         last_seen_at: null,
       },
     }))
-    return { ...row, preset: row.preset as CombatPreset, status: row.status as CombatMatch['status'], visibility: 'private', wager_xp: row.wager_xp === 100 ? 100 : 0, players }
+    return { ...row, preset: row.preset as CombatPreset, status: row.status as CombatMatch['status'], visibility: 'private', wager_xp: row.wager_xp === 100 ? 100 : 0, wager_status: row.wager_status as CombatMatch['wager_status'], players }
   }
 
   private async uniqueJoinCode(): Promise<string> {
@@ -382,6 +382,11 @@ export class SupabaseCombatRepository implements CombatRepository {
     const block = await this.client.from('user_blocks').select('blocker_id').or(`and(blocker_id.eq.${userId},blocked_id.eq.${match.host_id}),and(blocker_id.eq.${match.host_id},blocked_id.eq.${userId})`).maybeSingle()
     if (block.error) throw new Error(block.error.message)
     if (block.data) throw new Error('You cannot join this match.')
+    if (match.wager_xp === 100) {
+      const friendship = await this.client.from('friendships').select('id').eq('status', 'accepted').or(`and(requester_id.eq.${userId},addressee_id.eq.${match.host_id}),and(requester_id.eq.${match.host_id},addressee_id.eq.${userId})`).maybeSingle()
+      if (friendship.error) throw new Error(friendship.error.message)
+      if (!friendship.data) throw new Error('XP-wagered matches are available to friends only.')
+    }
     const joined = await this.client.rpc('join_combat_match', { p_match_id: match.id, p_user_id: userId })
     if (joined.error) throw new Error(joined.error.message)
     if (!joined.data) throw new Error('That match could not be joined.')
@@ -490,7 +495,7 @@ export class SupabaseCombatRepository implements CombatRepository {
       slot: player.slot as 1 | 2,
       profile: profiles.get(player.user_id) as SocialProfile,
     }))
-    const hydratedMatch: CombatMatch = { ...finalData, preset: finalData.preset as CombatPreset, status: finalData.status as CombatMatch['status'], visibility: 'private', wager_xp: finalData.wager_xp === 100 ? 100 : 0, players: hydratedPlayers }
+    const hydratedMatch: CombatMatch = { ...finalData, preset: finalData.preset as CombatPreset, status: finalData.status as CombatMatch['status'], visibility: 'private', wager_xp: finalData.wager_xp === 100 ? 100 : 0, wager_status: finalData.wager_status as CombatMatch['wager_status'], players: hydratedPlayers }
     const questionRows = (questions.data ?? []) as MatchQuestionRow[]
     const answerRows = (answers.data ?? []) as AnswerRow[]
     const currentUser = currentUserId

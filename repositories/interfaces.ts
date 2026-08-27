@@ -38,6 +38,7 @@ import type {
   CombatPreset,
   Friendship,
   SocialProfile,
+  ViewerFriendshipState,
   UserPrivacy,
   PresenceState,
 } from '@/types/database'
@@ -109,6 +110,8 @@ export interface SocialRepository {
   getFriends(userId: UUID): Promise<Friendship[]>
   getRequests(userId: UUID): Promise<{ incoming: Friendship[]; outgoing: Friendship[] }>
   searchUsers(userId: UUID, query: string, limit?: number): Promise<SocialProfile[]>
+  getRelationship(userId: UUID, otherUserId: UUID): Promise<ViewerFriendshipState>
+  getRelationshipDetails(userId: UUID, otherUserId: UUID): Promise<{ state: ViewerFriendshipState; friendship_id: UUID | null }>
   sendFriendRequest(userId: UUID, otherUserId: UUID): Promise<Friendship>
   respondToFriendRequest(userId: UUID, friendshipId: UUID, response: 'accepted' | 'declined' | 'cancelled'): Promise<void>
   removeFriend(userId: UUID, friendshipId: UUID): Promise<void>

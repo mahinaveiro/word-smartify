@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import useSWR from 'swr'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   ArrowRight,
@@ -19,6 +20,7 @@ import {
   ShieldAlert,
   Swords,
   UserPlus,
+  UserCheck,
   Users,
   X,
   Zap,
@@ -81,7 +83,7 @@ function statusLabel(match: CombatMatch): string {
 export function CombatView() {
   const router = useRouter()
   const { user } = useAuth()
-  const [section, setSection] = React.useState<'home' | 'friends' | 'history'>('home')
+  const [section, setSection] = React.useState<'overview' | 'friends' | 'circle'>('overview')
   const [createOpen, setCreateOpen] = React.useState(false)
   const [joinOpen, setJoinOpen] = React.useState(false)
   const [preset, setPreset] = React.useState<CombatPreset>('sprint')
@@ -113,7 +115,7 @@ export function CombatView() {
   }, [user])
 
   const refreshSocial = async () => {
-    await Promise.all([friends.mutate(), requests.mutate(), invites.mutate(), history.mutate()])
+    await Promise.all([friends.mutate(), requests.mutate(), invites.mutate(), history.mutate(), searchResults.mutate()])
   }
 
   const run = async (key: string, action: () => Promise<void>) => {
@@ -179,7 +181,7 @@ export function CombatView() {
     await run(`add-${profile.id}`, async () => {
       await postSocial({ action: 'send_request', userId: profile.id })
       setNotice(`Friend request sent to ${profile.display_name}.`)
-      await Promise.all([searchResults.mutate(), requests.mutate()])
+      await Promise.all([friends.mutate(), requests.mutate(), searchResults.mutate()])
     })
   }
 
@@ -211,39 +213,43 @@ export function CombatView() {
       {error ? <div role="alert" className="flex items-start gap-2 rounded-md border-2 border-destructive bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive"><ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />{error}<button className="ml-auto" onClick={() => setError(null)} aria-label="Dismiss error"><X className="size-4" aria-hidden /></button></div> : null}
       {notice ? <div role="status" className="flex items-start gap-2 rounded-md border-2 border-mint bg-mint/15 px-4 py-3 text-sm font-semibold"><Check className="mt-0.5 size-4 shrink-0" aria-hidden />{notice}</div> : null}
 
-      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-        <ActionCard icon={Zap} title="Quick duel" detail="Start a 5-question Sprint" accent="coral" onClick={() => void createMatch('sprint')} loading={busy === 'create'} />
-        <ActionCard icon={Swords} title="Create match" detail="Choose the pace yourself" accent="mint" onClick={() => setCreateOpen(true)} />
-        <ActionCard icon={Link2} title="Join by code" detail="Enter a private 6-character code" accent="ink" onClick={() => setJoinOpen(true)} />
-        <ActionCard icon={Users} title="Challenge a friend" detail="Invite from your trusted circle" accent="sand" onClick={() => setSection('friends')} />
-      </div>
-
       <div className="flex items-center gap-1 overflow-x-auto border-b-2 border-foreground/10 pb-1" role="tablist" aria-label="Combat sections">
-        <TabButton active={section === 'home'} onClick={() => setSection('home')}>Overview</TabButton>
-        <TabButton active={section === 'friends'} onClick={() => setSection('friends')} badge={(requests.data?.incoming.length ?? 0) + (invites.data?.length ?? 0)}>Friends</TabButton>
-        <TabButton active={section === 'history'} onClick={() => setSection('history')}>History</TabButton>
+        <TabButton active={section === 'overview'} onClick={() => setSection('overview')}>Overview</TabButton>
+        <TabButton active={section === 'friends'} onClick={() => setSection('friends')}>Friends</TabButton>
+        <TabButton active={section === 'circle'} onClick={() => setSection('circle')} badge={requests.data?.incoming.length ?? 0}>Circle</TabButton>
       </div>
 
-      {section === 'home' ? (
-        <div className="grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
-          <Card>
-            <CardHeader className="flex-row items-start justify-between gap-4">
-              <div><CardTitle className="flex items-center gap-2"><Inbox className="size-5 text-coral" aria-hidden /> Invitations</CardTitle><CardDescription>Friend challenges stay private until you accept.</CardDescription></div>
-              <button className="text-xs font-bold text-muted-foreground underline-offset-4 hover:underline" onClick={() => setSection('friends')}>See friends</button>
-            </CardHeader>
-            <CardContent>
-              {invites.isLoading ? <LoadingLine /> : invites.data?.length ? <div className="grid gap-3">{invites.data.slice(0, 3).map((invite) => <InviteRow key={invite.id} invite={invite} busy={busy === `invite-${invite.id}`} onRespond={(response) => void respondToInvite(invite, response)} />)}</div> : <EmptyPanel icon={Inbox} title="Your inbox is clear" detail="When a friend challenges you, it will appear here." />}
-            </CardContent>
-          </Card>
-          <Card className="bg-mint/10">
-            <CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck className="size-5 text-mint-foreground" aria-hidden /> Fair by design</CardTitle><CardDescription>Combat should strengthen learning, not punish it.</CardDescription></CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground"><RuleLine title="Same questions" detail="Both players receive the same pre-generated set and order." /><RuleLine title="Shared timer" detail="The round advances when both answer or the deadline ends." /><RuleLine title="Knowledge first" detail="Correct answers decide the winner. Speed only breaks ties." /></CardContent>
-          </Card>
+      {section === 'overview' ? (
+        <div className="grid gap-5">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+            <ActionCard icon={Zap} title="Quick duel" detail="Start a 5-question Sprint" accent="coral" onClick={() => void createMatch('sprint')} loading={busy === 'create'} />
+            <ActionCard icon={Swords} title="Create match" detail="Choose the pace yourself" accent="mint" onClick={() => setCreateOpen(true)} />
+            <ActionCard icon={Link2} title="Join by code" detail="Enter a private 6-character code" accent="ink" onClick={() => setJoinOpen(true)} />
+            <ActionCard icon={Users} title="Challenge a friend" detail="Invite from your trusted circle" accent="sand" onClick={() => setSection('circle')} />
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
+            <Card>
+              <CardHeader className="flex-row items-start justify-between gap-4">
+                <div><CardTitle className="flex items-center gap-2"><Inbox className="size-5 text-coral" aria-hidden /> Invitations</CardTitle><CardDescription>Friend challenges stay private until you accept.</CardDescription></div>
+                <button className="text-xs font-bold text-muted-foreground underline-offset-4 hover:underline" onClick={() => setSection('circle')}>See Circle</button>
+              </CardHeader>
+              <CardContent>
+                {invites.isLoading ? <LoadingLine /> : invites.data?.length ? <div className="grid gap-3">{invites.data.slice(0, 3).map((invite) => <InviteRow key={invite.id} invite={invite} busy={busy === `invite-${invite.id}`} onRespond={(response) => void respondToInvite(invite, response)} />)}</div> : <EmptyPanel icon={Inbox} title="Your inbox is clear" detail="When a friend challenges you, it will appear here." />}
+              </CardContent>
+            </Card>
+            <Card className="bg-mint/10">
+              <CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck className="size-5 text-mint-foreground" aria-hidden /> Fair by design</CardTitle><CardDescription>Combat should strengthen learning, not punish it.</CardDescription></CardHeader>
+              <CardContent className="space-y-3 text-sm text-muted-foreground"><RuleLine title="Same questions" detail="Both players receive the same pre-generated set and order." /><RuleLine title="Shared timer" detail="The round advances when both answer or the deadline ends." /><RuleLine title="Knowledge first" detail="Correct answers decide the winner. Speed only breaks ties." /></CardContent>
+            </Card>
+          </div>
+
+          <HistorySection history={history.data ?? []} loading={history.isLoading} userId={user?.id} onOpen={(match) => router.push(`/combat/${match.id}`)} />
         </div>
       ) : null}
 
-      {section === 'friends' ? <FriendsSection friends={friends.data ?? []} requests={requests.data} search={search} setSearch={setSearch} searchResults={searchResults.data ?? []} busy={busy} onAddFriend={(profile) => void addFriend(profile)} onRespondRequest={(id, response) => void respondToRequest(id, response)} onChallenge={(friend) => void challengeFriend(friend)} /> : null}
-      {section === 'history' ? <HistorySection history={history.data ?? []} loading={history.isLoading} userId={user?.id} onOpen={(match) => router.push(`/combat/${match.id}`)} /> : null}
+      {section === 'friends' ? <SearchSection search={search} setSearch={setSearch} searchResults={searchResults.data ?? []} busy={busy} onAddFriend={(profile) => void addFriend(profile)} onRespondRequest={(id, response) => void respondToRequest(id, response)} /> : null}
+      {section === 'circle' ? <CircleSection friends={friends.data ?? []} requests={requests.data} busy={busy} onRespondRequest={(id, response) => void respondToRequest(id, response)} onChallenge={(friend) => void challengeFriend(friend)} /> : null}
 
       <Modal open={createOpen} onClose={() => { setCreateOpen(false); setFriendToChallenge(null) }} title={friendToChallenge ? `Challenge ${friendToChallenge.other_user.display_name}` : 'Create a private match'} description={friendToChallenge ? 'Choose the rules together. They must accept the exact stake before joining.' : 'Pick a preset now. Advanced controls stay tucked away until you need them.'} footer={<><Button variant="ghost" size="sm" onClick={() => { setCreateOpen(false); setFriendToChallenge(null) }}>Cancel</Button><Button size="sm" onClick={() => void createMatch(preset, wagerXp, friendToChallenge?.other_user.id)} loading={busy === 'create'}>{friendToChallenge ? 'Send challenge' : 'Create match'} <ArrowRight className="size-4" aria-hidden /></Button></>}>
         <div className="grid gap-3">
@@ -275,8 +281,41 @@ function InviteRow({ invite, busy, onRespond }: { invite: CombatInvite; busy: bo
   return <div className="flex flex-col gap-3 rounded-md border-2 border-foreground/15 bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"><div className="flex min-w-0 items-center gap-3"><Avatar name={invite.sender.display_name} avatarId={invite.sender.avatar_id} avatarUrl={invite.sender.avatar_url} size="sm" /><div className="min-w-0"><p className="truncate text-sm font-bold">{invite.sender.display_name} challenged you</p><p className="text-xs text-muted-foreground">{invite.match?.question_count ?? 5} questions · private Sprint{invite.match?.wager_xp ? ` · ${invite.match.wager_xp} XP stake each` : ' · no stake'}</p></div></div><div className="flex gap-2 sm:shrink-0"><Button variant="ghost" size="sm" onClick={() => onRespond('declined')} disabled={busy}>Decline</Button><Button variant="accent" size="sm" onClick={() => onRespond('accepted')} loading={busy}>Accept <ArrowRight className="size-3.5" aria-hidden /></Button></div></div>
 }
 
-function FriendsSection({ friends, requests, search, setSearch, searchResults, busy, onAddFriend, onRespondRequest, onChallenge }: { friends: Friendship[]; requests?: { incoming: Friendship[]; outgoing: Friendship[] }; search: string; setSearch: (value: string) => void; searchResults: SocialProfile[]; busy: string | null; onAddFriend: (profile: SocialProfile) => void; onRespondRequest: (id: string, response: 'accepted' | 'declined' | 'cancelled') => void; onChallenge: (friend: Friendship) => void }) {
-  return <div className="grid gap-5 lg:grid-cols-[1fr_1fr]"><Card><CardHeader><CardTitle className="flex items-center gap-2"><Search className="size-5 text-coral" aria-hidden /> Find learners</CardTitle><CardDescription>Search by display name. Only discoverable profiles appear.</CardDescription><div className="relative mt-3"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden /><Input value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="Search a name" aria-label="Search learners" /></div></CardHeader><CardContent>{search.trim().length < 2 ? <EmptyPanel icon={UserPlus} title="Add your first rival" detail="Type at least two letters to find a learner." /> : searchResults.length ? <div className="grid gap-2">{searchResults.map((profile) => <div key={profile.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border-2 border-foreground/10 p-3"><div className="flex min-w-0 items-center gap-3"><Avatar name={profile.display_name} avatarId={profile.avatar_id} avatarUrl={profile.avatar_url} size="sm" /><div className="min-w-0"><p className="truncate text-sm font-bold">{profile.display_name}</p><p className="text-xs text-muted-foreground">{presenceLabel(profile)}</p></div></div><Button variant="outline" size="sm" className="shrink-0" onClick={() => onAddFriend(profile)} loading={busy === `add-${profile.id}`}><UserPlus className="size-3.5" aria-hidden /> Add</Button></div>)}</div> : <EmptyPanel icon={Search} title="No learners found" detail="Try a different display name." />}</CardContent></Card><Card><CardHeader><CardTitle className="flex items-center gap-2"><Users className="size-5 text-mint" aria-hidden /> Your circle</CardTitle><CardDescription>Friends can challenge you privately. Presence is compact and optional.</CardDescription></CardHeader><CardContent className="space-y-4">{requests?.incoming.length ? <div className="space-y-2"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Requests</p>{requests.incoming.map((request) => <div key={request.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border-2 border-coral/30 bg-coral/5 p-3"><div className="flex min-w-0 items-center gap-2"><Avatar name={request.other_user.display_name} avatarId={request.other_user.avatar_id} avatarUrl={request.other_user.avatar_url} size="sm" /><p className="truncate text-sm font-bold">{request.other_user.display_name}</p></div><div className="flex shrink-0 gap-1"><Button variant="ghost" size="sm" onClick={() => onRespondRequest(request.id, 'declined')}>No</Button><Button variant="accent" size="sm" onClick={() => onRespondRequest(request.id, 'accepted')} loading={busy === `request-${request.id}`}>Accept</Button></div></div>)}</div> : null}{friends.length ? <div className="grid gap-2">{friends.map((friend) => <div key={friend.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border-2 border-foreground/10 p-3"><div className="flex min-w-0 items-center gap-3"><span className="relative"><Avatar name={friend.other_user.display_name} avatarId={friend.other_user.avatar_id} avatarUrl={friend.other_user.avatar_url} size="sm" />{friend.other_user.presence === 'online' || friend.other_user.presence === 'in_combat' ? <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-card bg-mint" /> : null}</span><div className="min-w-0"><p className="truncate text-sm font-bold">{friend.other_user.display_name}</p><p className="text-xs text-muted-foreground">{presenceLabel(friend.other_user)}</p></div></div><Button variant="coral" size="sm" className="shrink-0" onClick={() => onChallenge(friend)} loading={busy === `challenge-${friend.other_user.id}`}><Swords className="size-3.5" aria-hidden /> Challenge</Button></div>)}</div> : <EmptyPanel icon={Users} title="No friends yet" detail="Add learners above, then invite them to a Sprint." />}</CardContent></Card></div>
+function SearchSection({ search, setSearch, searchResults, busy, onAddFriend, onRespondRequest }: { search: string; setSearch: (value: string) => void; searchResults: SocialProfile[]; busy: string | null; onAddFriend: (profile: SocialProfile) => void; onRespondRequest: (id: string, response: 'accepted' | 'declined' | 'cancelled') => void }) {
+  return <Card>
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2"><Search className="size-5 text-coral" aria-hidden /> Find learners</CardTitle>
+      <CardDescription>Search by display name, then open a profile or manage the connection here.</CardDescription>
+      <div className="relative mt-3"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden /><Input value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="Search a name" aria-label="Search learners" /></div>
+    </CardHeader>
+    <CardContent>{search.trim().length < 2 ? <EmptyPanel icon={UserPlus} title="Find your next rival" detail="Type at least two letters to discover a learner." /> : searchResults.length ? <div className="grid gap-2">{searchResults.map((profile) => <div key={profile.id} className="flex items-center justify-between gap-3 rounded-md border-2 border-foreground/10 p-3">
+      <Link href={`/profile/${profile.id}`} className="flex min-w-0 items-center gap-3 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-foreground"><Avatar name={profile.display_name} avatarId={profile.avatar_id} avatarUrl={profile.avatar_url} size="sm" /><span className="min-w-0"><span className="block truncate text-sm font-bold">{profile.display_name}</span><span className="block text-xs text-muted-foreground">{presenceLabel(profile)}</span></span></Link>
+      <RelationshipButton profile={profile} busy={busy} onAddFriend={onAddFriend} onRespondRequest={onRespondRequest} />
+    </div>)}</div> : <EmptyPanel icon={Search} title="No learners found" detail="Try a different display name." />}</CardContent>
+  </Card>
+}
+
+function CircleSection({ friends, requests, busy, onRespondRequest, onChallenge }: { friends: Friendship[]; requests?: { incoming: Friendship[]; outgoing: Friendship[] }; busy: string | null; onRespondRequest: (id: string, response: 'accepted' | 'declined' | 'cancelled') => void; onChallenge: (friend: Friendship) => void }) {
+  return <div className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
+    <Card>
+      <CardHeader><CardTitle className="flex items-center gap-2"><Inbox className="size-5 text-coral" aria-hidden /> Friend requests</CardTitle><CardDescription>Accept trusted learners before inviting them to a duel.</CardDescription></CardHeader>
+      <CardContent className="space-y-3">{requests?.incoming.length ? requests.incoming.map((request) => <div key={request.id} className="flex items-center justify-between gap-3 rounded-md border-2 border-coral/30 bg-coral/5 p-3"><Link href={`/profile/${request.other_user.id}`} className="flex min-w-0 items-center gap-2 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-foreground"><Avatar name={request.other_user.display_name} avatarId={request.other_user.avatar_id} avatarUrl={request.other_user.avatar_url} size="sm" /><p className="truncate text-sm font-bold">{request.other_user.display_name}</p></Link><div className="flex shrink-0 gap-1"><Button variant="ghost" size="sm" onClick={() => onRespondRequest(request.id, 'declined')} disabled={busy === `request-${request.id}`}>No</Button><Button variant="accent" size="sm" onClick={() => onRespondRequest(request.id, 'accepted')} loading={busy === `request-${request.id}`}>Accept</Button></div></div>) : <EmptyPanel icon={Inbox} title="No requests waiting" detail="New friend requests will appear here." />}</CardContent>
+    </Card>
+    <Card>
+      <CardHeader><CardTitle className="flex items-center gap-2"><Users className="size-5 text-mint" aria-hidden /> Your circle</CardTitle><CardDescription>Friends can challenge you privately. Presence is compact and optional.</CardDescription></CardHeader>
+      <CardContent>{friends.length ? <div className="grid gap-2">{friends.map((friend) => <div key={friend.id} className="flex items-center justify-between gap-3 rounded-md border-2 border-foreground/10 p-3"><Link href={`/profile/${friend.other_user.id}`} className="flex min-w-0 items-center gap-3 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-foreground"><span className="relative"><Avatar name={friend.other_user.display_name} avatarId={friend.other_user.avatar_id} avatarUrl={friend.other_user.avatar_url} size="sm" />{friend.other_user.presence === 'online' || friend.other_user.presence === 'in_combat' ? <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-card bg-mint" /> : null}</span><span className="min-w-0"><span className="block truncate text-sm font-bold">{friend.other_user.display_name}</span><span className="block text-xs text-muted-foreground">{presenceLabel(friend.other_user)}</span></span></Link><Button variant="coral" size="sm" className="shrink-0" onClick={() => onChallenge(friend)} loading={busy === `challenge-${friend.other_user.id}`}><Swords className="size-3.5" aria-hidden /> Challenge</Button></div>)}</div> : <EmptyPanel icon={Users} title="No friends yet" detail="Search the Friends tab to build your circle." />}</CardContent>
+    </Card>
+  </div>
+}
+
+function RelationshipButton({ profile, busy, onAddFriend, onRespondRequest }: { profile: SocialProfile; busy: string | null; onAddFriend: (profile: SocialProfile) => void; onRespondRequest: (id: string, response: 'accepted' | 'declined' | 'cancelled') => void }) {
+  const relationship = profile.relationship ?? 'none'
+  const relationshipId = profile.relationship_id ?? null
+  if (relationship === 'blocked') return <Button variant="ghost" size="sm" disabled>Unavailable</Button>
+  if (relationship === 'friends') return <Button variant="outline" size="sm" disabled><UserCheck className="size-3.5" aria-hidden /> Friends</Button>
+  if (relationship === 'incoming_pending') return <Button variant="accent" size="sm" className="shrink-0" onClick={() => { if (relationshipId) onRespondRequest(relationshipId, 'accepted') }} loading={busy === `request-${relationshipId}`} disabled={!relationshipId}><UserCheck className="size-3.5" aria-hidden /> Accept</Button>
+  if (relationship === 'outgoing_pending') return <Button variant="outline" size="sm" className="shrink-0" onClick={() => { if (relationshipId) onRespondRequest(relationshipId, 'cancelled') }} loading={busy === `request-${relationshipId}`} disabled={!relationshipId}><Clock3 className="size-3.5" aria-hidden /> Cancel</Button>
+  return <Button variant="outline" size="sm" className="shrink-0" onClick={() => onAddFriend(profile)} loading={busy === `add-${profile.id}`}><UserPlus className="size-3.5" aria-hidden /> Add</Button>
 }
 
 function HistorySection({ history, loading, userId, onOpen }: { history: CombatMatch[]; loading: boolean; userId?: string; onOpen: (match: CombatMatch) => void }) {

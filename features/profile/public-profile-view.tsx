@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, Award, BarChart3, BookOpen, ExternalLink, Flame, Medal, MessageCircle, Send, Target, Trophy } from 'lucide-react'
-import { useEffect } from 'react'
+import { ArrowLeft, Award, BarChart3, BookOpen, Clock3, ExternalLink, Flame, Loader2, Medal, MessageCircle, Send, Target, Trophy, UserCheck, UserPlus } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -13,11 +13,37 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/features/shared/stat-tile'
 import { Avatar } from '@/features/shared/avatar'
 import { useBooks, usePublicProfile } from '@/hooks/use-data'
+import { useAuth } from '@/features/auth/auth-provider'
+import { postSocial } from '@/features/combat/combat-api'
 import { isOwnerUserId, OwnerDisplayName, STUDY_GC_DISCORD_URL, STUDY_GC_TELEGRAM_URL } from '@/lib/owner'
 
 export function PublicProfileView({ userId }: { userId: string }) {
   const { data: profile, error, isLoading, mutate } = usePublicProfile(userId)
+  const { user } = useAuth()
   const { data: books } = useBooks()
+  const [relationshipBusy, setRelationshipBusy] = useState(false)
+  const [relationshipError, setRelationshipError] = useState<string | null>(null)
+
+  const handleRelationshipAction = async () => {
+    if (!profile || profile.id === user?.id || relationshipBusy) return
+    const relationship = profile.relationship ?? 'none'
+    const relationshipId = profile.relationship_id
+    let action: Record<string, unknown>
+    if (relationship === 'none') action = { action: 'send_request', userId: profile.id }
+    else if (relationship === 'incoming_pending' && relationshipId) action = { action: 'respond_request', friendshipId: relationshipId, response: 'accepted' }
+    else if (relationship === 'outgoing_pending' && relationshipId) action = { action: 'respond_request', friendshipId: relationshipId, response: 'cancelled' }
+    else return
+    setRelationshipBusy(true)
+    setRelationshipError(null)
+    try {
+      await postSocial(action)
+      await mutate()
+    } catch (actionError) {
+      setRelationshipError(actionError instanceof Error ? actionError.message : 'Friend action could not be completed.')
+    } finally {
+      setRelationshipBusy(false)
+    }
+  }
 
   useEffect(() => {
     if (!profile) return
@@ -76,6 +102,7 @@ export function PublicProfileView({ userId }: { userId: string }) {
                 </span>
               ) : null}
             </div>
+            {user && user.id !== profile.id && profile.relationship !== 'blocked' ? <div className="mt-3 flex flex-col items-center gap-1.5 sm:items-start">{profile.relationship === 'friends' ? <Button variant="outline" size="sm" disabled><UserCheck className="size-3.5" aria-hidden /> Friends</Button> : <Button variant={profile.relationship === 'incoming_pending' ? 'accent' : 'outline'} size="sm" onClick={() => void handleRelationshipAction()} disabled={relationshipBusy || (profile.relationship !== 'none' && !profile.relationship_id)}>{relationshipBusy ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : profile.relationship === 'incoming_pending' ? <UserCheck className="size-3.5" aria-hidden /> : profile.relationship === 'outgoing_pending' ? <Clock3 className="size-3.5" aria-hidden /> : <UserPlus className="size-3.5" aria-hidden />}{profile.relationship === 'incoming_pending' ? 'Accept request' : profile.relationship === 'outgoing_pending' ? 'Cancel request' : 'Add friend'}</Button>}{relationshipError ? <p className="max-w-xs text-xs font-semibold text-destructive" role="alert">{relationshipError}</p> : null}</div> : null}
           </div>
         </CardContent>
       </Card>

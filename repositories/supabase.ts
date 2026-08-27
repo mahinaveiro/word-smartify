@@ -49,6 +49,7 @@ import type {
   WordRepository,
   SavedWordRepository,
   BadgeRepository,
+  SocialRepository,
 } from './interfaces'
 import { SupabaseSocialRepository } from './supabase-social'
 import { SupabaseCombatRepository } from './supabase-combat'
@@ -119,7 +120,7 @@ function toWord(row: WordRow): Word {
 }
 
 function toProfile(row: ProfileRow): Profile {
-  return { ...row, daily_goal: normalizeDailyGoal(row.daily_goal) }
+  return { ...row, daily_goal: normalizeDailyGoal(row.daily_goal), theme_preference: row.theme_preference === 'dark' ? 'dark' : 'light' }
 }
 
 function toProgress(row: ProgressRow): UserWordProgress {
@@ -434,9 +435,9 @@ class SupabaseWordRepository implements WordRepository {
     const safeOffset = Math.max(Math.floor(offset), 0)
     const result = await this.client.rpc('search_library_words', {
       p_query: filters.query?.trim() ?? '',
-      p_book_id: filters.book_id ?? null,
-      p_level_id: filters.level_id ?? null,
-      p_letter: filters.letter?.trim().slice(0, 1) || null,
+      p_book_id: filters.book_id ?? undefined,
+      p_level_id: filters.level_id ?? undefined,
+      p_letter: filters.letter?.trim().slice(0, 1) || undefined,
       p_limit: safeLimit,
       p_offset: safeOffset,
     })
@@ -571,7 +572,11 @@ class SupabaseQuizRepository implements QuizRepository {
 }
 
 class SupabaseProfileRepository implements ProfileRepository {
-  constructor(private readonly client: Client, private readonly badges: BadgeRepository) {}
+  constructor(
+    private readonly client: Client,
+    private readonly badges: BadgeRepository,
+    private readonly social: SocialRepository,
+  ) {}
 
   async getProfile(userId: UUID): Promise<Profile | null> {
     const result = await this.client.from('profiles').select('*').eq('id', userId).maybeSingle()
@@ -580,7 +585,12 @@ class SupabaseProfileRepository implements ProfileRepository {
   }
 
   async getPublicProfile(userId: UUID): Promise<PublicProfile | null> {
-    const [profileResult, statsResult, bookProgressResult, leaderboardResult, mockTestsResult, booksResult, badgesResult] = await Promise.all([
+    const viewerResult = await this.client.auth.getUser()
+    const viewerId = viewerResult.data.user?.id as UUID | undefined
+    const relationshipPromise = viewerId
+      ? this.social.getRelationshipDetails(viewerId, userId)
+      : Promise.resolve({ state: 'none' as const, friendship_id: null })
+    const [profileResult, statsResult, bookProgressResult, leaderboardResult, mockTestsResult, booksResult, badgesResult, relationshipResult] = await Promise.all([
       this.client.from('profiles').select('id, display_name, avatar_id, avatar_url').eq('id', userId).maybeSingle(),
       this.client
         .from('user_stats')
@@ -592,6 +602,7 @@ class SupabaseProfileRepository implements ProfileRepository {
       this.client.rpc('get_public_mock_test_summary', { p_user_id: userId }),
       this.client.from('books').select('id, name').order('display_order', { ascending: true }),
       this.badges.getDisplayBadgesForUsers([userId]),
+      relationshipPromise,
     ])
     if (profileResult.error && !isMissingRowError(profileResult.error)) throw new Error(profileResult.error.message)
     if (statsResult.error && !isMissingRowError(statsResult.error)) throw new Error(statsResult.error.message)
@@ -644,6 +655,8 @@ class SupabaseProfileRepository implements ProfileRepository {
       badges: badgesResult[userId] ?? [],
       leaderboard: publicLeaderboard,
       mock_tests: publicMockTests,
+      relationship: relationshipResult.state,
+      relationship_id: relationshipResult.friendship_id,
     }
   }
 
@@ -1038,7 +1051,7 @@ export function createSupabaseRepositories(client: Client): Repositories {
     levels,
     words,
     quizzes,
-    profiles: new SupabaseProfileRepository(client, badges),
+    profiles: new SupabaseProfileRepository(client, badges, social),
     stats: new SupabaseStatsRepository(client, badges),
     wordProgress,
     dailyProgress: new SupabaseDailyProgressRepository(client),

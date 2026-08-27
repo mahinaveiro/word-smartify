@@ -273,6 +273,8 @@ export interface PublicMockTestSummary {
 }
 
 /** Public fields safe to show on profiles, leaderboards, and social surfaces. */
+export type ViewerFriendshipState = 'none' | 'outgoing_pending' | 'incoming_pending' | 'friends' | 'blocked'
+
 export interface PublicProfile {
   id: UUID
   display_name: string
@@ -288,6 +290,8 @@ export interface PublicProfile {
   badges: DisplayBadge[]
   leaderboard: PublicLeaderboardSummary
   mock_tests: PublicMockTestSummary
+  relationship?: ViewerFriendshipState
+  relationship_id?: UUID | null
 }
 
 // ---------------------------------------------------------------------------
@@ -336,6 +340,8 @@ export interface SocialProfile {
   avatar_url: string | null
   presence: PresenceState
   last_seen_at: ISOTimestamp | null
+  relationship?: ViewerFriendshipState
+  relationship_id?: UUID | null
 }
 
 export interface Friendship {

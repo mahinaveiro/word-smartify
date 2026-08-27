@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
-import type { Friendship, PresenceState, SocialProfile, UUID, UserPrivacy } from '@/types/database'
+import type { Friendship, PresenceState, SocialProfile, UUID, UserPrivacy, ViewerFriendshipState } from '@/types/database'
 import type { SocialRepository } from './interfaces'
 
 type Client = SupabaseClient<Database>
@@ -17,7 +17,12 @@ function toPresence(value: string | null | undefined): PresenceState {
 
 type SocialProfileRow = Pick<ProfileRow, 'id' | 'display_name' | 'avatar_id' | 'avatar_url'>
 
-function toSocialProfile(profile: SocialProfileRow, presence?: PresenceRow | null): SocialProfile {
+function toSocialProfile(
+  profile: SocialProfileRow,
+  presence?: PresenceRow | null,
+  relationship?: ViewerFriendshipState,
+  relationshipId?: UUID | null,
+): SocialProfile {
   return {
     id: profile.id,
     display_name: profile.display_name,
@@ -25,7 +30,24 @@ function toSocialProfile(profile: SocialProfileRow, presence?: PresenceRow | nul
     avatar_url: profile.avatar_url,
     presence: toPresence(presence?.state),
     last_seen_at: presence?.last_seen_at ?? null,
+    ...(relationship ? { relationship } : {}),
+    ...(relationshipId !== undefined ? { relationship_id: relationshipId } : {}),
   }
+}
+
+function getRelationshipState(
+  userId: UUID,
+  otherUserId: UUID,
+  friendship: FriendshipRow | null,
+  blocked: boolean,
+): ViewerFriendshipState {
+  if (blocked) return 'blocked'
+  if (!friendship) return 'none'
+  if (friendship.status === 'accepted') return 'friends'
+  if (friendship.status === 'pending') {
+    return friendship.requester_id === userId ? 'outgoing_pending' : 'incoming_pending'
+  }
+  return 'none'
 }
 
 function toPrivacy(row: PrivacyRow): UserPrivacy {
@@ -100,20 +122,74 @@ export class SupabaseSocialRepository implements SocialRepository {
     if (profilesResult.error) throw new Error(profilesResult.error.message)
     const ids = (profilesResult.data ?? []).map((profile) => profile.id)
     if (!ids.length) return []
-    const [privacyResult, presenceResult, blocksResult] = await Promise.all([
+    const [privacyResult, presenceResult, blocksResult, friendshipsResult] = await Promise.all([
       this.client.from('user_privacy').select('*').in('user_id', ids),
       this.client.from('user_presence').select('*').in('user_id', ids),
-      this.client.from('user_blocks').select('blocked_id').eq('blocker_id', userId).in('blocked_id', ids),
+      this.client
+        .from('user_blocks')
+        .select('blocker_id, blocked_id')
+        .or(`and(blocker_id.eq.${userId},blocked_id.in.(${ids.join(',')})),and(blocked_id.eq.${userId},blocker_id.in.(${ids.join(',')}))`),
+      this.client
+        .from('friendships')
+        .select('*')
+        .in('status', ['pending', 'accepted'])
+        .or(`and(requester_id.eq.${userId},addressee_id.in.(${ids.join(',')})),and(addressee_id.eq.${userId},requester_id.in.(${ids.join(',')}))`),
     ])
     if (privacyResult.error) throw new Error(privacyResult.error.message)
     if (presenceResult.error) throw new Error(presenceResult.error.message)
     if (blocksResult.error) throw new Error(blocksResult.error.message)
+    if (friendshipsResult.error) throw new Error(friendshipsResult.error.message)
     const discoverable = new Map((privacyResult.data ?? []).map((row) => [row.user_id, row.discoverable]))
-    const blocked = new Set((blocksResult.data ?? []).map((row) => row.blocked_id))
+    const blocked = new Set(
+      (blocksResult.data ?? []).map((row) => row.blocker_id === userId ? row.blocked_id : row.blocker_id),
+    )
+    const friendships = new Map(
+      (friendshipsResult.data ?? []).map((row) => [
+        row.requester_id === userId ? row.addressee_id : row.requester_id,
+        row,
+      ]),
+    )
     const presence = new Map((presenceResult.data ?? []).map((row) => [row.user_id, row]))
     return (profilesResult.data ?? [])
       .filter((profile) => discoverable.get(profile.id) !== false && !blocked.has(profile.id))
-      .map((profile) => toSocialProfile(profile as SocialProfileRow, presence.get(profile.id)))
+      .map((profile) => {
+        const socialProfile = profile as SocialProfileRow
+        return toSocialProfile(
+          socialProfile,
+          presence.get(profile.id),
+          getRelationshipState(userId, profile.id, friendships.get(profile.id) ?? null, false),
+          friendships.get(profile.id)?.id ?? null,
+        )
+      })
+  }
+
+  async getRelationshipDetails(userId: UUID, otherUserId: UUID): Promise<{ state: ViewerFriendshipState; friendship_id: UUID | null }> {
+    if (userId === otherUserId) return { state: 'friends', friendship_id: null }
+    const [friendshipResult, blockResult] = await Promise.all([
+      this.client
+        .from('friendships')
+        .select('*')
+        .in('status', ['pending', 'accepted'])
+        .or(`and(requester_id.eq.${userId},addressee_id.eq.${otherUserId}),and(requester_id.eq.${otherUserId},addressee_id.eq.${userId})`)
+        .maybeSingle(),
+      this.client
+        .from('user_blocks')
+        .select('blocker_id, blocked_id')
+        .or(`and(blocker_id.eq.${userId},blocked_id.eq.${otherUserId}),and(blocker_id.eq.${otherUserId},blocked_id.eq.${userId})`)
+        .limit(1)
+        .maybeSingle(),
+    ])
+    if (friendshipResult.error) throw new Error(friendshipResult.error.message)
+    if (blockResult.error) throw new Error(blockResult.error.message)
+    return {
+      state: getRelationshipState(userId, otherUserId, friendshipResult.data, Boolean(blockResult.data)),
+      friendship_id: friendshipResult.data?.id ?? null,
+    }
+  }
+
+  async getRelationship(userId: UUID, otherUserId: UUID): Promise<ViewerFriendshipState> {
+    const details = await this.getRelationshipDetails(userId, otherUserId)
+    return details.state
   }
 
   async sendFriendRequest(userId: UUID, otherUserId: UUID): Promise<Friendship> {
