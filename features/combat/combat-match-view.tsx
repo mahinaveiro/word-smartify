@@ -10,7 +10,6 @@ import {
   Check,
   CheckCircle2,
   Coins,
-  MessageCircle,
   ClipboardCopy,
   Loader2,
   LogOut,
@@ -36,7 +35,7 @@ import { cn } from '@/lib/utils'
 import type { CombatMatch, CombatQuestion, CombatResult } from '@/types/database'
 import { loadMatch, loadMatchMessages, loadMatchQuestion, loadMatchResult, postCombat, type CombatMessageRecord } from './combat-api'
 
-type QuickMessage = { id: string; text: string; senderId: string | null }
+type QuickMessage = { id: string; text: string; senderId: string | null; createdAt: string }
 
 function messageRecordsFromPayload(payload: unknown): CombatMessageRecord[] {
   const records = Array.isArray(payload)
@@ -69,6 +68,7 @@ export function CombatMatchView({ matchId }: { matchId: string }) {
   const [isOffline, setIsOffline] = React.useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = React.useState(false)
   const [quickMessages, setQuickMessages] = React.useState<QuickMessage[]>([])
+  const [quickPickerOpen, setQuickPickerOpen] = React.useState(false)
   const messageChannel = React.useRef<RealtimeChannel | null>(null)
   const seenMessageIds = React.useRef(new Set<string>())
 
@@ -123,6 +123,7 @@ export function CombatMatchView({ matchId }: { matchId: string }) {
           id: data.id as string,
           text: data.message as string,
           senderId: typeof data.sender_id === 'string' ? data.sender_id : null,
+          createdAt: typeof (payload as { created_at?: unknown }).created_at === 'string' ? (payload as { created_at: string }).created_at : new Date().toISOString(),
         }])
       })
       .subscribe()
@@ -143,9 +144,21 @@ export function CombatMatchView({ matchId }: { matchId: string }) {
       id: record.id,
       text: record.message,
       senderId: record.sender_id,
+      createdAt: record.created_at,
     }))
   }, [persistedMessages.data])
-  const visibleQuickMessages = quickMessages.length > 0 ? quickMessages : persistedQuickMessages
+  const visibleQuickMessages = React.useMemo(() => {
+    const byId = new Map<string, QuickMessage>()
+    for (const message of [...persistedQuickMessages, ...quickMessages]) byId.set(message.id, message)
+    return [...byId.values()].sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()).slice(-8)
+  }, [persistedQuickMessages, quickMessages])
+  const latestQuickMessagesBySender = React.useMemo(() => {
+    const messages = new Map<string, QuickMessage>()
+    visibleQuickMessages.forEach((message) => {
+      if (message.senderId) messages.set(message.senderId, message)
+    })
+    return messages
+  }, [visibleQuickMessages])
 
   const roundGraceDeadline = currentMatch?.round_grace_deadline ? new Date(currentMatch.round_grace_deadline).getTime() : null
   const submissionCount = currentMatch?.current_question_submissions?.length ?? 0
@@ -177,8 +190,6 @@ export function CombatMatchView({ matchId }: { matchId: string }) {
   const freshQuestion = question.data?.position === currentPosition ? question.data : null
   const selectedForQuestion = selectedPosition === currentPosition ? selected : null
   const hasSubmittedForQuestion = submittedPosition === currentPosition || Boolean(user?.id && currentMatch?.current_question_submissions?.includes(user.id))
-  const opponentLastSeen = currentMatch?.players.find((player) => player.user_id !== user?.id)?.last_seen_at
-  const opponentOffline = currentMatch?.status === 'active' && Boolean(opponentLastSeen && clockMs - new Date(opponentLastSeen).getTime() > 15000)
 
   const run = React.useCallback(async (key: string, action: () => Promise<void>) => {
     setBusy(key)
@@ -241,21 +252,10 @@ export function CombatMatchView({ matchId }: { matchId: string }) {
     void run('quick-message', async () => {
       const message = await postCombat<{ id: string; match_id: string; sender_id: string; message: string; created_at: string }>({ action: 'quick_message', matchId, message: text })
       seenMessageIds.current.add(message.id)
-      setQuickMessages((messages) => [...messages.slice(-3), { id: message.id, text: message.message, senderId: message.sender_id }])
+      setQuickMessages((messages) => [...messages.slice(-3), { id: message.id, text: message.message, senderId: message.sender_id, createdAt: message.created_at }])
       await persistedMessages.mutate()
     })
   }, [busy, matchId, persistedMessages, run])
-
-  const answerRef = React.useRef<() => void>(() => undefined)
-  React.useEffect(() => {
-    answerRef.current = submitAnswer
-  }, [submitAnswer])
-
-  React.useEffect(() => {
-    if (currentMatch?.status !== 'active' || graceRemainingMs !== 0 || !freshQuestion || hasSubmittedForQuestion || busy !== null) return
-    const timeout = window.setTimeout(() => answerRef.current(), 0)
-    return () => window.clearTimeout(timeout)
-  }, [busy, currentMatch?.status, currentPosition, freshQuestion, graceRemainingMs, hasSubmittedForQuestion])
 
   const requestExit = () => {
     if (!currentMatch) return
@@ -322,11 +322,11 @@ export function CombatMatchView({ matchId }: { matchId: string }) {
 
   return <div className="mx-auto flex min-h-dvh w-full max-w-4xl flex-col gap-3 px-3 pb-5 pt-3 sm:gap-4 sm:px-5 sm:pt-5 md:gap-6 md:px-0 md:pb-10">
     <div className="flex items-center justify-between gap-3"><Button variant="ghost" size="sm" className="h-8 px-2 sm:h-9 sm:px-3" onClick={requestExit}><ArrowLeft className="size-4" aria-hidden /><span className="hidden sm:inline">Combat</span><span className="sr-only">Leave match</span></Button><div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground"><span className={cn('size-2 rounded-full', isOffline ? 'bg-coral' : 'bg-mint')} />{isOffline ? 'Reconnecting…' : 'Live'}<span className="hidden sm:inline"> · Private room</span></div></div>
-    {isOffline ? <div role="status" className="rounded-md border-2 border-coral/40 bg-coral/10 px-4 py-3 text-sm font-semibold text-coral-foreground">You are offline. Reconnect to keep your answer state synchronized.</div> : null}
-    {!isOffline && opponentOffline ? <div role="status" className="rounded-md border-2 border-coral/40 bg-coral/10 px-4 py-3 text-sm font-semibold text-coral-foreground">Your opponent disconnected. Their 15-second return window is still open.</div> : null}
-    {error ? <div role="alert" className="flex items-start gap-2 rounded-md border-2 border-destructive bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive"><ShieldAlert className="size-4 shrink-0" aria-hidden />{error}<button className="ml-auto" onClick={() => setError(null)} aria-label="Dismiss error"><XCircle className="size-4" aria-hidden /></button></div> : null}
+    <Modal open={Boolean(error)} onClose={() => setError(null)} title="Combat action could not be completed" className="max-w-sm">
+      <div role="alert" className="flex items-start gap-3 rounded-md border-2 border-destructive bg-destructive/10 p-3 text-sm font-semibold text-destructive"><ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden /><p>{error}</p></div>
+    </Modal>
     {currentMatch.status === 'waiting' || currentMatch.status === 'ready' ? <LobbyPanel match={currentMatch} userId={user?.id} isHost={isHost} opponent={opponent} bothReady={bothReady} busy={busy} copied={copied} onCopy={() => void copyCode()} onReady={toggleReady} onStart={start} onCancel={() => void run('cancel', async () => { await postCombat({ action: 'cancel', matchId }); router.push('/combat') })} /> : null}
-    {currentMatch.status === 'active' ? <ActiveMatchPanel match={currentMatch} question={freshQuestion} loading={question.isLoading || !freshQuestion} selected={selectedForQuestion} remainingMs={graceRemainingMs} opponentSubmitted={hasOpponentSubmission} onSelect={selectAnswer} onSubmit={submitAnswer} hasSubmitted={hasSubmittedForQuestion} onRefresh={refresh} onReport={() => setShowReport(true)} onQuickMessage={sendQuickMessage} quickMessage={visibleQuickMessages.at(-1)} busy={busy} myPlayer={myPlayer} otherPlayer={opponent} /> : null}
+    {currentMatch.status === 'active' ? <ActiveMatchPanel match={currentMatch} question={freshQuestion} loading={question.isLoading || !freshQuestion} selected={selectedForQuestion} remainingMs={graceRemainingMs} opponentSubmitted={hasOpponentSubmission} onSelect={selectAnswer} onSubmit={submitAnswer} hasSubmitted={hasSubmittedForQuestion} onRefresh={refresh} onReport={() => setShowReport(true)} onQuickMessage={sendQuickMessage} quickMessagesBySender={latestQuickMessagesBySender} currentTimeMs={clockMs} quickPickerOpen={quickPickerOpen} onToggleQuickPicker={() => setQuickPickerOpen((open) => !open)} busy={busy} myPlayer={myPlayer} otherPlayer={opponent} /> : null}
     {CLOSED_STATUSES.includes(currentMatch.status as typeof CLOSED_STATUSES[number]) ? <FinishedPanel match={currentMatch} onBack={() => router.push('/combat')} /> : null}
     <Modal open={showReport} onClose={() => setShowReport(false)} title="Report this match" description="Use this for a broken question, connection issue, cheating concern, or harassment."><ReportForm matchId={matchId} onDone={() => setShowReport(false)} /></Modal>
     <Modal open={showLeaveConfirm} onClose={() => setShowLeaveConfirm(false)} title="Leave this match?" description={currentMatch.status === 'active' ? 'Leaving ends your run. In a wagered match, your 100 XP stake may be lost.' : 'Leaving will close this private room and settle any protected stake safely.'} className="max-w-sm">
@@ -349,15 +349,22 @@ function PlayerLobbyCard({ player, label, empty }: { player?: CombatMatch['playe
   return <Card className={cn('min-h-24', empty && 'border-dashed bg-muted/20 shadow-none')}><CardContent className="flex h-full items-center gap-3 p-3 sm:p-4">{player ? <><Avatar name={player.profile.display_name} avatarId={player.profile.avatar_id} avatarUrl={player.profile.avatar_url} size="md" /><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground sm:text-xs">{label}</p><p className="truncate font-heading font-bold">{player.profile.display_name}</p><p className={cn('mt-1 text-xs font-semibold', player.is_ready ? 'text-mint-foreground' : 'text-muted-foreground')}>{player.is_ready ? 'Ready' : 'Not ready'}</p></div></> : <div className="flex items-center gap-3 text-muted-foreground"><span className="grid size-10 place-items-center rounded-full border-2 border-dashed border-foreground/20"><Users className="size-5" aria-hidden /></span><div><p className="text-[10px] font-bold uppercase tracking-wide">Opponent</p><p className="text-sm font-semibold">Waiting to join</p></div></div>}</CardContent></Card>
 }
 
-function ActiveMatchPanel({ match, question, loading, selected, hasSubmitted, remainingMs, opponentSubmitted, onSelect, onSubmit, onRefresh, onReport, onQuickMessage, quickMessage, busy, myPlayer, otherPlayer }: { match: CombatMatch; question: CombatQuestion | null; loading: boolean; selected: string | null; hasSubmitted: boolean; remainingMs: number | null; opponentSubmitted: boolean; onSelect: (answer: string | null) => void; onSubmit: () => void; onRefresh: () => void; onReport: () => void; onQuickMessage: (message: string) => void; quickMessage?: QuickMessage; busy: string | null; myPlayer?: CombatMatch['players'][number]; otherPlayer?: CombatMatch['players'][number] }) {
+function ActiveMatchPanel({ match, question, loading, selected, hasSubmitted, remainingMs, opponentSubmitted, onSelect, onSubmit, onRefresh, onReport, onQuickMessage, quickMessagesBySender, currentTimeMs, quickPickerOpen, onToggleQuickPicker, busy, myPlayer, otherPlayer }: { match: CombatMatch; question: CombatQuestion | null; loading: boolean; selected: string | null; hasSubmitted: boolean; remainingMs: number | null; opponentSubmitted: boolean; onSelect: (answer: string | null) => void; onSubmit: () => void; onRefresh: () => void; onReport: () => void; onQuickMessage: (message: string) => void; quickMessagesBySender: Map<string, QuickMessage>; currentTimeMs: number; quickPickerOpen: boolean; onToggleQuickPicker: () => void; busy: string | null; myPlayer?: CombatMatch['players'][number]; otherPlayer?: CombatMatch['players'][number] }) {
   const graceSeconds = remainingMs === null ? null : Math.ceil(remainingMs / 1000)
   const mySubmitted = hasSubmitted
+  const recentMessage = (message?: QuickMessage) => message && currentTimeMs - new Date(message.createdAt).getTime() < 8000 ? message : undefined
+  const myMessage = recentMessage(myPlayer?.user_id ? quickMessagesBySender.get(myPlayer.user_id) : undefined)
+  const opponentMessage = recentMessage(otherPlayer?.user_id ? quickMessagesBySender.get(otherPlayer.user_id) : undefined)
   return <div className="relative flex min-h-[calc(100dvh-3.25rem)] flex-col pb-12 sm:min-h-0 sm:pb-0">
     <div className="mb-2 flex items-center justify-between gap-3 sm:mb-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground sm:text-xs">Round {match.current_question_index + 1} of {match.question_count}</p><p className="mt-1 text-xs font-semibold text-muted-foreground sm:text-sm">{opponentSubmitted && !mySubmitted ? 'Your opponent moved first.' : mySubmitted ? 'Answer locked.' : 'Choose your answer.'}</p></div><div className="flex items-center gap-1"><button type="button" onClick={onReport} className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Report match"><ShieldAlert className="size-4" aria-hidden /></button></div></div>
-    <Card className="mx-auto flex min-h-[62svh] w-full max-w-2xl flex-none shadow-brutal-sm sm:min-h-0 sm:flex-none sm:shadow-brutal"><CardContent className="flex min-h-[62svh] flex-col p-3 sm:min-h-0 sm:p-6"><div className="mb-3 flex items-center justify-between gap-2 sm:mb-5"><p className="flex min-w-0 items-center gap-1.5 truncate text-[11px] font-semibold text-muted-foreground sm:text-sm"><MessageCircle className="size-3.5 shrink-0" aria-hidden />{quickMessage ? quickMessage.text : 'Keep it friendly.'}</p><div className="flex shrink-0 gap-1.5">{QUICK_MESSAGES.map((message) => <button key={message} type="button" disabled={busy === 'quick-message'} onClick={() => onQuickMessage(message)} className="rounded-full border border-foreground/20 bg-card px-2 py-1 text-[10px] font-bold text-muted-foreground transition-colors hover:bg-muted disabled:cursor-wait disabled:opacity-60 sm:px-2.5">{message === 'Good luck!' ? 'GL' : message === 'That was close!' ? 'Close' : message.replace('!', '')}</button>)}</div></div>{graceSeconds !== null && !mySubmitted ? <div className="pointer-events-none fixed inset-0 z-30 grid place-items-center bg-foreground/15 px-6 backdrop-blur-[1px]"><div className="rounded-lg border-2 border-foreground bg-card px-6 py-5 text-center shadow-brutal"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Opponent submitted</p><p className="mt-1 font-heading text-5xl font-black tabular-nums text-coral">{graceSeconds}</p><p className="mt-1 text-xs font-semibold text-muted-foreground">Submit before the round closes</p></div></div> : null}{loading ? <div className="flex min-h-[45vh] flex-1 items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" aria-hidden /> Loading the shared question…</div> : question ? <div className="flex min-h-[50svh] flex-col justify-center sm:min-h-0"><p className="font-heading text-lg font-bold leading-snug sm:text-2xl">{question.question}</p><div className="mt-4 grid gap-2 sm:mt-6 sm:grid-cols-2 sm:gap-3">{question.options.map((option, index) => <button key={`${question.question_id}-${option}`} type="button" disabled={hasSubmitted || busy === 'answer'} onClick={() => onSelect(option)} className={cn('flex min-h-11 items-start gap-2 rounded-md border-2 border-foreground bg-card p-2.5 text-left text-sm font-semibold leading-5 shadow-brutal-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-80 motion-reduce:transition-none sm:min-h-14 sm:p-3', selected === option && 'border-foreground bg-mint shadow-none')}><span className="inline-grid size-6 shrink-0 place-items-center rounded-full border-2 border-foreground text-xs font-black">{String.fromCharCode(65 + index)}</span><span className="min-w-0 break-words">{option}</span></button>)}</div><div className="mt-3 flex items-center justify-between gap-3 sm:mt-5"><div className="min-w-0">{hasSubmitted ? <p className="text-xs font-semibold text-mint-foreground">Waiting for the other player…</p> : <button type="button" disabled={hasSubmitted || busy === 'answer'} onClick={() => onSelect(null)} className="text-xs font-bold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Skip this question</button>}</div><Button type="button" size="sm" variant="accent" disabled={hasSubmitted || busy === 'answer'} onClick={onSubmit} loading={busy === 'answer'}>{match.current_question_index + 1 === match.question_count ? 'Submit' : 'Next'} <Check className="size-4" aria-hidden /></Button></div></div> : <div className="rounded-md border-2 border-dashed border-foreground/15 p-6 text-center"><p className="font-heading font-bold">Waiting for the next round</p><p className="mt-1 text-sm text-muted-foreground">The other player may still be submitting an answer.</p><Button variant="outline" size="sm" className="mt-4" onClick={onRefresh}><RefreshCw className="size-4" aria-hidden /> Refresh</Button></div>}</CardContent></Card>
-    <div className="pointer-events-none absolute bottom-0 left-0 flex items-center gap-2"><PresenceAvatar player={myPlayer} active={mySubmitted} label="You" /></div><div className="pointer-events-none absolute bottom-0 right-0 flex items-center gap-2"><PresenceAvatar player={otherPlayer} active={opponentSubmitted} label="Opponent" /></div>
-    <p className="mt-2 text-center text-[10px] text-muted-foreground sm:mt-4 sm:text-xs">One shared question. The first submission gives the other player a 10-second grace window.</p>
+    <Card className="mx-auto flex min-h-[62svh] w-full max-w-2xl flex-none shadow-brutal-sm sm:min-h-0 sm:flex-none sm:shadow-brutal"><CardContent className="flex min-h-[62svh] flex-col p-3 sm:min-h-0 sm:p-6">{graceSeconds !== null && !mySubmitted ? <div className="pointer-events-none fixed inset-0 z-30 grid place-items-center bg-foreground/15 px-6 backdrop-blur-[1px]"><div className="rounded-lg border-2 border-foreground bg-card px-6 py-5 text-center shadow-brutal"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Opponent submitted</p><p className="mt-1 font-heading text-5xl font-black tabular-nums text-coral">{graceSeconds}</p><p className="mt-1 text-xs font-semibold text-muted-foreground">Submit before the round closes</p></div></div> : null}{loading ? <div className="flex min-h-[45vh] flex-1 items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" aria-hidden /> Loading the shared question…</div> : question ? <div className="flex min-h-[50svh] flex-col justify-center sm:min-h-0"><p className="font-heading text-lg font-bold leading-snug sm:text-2xl">{question.question}</p><div className="mt-4 grid gap-2 sm:mt-6 sm:grid-cols-2 sm:gap-3">{question.options.map((option, index) => <button key={`${question.question_id}-${option}`} type="button" disabled={hasSubmitted || busy === 'answer'} onClick={() => onSelect(option)} className={cn('flex min-h-11 items-start gap-2 rounded-md border-2 border-foreground bg-card p-2.5 text-left text-sm font-semibold leading-5 shadow-brutal-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-80 motion-reduce:transition-none sm:min-h-14 sm:p-3', selected === option && 'border-foreground bg-mint shadow-none')}><span className="inline-grid size-6 shrink-0 place-items-center rounded-full border-2 border-foreground text-xs font-black">{String.fromCharCode(65 + index)}</span><span className="min-w-0 break-words">{option}</span></button>)}</div><div className="mt-3 flex items-center justify-between gap-3 sm:mt-5"><div className="min-w-0">{hasSubmitted ? <p className="text-xs font-semibold text-mint-foreground">Waiting for the other player…</p> : <button type="button" disabled={hasSubmitted || busy === 'answer'} onClick={() => onSelect(null)} className="text-xs font-bold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Skip this question</button>}</div><Button type="button" size="sm" variant="accent" disabled={hasSubmitted || busy === 'answer'} onClick={onSubmit} loading={busy === 'answer'}>{match.current_question_index + 1 === match.question_count ? 'Submit' : 'Next'} <Check className="size-4" aria-hidden /></Button></div></div> : <div className="rounded-md border-2 border-dashed border-foreground/15 p-6 text-center"><p className="font-heading font-bold">Waiting for the next round</p><p className="mt-1 text-sm text-muted-foreground">The other player may still be submitting an answer.</p><Button variant="outline" size="sm" className="mt-4" onClick={onRefresh}><RefreshCw className="size-4" aria-hidden /> Refresh</Button></div>}</CardContent></Card>
+    <div className="pointer-events-none absolute bottom-0 left-0 flex items-end gap-2"><div className="relative pointer-events-auto"><button type="button" onClick={onToggleQuickPicker} className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" aria-label="Open quick messages" aria-expanded={quickPickerOpen}><PresenceAvatar player={myPlayer} active={mySubmitted} label="You" /></button>{myMessage ? <MessageBubble message={myMessage} align="left" /> : null}{quickPickerOpen ? <div className="absolute bottom-[calc(100%+0.6rem)] left-0 z-20 w-56 rounded-lg border-2 border-foreground bg-card p-2 shadow-brutal" role="menu"><p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Quick message</p>{QUICK_MESSAGES.map((message) => <button key={message} type="button" role="menuitem" disabled={busy === 'quick-message'} onClick={() => { onQuickMessage(message); onToggleQuickPicker() }} className="block w-full rounded-md px-2 py-2 text-left text-xs font-bold hover:bg-muted disabled:cursor-wait disabled:opacity-60">{message}</button>)}</div> : null}</div></div><div className="pointer-events-none absolute bottom-0 right-0 flex items-end gap-2"><div className="relative">{opponentMessage ? <MessageBubble message={opponentMessage} align="right" /> : null}<PresenceAvatar player={otherPlayer} active={opponentSubmitted} label="Opponent" /></div></div>
+    <p className="mt-2 text-center text-[10px] text-muted-foreground sm:mt-4 sm:text-xs">One shared question. Keep it friendly.</p>
   </div>
+}
+
+function MessageBubble({ message, align }: { message: QuickMessage; align: 'left' | 'right' }) {
+  return <div className={cn('absolute bottom-[calc(100%+0.55rem)] z-10 max-w-48 rounded-lg border-2 border-foreground bg-card px-2.5 py-2 text-xs font-bold leading-4 shadow-brutal-sm', align === 'left' ? 'left-0' : 'right-0')} role="status" aria-live="polite">{message.text}<span className={cn('absolute -bottom-1.5 size-3 rotate-45 border-b-2 border-r-2 border-foreground bg-card', align === 'left' ? 'left-3' : 'right-3')} aria-hidden="true" /></div>
 }
 
 function PresenceAvatar({ player, active, label }: { player?: CombatMatch['players'][number]; active: boolean; label: string }) {

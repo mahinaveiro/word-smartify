@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Award, BarChart3, BookOpen, Clock3, ExternalLink, Flame, Loader2, Medal, MessageCircle, Send, Target, Trophy, UserCheck, UserMinus, UserPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,13 @@ import { postSocial } from '@/features/combat/combat-api'
 import { isOwnerUserId, OwnerDisplayName, STUDY_GC_DISCORD_URL, STUDY_GC_TELEGRAM_URL } from '@/lib/owner'
 
 export function PublicProfileView({ userId }: { userId: string }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const fallbackPath = searchParams.get('from') === 'combat' ? '/combat' : '/leaderboard'
+  const goBack = () => {
+    if (window.history.length > 1) router.back()
+    else router.replace(fallbackPath)
+  }
   const { data: profile, error, isLoading, mutate } = usePublicProfile(userId)
   const { user } = useAuth()
   const { data: books } = useBooks()
@@ -83,12 +90,13 @@ export function PublicProfileView({ userId }: { userId: string }) {
   }
   if (!profile) {
     return (
-      <div className="flex flex-col gap-4">
-        <Button asChild variant="ghost" className="self-start px-0">
-          <Link href="/leaderboard"><ArrowLeft className="size-4" aria-hidden /> Back to leaderboard</Link>
+            <div className="flex flex-col gap-4">
+        <Button variant="ghost" className="self-start px-0" onClick={goBack}>
+          <ArrowLeft className="size-4" aria-hidden /> Back
         </Button>
-        <EmptyState title="Profile not found" description="This learner profile is no longer available." action={<Button asChild><Link href="/leaderboard">Back to leaderboard</Link></Button>} />
+        <EmptyState title="Profile not found" description="This learner profile is no longer available." action={<Button onClick={goBack}>Back</Button>} />
       </div>
+
     )
   }
 
@@ -96,7 +104,7 @@ export function PublicProfileView({ userId }: { userId: string }) {
     <div className="flex flex-col gap-6">
       <PageHeader
         title={<OwnerDisplayName userId={profile.id} name={profile.display_name} badges={profile.badges} className="text-balance" />}
-        leading={<BackButton href="/leaderboard" label="Back to leaderboard" />}
+        leading={<BackButton onClick={goBack} label="Back" />}
       />
 
       <Card>

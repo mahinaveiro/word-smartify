@@ -288,18 +288,47 @@ export class SupabaseCombatRepository implements CombatRepository {
       .limit(20)
     if (result.error) throw new Error(result.error.message)
     const rows = (result.data ?? []) as InviteRow[]
-    const profiles = await this.profilesFor(rows.map((row) => row.sender_id))
-    const matches = await Promise.all(rows.map(async (row) => {
+    const now = new Date()
+    const nowIso = now.toISOString()
+    const matchRows = await Promise.all(rows.map(async (row) => {
       const match = await this.client.from('combat_matches').select('*').eq('id', row.match_id).maybeSingle()
       if (match.error) throw new Error(match.error.message)
-      return [row.match_id, match.data ? await this.hydrateMatch(match.data) : null] as const
+      return { invite: row, match: match.data as MatchRow | null }
     }))
-    const matchMap = new Map(matches)
-    return rows.map((row) => ({
-      ...row,
-      status: row.status as CombatInvite['status'],
-      sender: profiles.get(row.sender_id) as SocialProfile,
-      match: matchMap.get(row.match_id) ?? null,
+    const activeRows: Array<{ invite: InviteRow; match: MatchRow }> = []
+    for (const { invite, match } of matchRows) {
+      const matchExpired = Boolean(match && match.status === 'waiting' && new Date(match.expires_at).getTime() <= now.getTime())
+      const inviteDead = !match || match.status !== 'waiting' || Boolean(match.opponent_id) || matchExpired
+      if (!inviteDead && match) {
+        activeRows.push({ invite, match })
+        continue
+      }
+      const expiredInvite = await this.client
+        .from('combat_match_invites')
+        .update({ status: 'expired', responded_at: nowIso })
+        .eq('id', invite.id)
+        .eq('status', 'pending')
+      if (expiredInvite.error) throw new Error(expiredInvite.error.message)
+      if (matchExpired && match && match.wager_xp > 0 && !['settled', 'refunded'].includes(match.wager_status)) {
+        const expiredMatch = await this.client
+          .from('combat_matches')
+          .update({ status: 'expired', updated_at: nowIso })
+          .eq('id', match.id)
+          .eq('status', 'waiting')
+          .select('id')
+          .maybeSingle()
+        if (expiredMatch.error) throw new Error(expiredMatch.error.message)
+        if (expiredMatch.data) await this.settleWager(match.id, null)
+      }
+    }
+    const profiles = await this.profilesFor(activeRows.map(({ invite }) => invite.sender_id))
+    const hydratedMatches = await Promise.all(activeRows.map(async ({ invite, match }) => [invite.match_id, await this.hydrateMatch(match)] as const))
+    const matchMap = new Map(hydratedMatches)
+    return activeRows.map(({ invite }) => ({
+      ...invite,
+      status: invite.status as CombatInvite['status'],
+      sender: profiles.get(invite.sender_id) as SocialProfile,
+      match: matchMap.get(invite.match_id) ?? null,
     }))
   }
 
