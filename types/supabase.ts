@@ -354,8 +354,8 @@ export type Database = {
         Row: {
           cancelled_at: string | null
           created_at: string
-          current_question_started_at: string | null
           current_question_index: number
+          current_question_started_at: string | null
           expires_at: string
           finished_at: string | null
           host_id: string
@@ -369,12 +369,16 @@ export type Database = {
           time_limit_seconds: number
           updated_at: string
           visibility: string
+          wager_settled_at: string | null
+          wager_status: string
+          wager_winner_id: string | null
+          wager_xp: number
         }
         Insert: {
           cancelled_at?: string | null
           created_at?: string
-          current_question_started_at?: string | null
           current_question_index?: number
+          current_question_started_at?: string | null
           expires_at?: string
           finished_at?: string | null
           host_id: string
@@ -388,12 +392,16 @@ export type Database = {
           time_limit_seconds?: number
           updated_at?: string
           visibility?: string
+          wager_settled_at?: string | null
+          wager_status?: string
+          wager_winner_id?: string | null
+          wager_xp?: number
         }
         Update: {
           cancelled_at?: string | null
           created_at?: string
-          current_question_started_at?: string | null
           current_question_index?: number
+          current_question_started_at?: string | null
           expires_at?: string
           finished_at?: string | null
           host_id?: string
@@ -407,8 +415,47 @@ export type Database = {
           time_limit_seconds?: number
           updated_at?: string
           visibility?: string
+          wager_settled_at?: string | null
+          wager_status?: string
+          wager_winner_id?: string | null
+          wager_xp?: number
         }
         Relationships: []
+      }
+      combat_wager_ledger: {
+        Row: {
+          amount: number
+          created_at: string
+          entry_type: string
+          id: string
+          match_id: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          entry_type: string
+          id?: string
+          match_id: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          entry_type?: string
+          id?: string
+          match_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "combat_wager_ledger_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "combat_matches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       daily_progress: {
         Row: {
@@ -1182,10 +1229,74 @@ export type Database = {
         Args: { p_other_user_id: string; p_user_id: string }
         Returns: boolean
       }
+      join_combat_match: {
+        Args: { p_match_id: string; p_user_id: string }
+        Returns: {
+          cancelled_at: string | null
+          created_at: string
+          current_question_index: number
+          current_question_started_at: string | null
+          expires_at: string
+          finished_at: string | null
+          host_id: string
+          id: string
+          join_code: string
+          opponent_id: string | null
+          preset: string
+          question_count: number
+          started_at: string | null
+          status: string
+          time_limit_seconds: number
+          updated_at: string
+          visibility: string
+          wager_settled_at: string | null
+          wager_status: string
+          wager_winner_id: string | null
+          wager_xp: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "combat_matches"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       record_xp: { Args: { p_amount: number }; Returns: undefined }
       record_xp_for_user: {
         Args: { p_amount: number; p_user_id: string }
         Returns: undefined
+      }
+      reserve_combat_wager: {
+        Args: { p_match_id: string; p_user_id: string }
+        Returns: {
+          cancelled_at: string | null
+          created_at: string
+          current_question_index: number
+          current_question_started_at: string | null
+          expires_at: string
+          finished_at: string | null
+          host_id: string
+          id: string
+          join_code: string
+          opponent_id: string | null
+          preset: string
+          question_count: number
+          started_at: string | null
+          status: string
+          time_limit_seconds: number
+          updated_at: string
+          visibility: string
+          wager_settled_at: string | null
+          wager_status: string
+          wager_winner_id: string | null
+          wager_xp: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "combat_matches"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       search_library_words: {
         Args: {
@@ -1213,6 +1324,10 @@ export type Database = {
           total_count: number
           word: string
         }[]
+      }
+      settle_combat_wager: {
+        Args: { p_match_id: string; p_winner_id?: string }
+        Returns: Json
       }
     }
     Enums: {

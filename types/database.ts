@@ -402,6 +402,10 @@ export interface CombatMatch {
   finished_at: ISOTimestamp | null
   cancelled_at: ISOTimestamp | null
   updated_at: ISOTimestamp
+  wager_xp: 0 | 100
+  wager_status: 'none' | 'pending' | 'reserved' | 'settled' | 'refunded'
+  wager_winner_id: UUID | null
+  wager_settled_at: ISOTimestamp | null
   players: CombatMatchPlayer[]
 }
 
@@ -443,4 +447,8 @@ export interface CombatResult {
   my_answers: CombatAnswer[]
   opponent_answers: CombatAnswer[]
   missed_questions: CombatReviewQuestion[]
+  wager_xp: 0 | 100
+  wager_status: 'none' | 'pending' | 'reserved' | 'settled' | 'refunded'
+  my_xp_delta: number
+  opponent_xp_delta: number
 }

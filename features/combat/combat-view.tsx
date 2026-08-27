@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Check,
   ChevronRight,
+  Coins,
   Clock3,
   Copy,
   History,
@@ -86,6 +87,8 @@ export function CombatView() {
   const [preset, setPreset] = React.useState<CombatPreset>('sprint')
   const [customQuestions, setCustomQuestions] = React.useState(8)
   const [customSeconds, setCustomSeconds] = React.useState(15)
+  const [wagerXp, setWagerXp] = React.useState<0 | 100>(0)
+  const [friendToChallenge, setFriendToChallenge] = React.useState<Friendship | null>(null)
   const [joinCode, setJoinCode] = React.useState('')
   const [search, setSearch] = React.useState('')
   const [busy, setBusy] = React.useState<string | null>(null)
@@ -126,15 +129,18 @@ export function CombatView() {
     }
   }
 
-  const createMatch = async (selectedPreset: CombatPreset = preset) => {
+  const createMatch = async (selectedPreset: CombatPreset = preset, selectedWager: 0 | 100 = wagerXp, recipientId?: string) => {
     await run('create', async () => {
       const match = await postCombat<CombatMatch>({
         action: 'create',
         preset: selectedPreset,
         questionCount: selectedPreset === 'custom' ? customQuestions : selectedPreset === 'standard' ? 10 : 5,
         timeLimitSeconds: selectedPreset === 'custom' ? customSeconds : 15,
+        wagerXp: selectedWager,
       })
+      if (recipientId) await postCombat({ action: 'invite_friend', matchId: match.id, recipientId })
       setCreateOpen(false)
+      setFriendToChallenge(null)
       router.push(`/combat/${match.id}`)
     })
   }
@@ -147,14 +153,11 @@ export function CombatView() {
     })
   }
 
-  const challengeFriend = async (friend: Friendship) => {
-    await run(`challenge-${friend.other_user.id}`, async () => {
-      const match = await postCombat<CombatMatch>({ action: 'create', preset: 'sprint', questionCount: 5, timeLimitSeconds: 15 })
-      await postCombat({ action: 'invite_friend', matchId: match.id, recipientId: friend.other_user.id })
-      await navigator.clipboard?.writeText(match.join_code).catch(() => undefined)
-      setNotice(`Challenge created for ${friend.other_user.display_name}. Their invite is waiting in Combat.`)
-      router.push(`/combat/${match.id}`)
-    })
+  const challengeFriend = (friend: Friendship) => {
+    setFriendToChallenge(friend)
+    setPreset('sprint')
+    setWagerXp(100)
+    setCreateOpen(true)
   }
 
   const respondToInvite = async (invite: CombatInvite, response: 'accepted' | 'declined') => {
@@ -200,7 +203,7 @@ export function CombatView() {
             <p className="mt-2 max-w-lg text-sm leading-6 text-primary-foreground/75 sm:text-base">A fair, private vocabulary duel with one shared question set. No public pressure, no random bonuses—just what you know.</p>
           </div>
           <div className="flex shrink-0 items-center gap-2 rounded-md border-2 border-primary-foreground/20 bg-primary-foreground/10 px-3 py-2 text-xs font-semibold text-primary-foreground/80">
-            <ShieldCheck className="size-4 text-mint" aria-hidden /> No XP wager in this release
+            <Coins className="size-4 text-mint" aria-hidden /> Optional 100 XP stakes · friend matches only
           </div>
         </div>
       </section>
@@ -242,11 +245,11 @@ export function CombatView() {
       {section === 'friends' ? <FriendsSection friends={friends.data ?? []} requests={requests.data} search={search} setSearch={setSearch} searchResults={searchResults.data ?? []} busy={busy} onAddFriend={(profile) => void addFriend(profile)} onRespondRequest={(id, response) => void respondToRequest(id, response)} onChallenge={(friend) => void challengeFriend(friend)} /> : null}
       {section === 'history' ? <HistorySection history={history.data ?? []} loading={history.isLoading} userId={user?.id} onOpen={(match) => router.push(`/combat/${match.id}`)} /> : null}
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create a private match" description="Pick a preset now. Advanced controls stay tucked away until you need them." footer={<><Button variant="ghost" size="sm" onClick={() => setCreateOpen(false)}>Cancel</Button><Button size="sm" onClick={() => void createMatch()} loading={busy === 'create'}>Create match <ArrowRight className="size-4" aria-hidden /></Button></>}>
+      <Modal open={createOpen} onClose={() => { setCreateOpen(false); setFriendToChallenge(null) }} title={friendToChallenge ? `Challenge ${friendToChallenge.other_user.display_name}` : 'Create a private match'} description={friendToChallenge ? 'Choose the rules together. They must accept the exact stake before joining.' : 'Pick a preset now. Advanced controls stay tucked away until you need them.'} footer={<><Button variant="ghost" size="sm" onClick={() => { setCreateOpen(false); setFriendToChallenge(null) }}>Cancel</Button><Button size="sm" onClick={() => void createMatch(preset, wagerXp, friendToChallenge?.other_user.id)} loading={busy === 'create'}>{friendToChallenge ? 'Send challenge' : 'Create match'} <ArrowRight className="size-4" aria-hidden /></Button></>}>
         <div className="grid gap-3">
           {(Object.keys(PRESET_COPY) as CombatPreset[]).map((item) => <button key={item} type="button" onClick={() => setPreset(item)} className={cn('rounded-md border-2 border-foreground p-4 text-left transition-colors', preset === item ? 'bg-mint shadow-brutal-sm' : 'bg-card hover:bg-muted')}><div className="flex items-start justify-between gap-3"><div><p className="font-heading font-bold">{PRESET_COPY[item].title}</p><p className="mt-1 text-sm text-muted-foreground">{PRESET_COPY[item].detail}</p></div><span className="text-xs font-semibold text-muted-foreground">{PRESET_COPY[item].questions}</span></div></button>)}
           {preset === 'custom' ? <div className="grid grid-cols-2 gap-3 rounded-md border-2 border-foreground/15 bg-muted/40 p-3"><div><Label htmlFor="combat-question-count">Questions</Label><Input id="combat-question-count" type="number" min={3} max={20} value={customQuestions} onChange={(event) => setCustomQuestions(Math.min(20, Math.max(3, Number(event.target.value) || 3)))} /></div><div><Label htmlFor="combat-time-limit">Seconds each</Label><Input id="combat-time-limit" type="number" min={5} max={60} value={customSeconds} onChange={(event) => setCustomSeconds(Math.min(60, Math.max(5, Number(event.target.value) || 5)))} /></div></div> : null}
-          <p className="text-xs leading-5 text-muted-foreground">Questions are selected from the shared eligible pool. The correct answer is never sent to your device during the match.</p>
+          <div className="grid gap-2 rounded-md border-2 border-foreground/15 bg-muted/40 p-3"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Stake</p><div className="grid gap-2 sm:grid-cols-2"><button type="button" onClick={() => setWagerXp(0)} className={cn('rounded-md border-2 px-3 py-3 text-left', wagerXp === 0 ? 'border-foreground bg-card shadow-brutal-sm' : 'border-foreground/15 bg-background hover:bg-card')}><p className="text-sm font-bold">Practice match</p><p className="mt-1 text-xs text-muted-foreground">No XP at risk</p></button><button type="button" onClick={() => setWagerXp(100)} className={cn('rounded-md border-2 px-3 py-3 text-left', wagerXp === 100 ? 'border-foreground bg-mint/25 shadow-brutal-sm' : 'border-foreground/15 bg-background hover:bg-mint/10')}><p className="flex items-center gap-1.5 text-sm font-bold"><Coins className="size-4 text-coral" aria-hidden />100 XP wager</p><p className="mt-1 text-xs text-muted-foreground">Winner receives 200 XP</p></button></div><p className="text-xs leading-5 text-muted-foreground">The stake is reserved before play. Your opponent sees and accepts the exact amount before joining. A draw, cancellation, expiry, or protected no-contest refunds both players.</p></div><p className="text-xs leading-5 text-muted-foreground">Questions are selected from the shared eligible pool. The correct answer is never sent to your device during the match.</p>
         </div>
       </Modal>
 
@@ -269,7 +272,7 @@ function TabButton({ active, badge, children, onClick }: { active: boolean; badg
 }
 
 function InviteRow({ invite, busy, onRespond }: { invite: CombatInvite; busy: boolean; onRespond: (response: 'accepted' | 'declined') => void }) {
-  return <div className="flex flex-col gap-3 rounded-md border-2 border-foreground/15 bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"><div className="flex min-w-0 items-center gap-3"><Avatar name={invite.sender.display_name} avatarId={invite.sender.avatar_id} avatarUrl={invite.sender.avatar_url} size="sm" /><div className="min-w-0"><p className="truncate text-sm font-bold">{invite.sender.display_name} challenged you</p><p className="text-xs text-muted-foreground">{invite.match?.question_count ?? 5} questions · private Sprint</p></div></div><div className="flex gap-2 sm:shrink-0"><Button variant="ghost" size="sm" onClick={() => onRespond('declined')} disabled={busy}>Decline</Button><Button variant="accent" size="sm" onClick={() => onRespond('accepted')} loading={busy}>Accept <ArrowRight className="size-3.5" aria-hidden /></Button></div></div>
+  return <div className="flex flex-col gap-3 rounded-md border-2 border-foreground/15 bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"><div className="flex min-w-0 items-center gap-3"><Avatar name={invite.sender.display_name} avatarId={invite.sender.avatar_id} avatarUrl={invite.sender.avatar_url} size="sm" /><div className="min-w-0"><p className="truncate text-sm font-bold">{invite.sender.display_name} challenged you</p><p className="text-xs text-muted-foreground">{invite.match?.question_count ?? 5} questions · private Sprint{invite.match?.wager_xp ? ` · ${invite.match.wager_xp} XP stake each` : ' · no stake'}</p></div></div><div className="flex gap-2 sm:shrink-0"><Button variant="ghost" size="sm" onClick={() => onRespond('declined')} disabled={busy}>Decline</Button><Button variant="accent" size="sm" onClick={() => onRespond('accepted')} loading={busy}>Accept <ArrowRight className="size-3.5" aria-hidden /></Button></div></div>
 }
 
 function FriendsSection({ friends, requests, search, setSearch, searchResults, busy, onAddFriend, onRespondRequest, onChallenge }: { friends: Friendship[]; requests?: { incoming: Friendship[]; outgoing: Friendship[] }; search: string; setSearch: (value: string) => void; searchResults: SocialProfile[]; busy: string | null; onAddFriend: (profile: SocialProfile) => void; onRespondRequest: (id: string, response: 'accepted' | 'declined' | 'cancelled') => void; onChallenge: (friend: Friendship) => void }) {
@@ -277,7 +280,7 @@ function FriendsSection({ friends, requests, search, setSearch, searchResults, b
 }
 
 function HistorySection({ history, loading, userId, onOpen }: { history: CombatMatch[]; loading: boolean; userId?: string; onOpen: (match: CombatMatch) => void }) {
-  return <Card><CardHeader><CardTitle className="flex items-center gap-2"><History className="size-5 text-coral" aria-hidden /> Match history</CardTitle><CardDescription>Your recent private duels, kept compact so learning stays the main thing.</CardDescription></CardHeader><CardContent>{loading ? <LoadingLine /> : history.length ? <div className="grid gap-2">{history.map((match) => { const me = match.players.find((player) => player.user_id === userId) ?? match.players.find((player) => player.user_id === match.host_id); const opponent = match.players.find((player) => player.user_id !== me?.user_id); return <button key={match.id} type="button" onClick={() => onOpen(match)} className="flex items-center justify-between gap-3 rounded-md border-2 border-foreground/10 p-3 text-left transition-colors hover:bg-muted"><div className="flex min-w-0 items-center gap-3"><Avatar name={opponent?.profile.display_name ?? 'Player'} avatarId={opponent?.profile.avatar_id} avatarUrl={opponent?.profile.avatar_url} size="sm" /><div className="min-w-0"><p className="truncate text-sm font-bold">vs {opponent?.profile.display_name ?? 'Player'}</p><p className="text-xs text-muted-foreground">{statusLabel(match)} · {match.question_count} questions</p></div></div><div className="flex items-center gap-3"><span className="text-sm font-heading font-bold">{me?.correct_count ?? 0}–{opponent?.correct_count ?? 0}</span><ChevronRight className="size-4 text-muted-foreground" aria-hidden /></div></button> })}</div> : <EmptyPanel icon={Clock3} title="No matches yet" detail="Your first duel will appear here when it ends." />}</CardContent></Card>
+  return <Card><CardHeader><CardTitle className="flex items-center gap-2"><History className="size-5 text-coral" aria-hidden /> Match history</CardTitle><CardDescription>Your recent private duels, kept compact so learning stays the main thing.</CardDescription></CardHeader><CardContent>{loading ? <LoadingLine /> : history.length ? <div className="grid gap-2">{history.map((match) => { const me = match.players.find((player) => player.user_id === userId) ?? match.players.find((player) => player.user_id === match.host_id); const opponent = match.players.find((player) => player.user_id !== me?.user_id); return <button key={match.id} type="button" onClick={() => onOpen(match)} className="flex items-center justify-between gap-3 rounded-md border-2 border-foreground/10 p-3 text-left transition-colors hover:bg-muted"><div className="flex min-w-0 items-center gap-3"><Avatar name={opponent?.profile.display_name ?? 'Player'} avatarId={opponent?.profile.avatar_id} avatarUrl={opponent?.profile.avatar_url} size="sm" /><div className="min-w-0"><p className="truncate text-sm font-bold">vs {opponent?.profile.display_name ?? 'Player'}</p><p className="text-xs text-muted-foreground">{statusLabel(match)} · {match.question_count} questions · {match.wager_xp ? `${match.wager_xp} XP stake` : 'no stake'}</p></div></div><div className="flex items-center gap-3"><span className="text-sm font-heading font-bold">{me?.correct_count ?? 0}–{opponent?.correct_count ?? 0}</span><ChevronRight className="size-4 text-muted-foreground" aria-hidden /></div></button> })}</div> : <EmptyPanel icon={Clock3} title="No matches yet" detail="Your first duel will appear here when it ends." />}</CardContent></Card>
 }
 
 function RuleLine({ title, detail }: { title: string; detail: string }) { return <div><p className="font-heading text-sm font-bold text-foreground">{title}</p><p className="mt-0.5 text-xs leading-5">{detail}</p></div> }

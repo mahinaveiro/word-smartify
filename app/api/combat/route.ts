@@ -71,7 +71,9 @@ export async function POST(request: Request) {
         const preset = stringValue(parsed.preset ?? 'sprint', 'preset', 20) as CombatPreset
         const questionCount = integer(parsed.questionCount ?? (preset === 'standard' ? 10 : 5), 'questionCount', 3, 20)
         const timeLimitSeconds = integer(parsed.timeLimitSeconds ?? 15, 'timeLimitSeconds', 5, 60)
-        return NextResponse.json(await repos.combat.createMatch(user.id, { preset, question_count: questionCount, time_limit_seconds: timeLimitSeconds }))
+        const wagerXp = parsed.wagerXp === undefined ? 0 : integer(parsed.wagerXp, 'wagerXp', 0, 100)
+        if (wagerXp !== 0 && wagerXp !== 100) throw new Error('The available XP wager is 100 XP.')
+        return NextResponse.json(await repos.combat.createMatch(user.id, { preset, question_count: questionCount, time_limit_seconds: timeLimitSeconds, wager_xp: wagerXp as 0 | 100 }))
       }
       case 'join':
         return NextResponse.json(await repos.combat.joinMatch(user.id, stringValue(parsed.joinCode, 'joinCode', 20)))

@@ -126,7 +126,7 @@ export interface CombatRepository {
   getInvites(userId: UUID): Promise<CombatInvite[]>
   inviteFriend(userId: UUID, matchId: UUID, recipientId: UUID): Promise<CombatInvite>
   respondToInvite(userId: UUID, inviteId: UUID, response: 'accepted' | 'declined'): Promise<CombatMatch | null>
-  createMatch(userId: UUID, input: { preset: CombatPreset; question_count: number; time_limit_seconds: number }): Promise<CombatMatch>
+  createMatch(userId: UUID, input: { preset: CombatPreset; question_count: number; time_limit_seconds: number; wager_xp?: 0 | 100 }): Promise<CombatMatch>
   joinMatch(userId: UUID, joinCode: string): Promise<CombatMatch>
   setReady(userId: UUID, matchId: UUID, ready: boolean): Promise<CombatMatch>
   startMatch(userId: UUID, matchId: UUID): Promise<CombatMatch>

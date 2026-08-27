@@ -133,7 +133,7 @@ export class SupabaseCombatRepository implements CombatRepository {
         last_seen_at: null,
       },
     }))
-    return { ...row, preset: row.preset as CombatPreset, status: row.status as CombatMatch['status'], visibility: 'private', players }
+    return { ...row, preset: row.preset as CombatPreset, status: row.status as CombatMatch['status'], visibility: 'private', wager_xp: row.wager_xp === 100 ? 100 : 0, players }
   }
 
   private async uniqueJoinCode(): Promise<string> {
@@ -144,6 +144,23 @@ export class SupabaseCombatRepository implements CombatRepository {
       if (!result.data) return candidate
     }
     throw new Error('Could not reserve a match code. Please try again.')
+  }
+
+  private async reserveWager(matchId: UUID, userId: UUID): Promise<MatchRow> {
+    const result = await this.client.rpc('reserve_combat_wager', { p_match_id: matchId, p_user_id: userId })
+    if (result.error) throw new Error(result.error.message)
+    if (!result.data) throw new Error('The XP wager could not be reserved.')
+    return result.data as MatchRow
+  }
+
+  private async settleWager(matchId: UUID, winnerId: UUID | null): Promise<void> {
+    const result = await this.client.rpc('settle_combat_wager', { p_match_id: matchId, p_winner_id: winnerId ?? undefined })
+    if (result.error) throw new Error(result.error.message)
+  }
+
+  private wagerDeltas(match: MatchRow, currentUserId: UUID): { my_xp_delta: number; opponent_xp_delta: number } {
+    if (match.wager_xp === 0 || match.wager_status !== 'settled' || !match.wager_winner_id) return { my_xp_delta: 0, opponent_xp_delta: 0 }
+    return match.wager_winner_id === currentUserId ? { my_xp_delta: match.wager_xp, opponent_xp_delta: -match.wager_xp } : { my_xp_delta: -match.wager_xp, opponent_xp_delta: match.wager_xp }
   }
 
   private async chooseQuestions(count: number): Promise<Array<{ question_id: UUID; word_id: UUID; question: string; options: string[]; correct_answer: string; explanation: string | null }>> {
@@ -188,6 +205,12 @@ export class SupabaseCombatRepository implements CombatRepository {
     if (row.status === 'waiting' && new Date(row.expires_at).getTime() <= Date.now()) {
       await this.client.from('combat_matches').update({ status: 'expired', updated_at: new Date().toISOString() }).eq('id', matchId).eq('status', 'waiting')
       row.status = 'expired'
+      if (row.wager_xp > 0 && !['settled', 'refunded'].includes(row.wager_status)) {
+        await this.settleWager(matchId, null)
+        const refunded = await this.client.from('combat_matches').select('*').eq('id', matchId).single()
+        if (refunded.error) throw new Error(refunded.error.message)
+        row = refunded.data
+      }
     }
     return this.hydrateMatch(row)
   }
@@ -197,6 +220,13 @@ export class SupabaseCombatRepository implements CombatRepository {
     const result = await this.client.from('combat_matches').select('*').eq('join_code', normalized).maybeSingle()
     if (result.error) throw new Error(result.error.message)
     if (!result.data || result.data.host_id !== userId && result.data.opponent_id !== userId) return null
+    if (result.data.status === 'waiting' && new Date(result.data.expires_at).getTime() <= Date.now()) {
+      await this.client.from('combat_matches').update({ status: 'expired', updated_at: new Date().toISOString() }).eq('id', result.data.id).eq('status', 'waiting')
+      if (result.data.wager_xp > 0 && !['settled', 'refunded'].includes(result.data.wager_status)) await this.settleWager(result.data.id, null)
+      const expired = await this.client.from('combat_matches').select('*').eq('id', result.data.id).single()
+      if (expired.error) throw new Error(expired.error.message)
+      return this.hydrateMatch(expired.data)
+    }
     return this.hydrateMatch(result.data)
   }
 
@@ -276,11 +306,18 @@ export class SupabaseCombatRepository implements CombatRepository {
     if (matchResult.error) throw new Error(matchResult.error.message)
     if (!matchResult.data || matchResult.data.status !== 'waiting' || matchResult.data.opponent_id || new Date(matchResult.data.expires_at).getTime() <= Date.now()) {
       await this.client.from('combat_match_invites').update({ status: 'expired', responded_at: new Date().toISOString() }).eq('id', inviteId).eq('status', 'pending')
+      if (matchResult.data?.wager_xp && !['settled', 'refunded'].includes(matchResult.data.wager_status)) {
+        await this.client.from('combat_matches').update({ status: 'expired', updated_at: new Date().toISOString() }).eq('id', matchResult.data.id).eq('status', 'waiting')
+        await this.settleWager(matchResult.data.id, null)
+      }
       throw new Error('This challenge has expired.')
     }
     if (response === 'declined') {
       const declined = await this.client.from('combat_match_invites').update({ status: 'declined', responded_at: new Date().toISOString() }).eq('id', inviteId).eq('status', 'pending')
       if (declined.error) throw new Error(declined.error.message)
+      const cancelled = await this.client.from('combat_matches').update({ status: 'cancelled', cancelled_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', matchResult.data.id).eq('status', 'waiting')
+      if (cancelled.error) throw new Error(cancelled.error.message)
+      if (matchResult.data.wager_xp > 0) await this.settleWager(matchResult.data.id, null)
       return null
     }
     const match = await this.joinMatch(userId, matchResult.data.join_code)
@@ -289,11 +326,12 @@ export class SupabaseCombatRepository implements CombatRepository {
     return match
   }
 
-  async createMatch(userId: UUID, input: { preset: CombatPreset; question_count: number; time_limit_seconds: number }): Promise<CombatMatch> {
+  async createMatch(userId: UUID, input: { preset: CombatPreset; question_count: number; time_limit_seconds: number; wager_xp?: 0 | 100 }): Promise<CombatMatch> {
     const preset = input.preset in PRESETS ? input.preset : 'sprint'
     const defaults = PRESETS[preset]
     const questionCount = Number.isInteger(input.question_count) ? input.question_count : defaults.question_count
     const timeLimit = Number.isInteger(input.time_limit_seconds) ? input.time_limit_seconds : defaults.time_limit_seconds
+    const wagerXp: 0 | 100 = input.wager_xp === 100 ? 100 : 0
     if (questionCount < 3 || questionCount > 20) throw new Error('Choose between 3 and 20 questions.')
     if (timeLimit < 5 || timeLimit > 60) throw new Error('Choose a question timer between 5 and 60 seconds.')
     const questions = await this.chooseQuestions(questionCount)
@@ -305,6 +343,8 @@ export class SupabaseCombatRepository implements CombatRepository {
         preset,
         question_count: questionCount,
         time_limit_seconds: timeLimit,
+        wager_xp: wagerXp,
+        wager_status: wagerXp > 0 ? 'pending' : 'none',
         expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       })
       .select('*')
@@ -322,7 +362,13 @@ export class SupabaseCombatRepository implements CombatRepository {
       await this.client.from('combat_matches').delete().eq('id', matchInsert.data.id)
       throw new Error(questionInsert.error.message)
     }
-    return this.hydrateMatch(matchInsert.data)
+    try {
+      const reserved = await this.reserveWager(matchInsert.data.id, userId)
+      return this.hydrateMatch(reserved)
+    } catch (error) {
+      await this.client.from('combat_matches').delete().eq('id', matchInsert.data.id)
+      throw error
+    }
   }
 
   async joinMatch(userId: UUID, joinCode: string): Promise<CombatMatch> {
@@ -336,23 +382,16 @@ export class SupabaseCombatRepository implements CombatRepository {
     const block = await this.client.from('user_blocks').select('blocker_id').or(`and(blocker_id.eq.${userId},blocked_id.eq.${match.host_id}),and(blocker_id.eq.${match.host_id},blocked_id.eq.${userId})`).maybeSingle()
     if (block.error) throw new Error(block.error.message)
     if (block.data) throw new Error('You cannot join this match.')
-    const update = await this.client
-      .from('combat_matches')
-      .update({ opponent_id: userId, status: 'ready', updated_at: new Date().toISOString() })
-      .eq('id', match.id)
-      .eq('status', 'waiting')
-      .is('opponent_id', null)
-      .select('*')
-      .single()
-    if (update.error) throw new Error('This match was just claimed by another player.')
-    const playerInsert = await this.client.from('combat_match_players').insert({ match_id: match.id, user_id: userId, slot: 2 })
-    if (playerInsert.error) throw new Error(playerInsert.error.message)
-    return this.hydrateMatch(update.data)
+    const joined = await this.client.rpc('join_combat_match', { p_match_id: match.id, p_user_id: userId })
+    if (joined.error) throw new Error(joined.error.message)
+    if (!joined.data) throw new Error('That match could not be joined.')
+    return this.hydrateMatch(joined.data as MatchRow)
   }
 
   async setReady(userId: UUID, matchId: UUID, ready: boolean): Promise<CombatMatch> {
     const match = await this.assertParticipant(matchId, userId)
     if (!isActiveStatus(match.status) || !match.opponent_id) throw new Error('This match is not ready for play.')
+    if (match.wager_xp > 0 && match.wager_status !== 'reserved') throw new Error('Both XP stakes must be reserved before readiness can be confirmed.')
     const result = await this.client
       .from('combat_match_players')
       .update({ is_ready: ready, last_seen_at: new Date().toISOString() })
@@ -372,6 +411,7 @@ export class SupabaseCombatRepository implements CombatRepository {
   async startMatch(userId: UUID, matchId: UUID): Promise<CombatMatch> {
     const match = await this.assertParticipant(matchId, userId)
     if (match.status !== 'ready') throw new Error('Both players must be ready before the match starts.')
+    if (match.wager_xp > 0 && match.wager_status !== 'reserved') throw new Error('Both XP stakes must be reserved before the match starts.')
     const players = await this.client.from('combat_match_players').select('is_ready').eq('match_id', matchId)
     if (players.error) throw new Error(players.error.message)
     if ((players.data ?? []).length !== 2 || !(players.data ?? []).every((player) => player.is_ready)) throw new Error('Both players must be ready before the match starts.')
@@ -437,13 +477,20 @@ export class SupabaseCombatRepository implements CombatRepository {
         finalData = fresh.data
       }
     }
+    const wagerNeedsSettlement = finalData.wager_xp > 0 && !['settled', 'refunded'].includes(finalData.wager_status)
+    if (!isActiveStatus(finalData.status) && wagerNeedsSettlement) {
+      await this.settleWager(finalData.id, winnerId)
+      const settled = await this.client.from('combat_matches').select('*').eq('id', finalData.id).single()
+      if (settled.error) throw new Error(settled.error.message)
+      finalData = settled.data
+    }
     const profiles = await this.profilesFor(playerRows.map((player) => player.user_id))
     const hydratedPlayers: CombatMatchPlayer[] = playerRows.map((player) => ({
       ...player,
       slot: player.slot as 1 | 2,
       profile: profiles.get(player.user_id) as SocialProfile,
     }))
-    const hydratedMatch: CombatMatch = { ...finalData, preset: finalData.preset as CombatPreset, status: finalData.status as CombatMatch['status'], visibility: 'private', players: hydratedPlayers }
+    const hydratedMatch: CombatMatch = { ...finalData, preset: finalData.preset as CombatPreset, status: finalData.status as CombatMatch['status'], visibility: 'private', wager_xp: finalData.wager_xp === 100 ? 100 : 0, players: hydratedPlayers }
     const questionRows = (questions.data ?? []) as MatchQuestionRow[]
     const answerRows = (answers.data ?? []) as AnswerRow[]
     const currentUser = currentUserId
@@ -451,6 +498,7 @@ export class SupabaseCombatRepository implements CombatRepository {
     if (!opponent) return null
     const currentScore = scoreByUser.get(currentUser) as { correct: number; answered: number; total: number }
     const otherScore = scoreByUser.get(opponent.user_id) as { correct: number; answered: number; total: number }
+    const deltas = this.wagerDeltas(finalData, currentUserId)
     return {
       match: hydratedMatch,
       outcome: outcomeForUser(finalData, currentUser, winnerId),
@@ -463,6 +511,10 @@ export class SupabaseCombatRepository implements CombatRepository {
       opponent_total_time_ms: otherScore.total,
       my_answers: answerRows.filter((answer) => answer.user_id === currentUser).map(toAnswer),
       opponent_answers: answerRows.filter((answer) => answer.user_id === opponent.user_id).map(toAnswer),
+      wager_xp: finalData.wager_xp as 0 | 100,
+      wager_status: finalData.wager_status as CombatResult['wager_status'],
+      my_xp_delta: deltas.my_xp_delta,
+      opponent_xp_delta: deltas.opponent_xp_delta,
       missed_questions: questionRows
         .filter((question) => answerRows.some((answer) => answer.user_id === currentUser && answer.question_id === question.question_id && !answer.is_correct))
         .map((question) => ({
@@ -532,6 +584,7 @@ export class SupabaseCombatRepository implements CombatRepository {
     if (!['waiting', 'ready'].includes(match.status)) throw new Error('This match can no longer be cancelled.')
     const result = await this.client.from('combat_matches').update({ status: 'cancelled', cancelled_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', matchId).in('status', ['waiting', 'ready'])
     if (result.error) throw new Error(result.error.message)
+    if (match.wager_xp > 0) await this.settleWager(matchId, null)
   }
 
   async reportMatch(userId: UUID, matchId: UUID, reason: 'question' | 'connection' | 'cheating' | 'harassment' | 'other', note?: string): Promise<void> {
