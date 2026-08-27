@@ -86,8 +86,9 @@ export function PublicProfileView({ userId }: { userId: string }) {
         <CardContent className="flex flex-col items-center gap-4 p-6 text-center sm:flex-row sm:text-left">
           <Avatar name={profile.display_name} avatarId={profile.avatar_id} avatarUrl={profile.avatar_url} size="xl" />
           <div className="min-w-0">
-            <h2 className="font-heading text-2xl font-bold">
-              <OwnerDisplayName userId={profile.id} name={profile.display_name} badges={profile.badges} />
+            <h2 className="flex items-center justify-center gap-2 font-heading text-2xl font-bold sm:justify-start">
+              <span className="min-w-0 truncate"><OwnerDisplayName userId={profile.id} name={profile.display_name} badges={profile.badges} /></span>
+              {user && user.id !== profile.id && profile.relationship !== 'blocked' ? profile.relationship === 'friends' ? <Button variant="outline" size="sm" className="size-8 shrink-0 rounded-full p-0 sm:h-9 sm:w-auto sm:rounded-md sm:px-2.5" disabled aria-label={`Friends with ${profile.display_name}`}><UserCheck className="size-4" aria-hidden /><span className="hidden sm:inline">Friends</span></Button> : <Button variant={profile.relationship === 'incoming_pending' ? 'accent' : 'outline'} size="sm" className="size-8 shrink-0 rounded-full p-0 sm:h-9 sm:w-auto sm:rounded-md sm:px-2.5" onClick={() => void handleRelationshipAction()} disabled={relationshipBusy || (profile.relationship !== 'none' && !profile.relationship_id)} aria-label={profile.relationship === 'incoming_pending' ? `Accept ${profile.display_name}'s friend request` : profile.relationship === 'outgoing_pending' ? `Cancel friend request to ${profile.display_name}` : `Add ${profile.display_name} as a friend`}>{relationshipBusy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : profile.relationship === 'incoming_pending' ? <UserCheck className="size-4" aria-hidden /> : profile.relationship === 'outgoing_pending' ? <Clock3 className="size-4" aria-hidden /> : <UserPlus className="size-4" aria-hidden />}<span className="hidden sm:inline">{profile.relationship === 'incoming_pending' ? 'Accept request' : profile.relationship === 'outgoing_pending' ? 'Cancel request' : 'Add friend'}</span></Button> : null}
             </h2>
             <div className="mt-2 flex flex-wrap justify-center gap-2 sm:justify-start">
               <span className="inline-flex items-center gap-1 rounded-md border-2 border-foreground bg-coral px-2.5 py-1 text-sm font-heading font-bold text-coral-foreground">
@@ -102,7 +103,7 @@ export function PublicProfileView({ userId }: { userId: string }) {
                 </span>
               ) : null}
             </div>
-            {user && user.id !== profile.id && profile.relationship !== 'blocked' ? <div className="mt-3 flex flex-col items-center gap-1.5 sm:items-start">{profile.relationship === 'friends' ? <Button variant="outline" size="sm" disabled><UserCheck className="size-3.5" aria-hidden /> Friends</Button> : <Button variant={profile.relationship === 'incoming_pending' ? 'accent' : 'outline'} size="sm" onClick={() => void handleRelationshipAction()} disabled={relationshipBusy || (profile.relationship !== 'none' && !profile.relationship_id)}>{relationshipBusy ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : profile.relationship === 'incoming_pending' ? <UserCheck className="size-3.5" aria-hidden /> : profile.relationship === 'outgoing_pending' ? <Clock3 className="size-3.5" aria-hidden /> : <UserPlus className="size-3.5" aria-hidden />}{profile.relationship === 'incoming_pending' ? 'Accept request' : profile.relationship === 'outgoing_pending' ? 'Cancel request' : 'Add friend'}</Button>}{relationshipError ? <p className="max-w-xs text-xs font-semibold text-destructive" role="alert">{relationshipError}</p> : null}</div> : null}
+            {relationshipError ? <p className="mt-2 max-w-xs text-xs font-semibold text-destructive" role="alert">{relationshipError}</p> : null}
           </div>
         </CardContent>
       </Card>

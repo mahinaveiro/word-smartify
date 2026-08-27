@@ -36,6 +36,20 @@ import type { CombatMatch, CombatQuestion, CombatResult } from '@/types/database
 import { loadMatch, loadMatchMessages, loadMatchQuestion, loadMatchResult, postCombat, type CombatMessageRecord } from './combat-api'
 
 type QuickMessage = { id: string; text: string; senderId: string | null }
+
+function messageRecordsFromPayload(payload: unknown): CombatMessageRecord[] {
+  const records = Array.isArray(payload)
+    ? payload
+    : payload && typeof payload === 'object' && Array.isArray((payload as { data?: unknown }).data)
+      ? (payload as { data: unknown[] }).data
+      : []
+  return records.filter((record): record is CombatMessageRecord => {
+    if (!record || typeof record !== 'object') return false
+    const value = record as Partial<CombatMessageRecord>
+    return typeof value.id === 'string' && typeof value.match_id === 'string' && typeof value.sender_id === 'string' && typeof value.message === 'string' && typeof value.created_at === 'string'
+  })
+}
+
 const QUICK_MESSAGES = ['Good luck!', 'Nice one!', 'I’m ready!', 'That was close!']
 const CLOSED_STATUSES = ['completed', 'draw', 'cancelled', 'expired', 'abandoned', 'no_contest'] as const
 
@@ -119,14 +133,17 @@ export function CombatMatchView({ matchId }: { matchId: string }) {
   }, [matchId, refresh])
 
   React.useEffect(() => {
-    persistedMessages.data?.forEach((record) => seenMessageIds.current.add(record.id))
+    messageRecordsFromPayload(persistedMessages.data).forEach((record) => seenMessageIds.current.add(record.id))
   }, [persistedMessages.data])
 
-  const persistedQuickMessages = React.useMemo<QuickMessage[]>(() => (persistedMessages.data ?? []).slice(-4).map((record: CombatMessageRecord) => ({
-    id: record.id,
-    text: record.message,
-    senderId: record.sender_id,
-  })), [persistedMessages.data])
+  const persistedQuickMessages = React.useMemo<QuickMessage[]>(() => {
+    const records = messageRecordsFromPayload(persistedMessages.data)
+    return records.slice(-4).map((record: CombatMessageRecord) => ({
+      id: record.id,
+      text: record.message,
+      senderId: record.sender_id,
+    }))
+  }, [persistedMessages.data])
   const visibleQuickMessages = quickMessages.length > 0 ? quickMessages : persistedQuickMessages
 
   const roundGraceDeadline = currentMatch?.round_grace_deadline ? new Date(currentMatch.round_grace_deadline).getTime() : null

@@ -98,6 +98,21 @@ export async function loadMatchResult(matchId: string): Promise<CombatResult | n
 
 export type CombatMessageRecord = { id: string; match_id: string; sender_id: string; message: string; created_at: string }
 
+function normalizeMessageRecords(payload: unknown): CombatMessageRecord[] {
+  const records = Array.isArray(payload)
+    ? payload
+    : payload && typeof payload === 'object' && Array.isArray((payload as { data?: unknown }).data)
+      ? (payload as { data: unknown[] }).data
+      : []
+
+  return records.filter((record): record is CombatMessageRecord => {
+    if (!record || typeof record !== 'object') return false
+    const value = record as Partial<CombatMessageRecord>
+    return typeof value.id === 'string' && typeof value.match_id === 'string' && typeof value.sender_id === 'string' && typeof value.message === 'string' && typeof value.created_at === 'string'
+  })
+}
+
 export async function loadMatchMessages(matchId: string): Promise<CombatMessageRecord[]> {
-  return readCombat<CombatMessageRecord[]>({ view: 'messages', matchId })
+  const payload = await readCombat<unknown>({ view: 'messages', matchId })
+  return normalizeMessageRecords(payload)
 }
