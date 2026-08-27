@@ -1,3 +1,4 @@
+import { createClient as createBrowserClient } from '@/lib/supabase/client'
 import type {
   CombatMatch,
   CombatQuestion,
@@ -6,6 +7,11 @@ import type {
   SocialProfile,
   UserPrivacy,
 } from '@/types/database'
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await createBrowserClient().auth.getSession()
+  return data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {}
+}
 
 export interface CombatAnswerResponse {
   next_position: number
@@ -20,7 +26,7 @@ export interface FriendRequests {
 
 export async function readCombat<T>(params: Record<string, string>): Promise<T> {
   const search = new URLSearchParams(params)
-  const response = await fetch(`/api/combat?${search.toString()}`, { cache: 'no-store' })
+  const response = await fetch(`/api/combat?${search.toString()}`, { cache: 'no-store', credentials: 'include', headers: await authHeaders() })
   const payload = (await response.json()) as T | { error?: string }
   if (!response.ok) throw new Error((payload as { error?: string }).error ?? 'Combat data could not be loaded.')
   return payload as T
@@ -29,8 +35,9 @@ export async function readCombat<T>(params: Record<string, string>): Promise<T> 
 export async function postCombat<T>(body: Record<string, unknown>): Promise<T> {
   const response = await fetch('/api/combat', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...(await authHeaders()) },
     body: JSON.stringify(body),
+    credentials: 'include',
   })
   const payload = (await response.json()) as T | { error?: string }
   if (!response.ok) throw new Error((payload as { error?: string }).error ?? 'Combat action could not be completed.')
@@ -39,7 +46,7 @@ export async function postCombat<T>(body: Record<string, unknown>): Promise<T> {
 
 export async function readSocial<T>(params: Record<string, string>): Promise<T> {
   const search = new URLSearchParams(params)
-  const response = await fetch(`/api/social?${search.toString()}`, { cache: 'no-store' })
+  const response = await fetch(`/api/social?${search.toString()}`, { cache: 'no-store', credentials: 'include', headers: await authHeaders() })
   const payload = (await response.json()) as T | { error?: string }
   if (!response.ok) throw new Error((payload as { error?: string }).error ?? 'Social data could not be loaded.')
   return payload as T
@@ -48,8 +55,9 @@ export async function readSocial<T>(params: Record<string, string>): Promise<T> 
 export async function postSocial<T>(body: Record<string, unknown>): Promise<T> {
   const response = await fetch('/api/social', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...(await authHeaders()) },
     body: JSON.stringify(body),
+    credentials: 'include',
   })
   const payload = (await response.json()) as T | { error?: string }
   if (!response.ok) throw new Error((payload as { error?: string }).error ?? 'Social action could not be completed.')

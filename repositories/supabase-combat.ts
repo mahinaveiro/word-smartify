@@ -236,22 +236,8 @@ export class SupabaseCombatRepository implements CombatRepository {
     return shuffled.slice(0, count)
   }
 
-  private async settleExpiredRound(userId: UUID, match: MatchRow): Promise<MatchRow> {
-    if (match.status !== 'active' || !match.current_question_started_at) return match
-    const deadline = new Date(match.current_question_started_at).getTime() + match.time_limit_seconds * 1000
-    if (deadline > Date.now()) return match
-    const question = await this.client.from('combat_match_questions').select('question_id').eq('match_id', match.id).eq('position', match.current_question_index).maybeSingle()
-    if (question.error) throw new Error(question.error.message)
-    if (!question.data) return match
-    await this.submitAnswer(userId, match.id, question.data.question_id, null, match.time_limit_seconds * 1000)
-    const fresh = await this.client.from('combat_matches').select('*').eq('id', match.id).single()
-    if (fresh.error) throw new Error(fresh.error.message)
-    return fresh.data
-  }
-
   async getMatch(matchId: UUID, userId: UUID): Promise<CombatMatch | null> {
     let row = await this.assertParticipant(matchId, userId)
-    row = await this.settleExpiredRound(userId, row)
     if (row.status === 'waiting' && new Date(row.expires_at).getTime() <= Date.now()) {
       await this.client.from('combat_matches').update({ status: 'expired', updated_at: new Date().toISOString() }).eq('id', matchId).eq('status', 'waiting')
       row.status = 'expired'
@@ -380,11 +366,10 @@ export class SupabaseCombatRepository implements CombatRepository {
     const preset = input.preset in PRESETS ? input.preset : 'sprint'
     const defaults = PRESETS[preset]
     const questionCount = Number.isInteger(input.question_count) ? input.question_count : defaults.question_count
-    const timeLimit = Number.isInteger(input.time_limit_seconds) ? input.time_limit_seconds : defaults.time_limit_seconds
+    const timeLimit = 15
     const wagerXp: 0 | 100 = input.wager_xp === 100 ? 100 : 0
     const questionSource = input.question_source ?? { mode: 'mixed' as const }
     if (questionCount < 3 || questionCount > 20) throw new Error('Choose between 3 and 20 questions.')
-    if (timeLimit < 5 || timeLimit > 60) throw new Error('Choose a question timer between 5 and 60 seconds.')
     const questions = await this.chooseQuestions(questionCount, questionSource, [userId])
     const matchInsert = await this.client
       .from('combat_matches')
@@ -474,17 +459,21 @@ export class SupabaseCombatRepository implements CombatRepository {
     const match = await this.assertParticipant(matchId, userId)
     if (match.status !== 'ready') throw new Error('Both players must be ready before the match starts.')
     if (match.wager_xp > 0 && match.wager_status !== 'reserved') throw new Error('Both XP stakes must be reserved before the match starts.')
-    const players = await this.client.from('combat_match_players').select('is_ready').eq('match_id', matchId)
+    const players = await this.client.from('combat_match_players').select('user_id, is_ready, slot').eq('match_id', matchId).order('slot', { ascending: true })
     if (players.error) throw new Error(players.error.message)
     if ((players.data ?? []).length !== 2 || !(players.data ?? []).every((player) => player.is_ready)) throw new Error('Both players must be ready before the match starts.')
-    const result = await this.client
-      .from('combat_matches')
-      .update({ status: 'active', started_at: new Date().toISOString(), current_question_index: 0, current_question_started_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq('id', matchId)
-      .eq('status', 'ready')
-      .select('*')
-      .single()
+    const playerRows = players.data ?? []
+    const questionSource = (match.question_source as unknown as CombatQuestionSource | null) ?? { mode: 'mixed' as const }
+    const smartQuestions = questionSource.mode === 'smart'
+      ? await this.chooseQuestions(match.question_count, questionSource, playerRows.map((player) => player.user_id))
+      : null
+    const result = await this.client.rpc('start_combat_match', {
+      p_match_id: matchId,
+      p_user_id: userId,
+      p_questions: smartQuestions ? smartQuestions.map((question) => ({ ...question, options: question.options })) : null,
+    })
     if (result.error) throw new Error(result.error.message)
+    if (!result.data) throw new Error('The match could not be started.')
     await this.client.from('user_presence').upsert({ user_id: match.host_id, state: 'in_combat', last_seen_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     if (match.opponent_id) await this.client.from('user_presence').upsert({ user_id: match.opponent_id, state: 'in_combat', last_seen_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     return this.hydrateMatch(result.data)
@@ -620,6 +609,13 @@ export class SupabaseCombatRepository implements CombatRepository {
     const result = await this.client.rpc('leave_combat_match', { p_match_id: matchId, p_user_id: userId })
     if (result.error) throw new Error(result.error.message)
     if (!result.data) throw new Error('The match departure could not be synchronized.')
+    return this.hydrateMatch(result.data as MatchRow)
+  }
+
+  async forfeitMatch(userId: UUID, matchId: UUID): Promise<CombatMatch> {
+    const result = await this.client.rpc('forfeit_combat_match', { p_match_id: matchId, p_user_id: userId })
+    if (result.error) throw new Error(result.error.message)
+    if (!result.data) throw new Error('The match forfeiture could not be synchronized.')
     return this.hydrateMatch(result.data as MatchRow)
   }
 

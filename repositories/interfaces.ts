@@ -139,6 +139,7 @@ export interface CombatRepository {
   submitAnswer(userId: UUID, matchId: UUID, questionId: UUID, selectedAnswer: string | null, responseTimeMs: number): Promise<{ next_position: number; match: CombatMatch; result: CombatResult | null }>
   heartbeat(userId: UUID, matchId: UUID): Promise<CombatMatch>
   leaveMatch(userId: UUID, matchId: UUID): Promise<CombatMatch>
+  forfeitMatch(userId: UUID, matchId: UUID): Promise<CombatMatch>
   sendQuickMessage(userId: UUID, matchId: UUID, message: CombatQuickMessage): Promise<{ id: UUID; match_id: UUID; sender_id: UUID; message: CombatQuickMessage; created_at: string }>
   getMessages(userId: UUID, matchId: UUID): Promise<Array<{ id: UUID; match_id: UUID; sender_id: UUID; message: CombatQuickMessage; created_at: string }>>
   getResult(userId: UUID, matchId: UUID): Promise<CombatResult | null>

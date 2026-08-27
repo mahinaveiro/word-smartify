@@ -18,16 +18,18 @@ function uuid(value: unknown, field: string): string {
   return result
 }
 
-async function authenticatedUser() {
+async function authenticatedUser(request: Request) {
   const supabase = await createClient()
-  const { data, error } = await supabase.auth.getUser()
+  const authorization = request.headers.get('authorization')
+  const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]
+  const { data, error } = token ? await supabase.auth.getUser(token) : await supabase.auth.getUser()
   if (error || !data.user) throw new Error('Unauthorized')
   return data.user
 }
 
 export async function GET(request: Request) {
   try {
-    const user = await authenticatedUser()
+    const user = await authenticatedUser(request)
     const url = new URL(request.url)
     const view = url.searchParams.get('view') ?? 'friends'
     const repos = createAdminRepositories()
@@ -44,7 +46,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await authenticatedUser()
+    const user = await authenticatedUser(request)
     const parsed: unknown = await request.json()
     if (!isRecord(parsed)) throw new Error('Invalid request.')
     const action = stringValue(parsed.action, 'action', 40)

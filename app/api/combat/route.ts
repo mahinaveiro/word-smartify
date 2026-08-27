@@ -23,16 +23,18 @@ function integer(value: unknown, field: string, min: number, max: number): numbe
   return value
 }
 
-async function authenticatedUser() {
+async function authenticatedUser(request: Request) {
   const supabase = await createClient()
-  const { data, error } = await supabase.auth.getUser()
+  const authorization = request.headers.get('authorization')
+  const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]
+  const { data, error } = token ? await supabase.auth.getUser(token) : await supabase.auth.getUser()
   if (error || !data.user) throw new Error('Unauthorized')
   return data.user
 }
 
 export async function GET(request: Request) {
   try {
-    const user = await authenticatedUser()
+    const user = await authenticatedUser(request)
     const url = new URL(request.url)
     const repos = createAdminRepositories()
     if (url.searchParams.get('view') === 'history') return NextResponse.json(await repos.combat.getHistory(user.id, 20))
@@ -64,7 +66,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await authenticatedUser()
+    const user = await authenticatedUser(request)
     const parsed: unknown = await request.json()
     if (!isRecord(parsed)) throw new Error('Invalid request.')
     const action = stringValue(parsed.action, 'action', 40)
@@ -118,6 +120,8 @@ export async function POST(request: Request) {
         return NextResponse.json(await repos.combat.heartbeat(user.id, uuid(parsed.matchId, 'matchId')))
       case 'leave':
         return NextResponse.json(await repos.combat.leaveMatch(user.id, uuid(parsed.matchId, 'matchId')))
+      case 'forfeit':
+        return NextResponse.json(await repos.combat.forfeitMatch(user.id, uuid(parsed.matchId, 'matchId')))
       case 'quick_message': {
         const message = stringValue(parsed.message, 'message', 40)
         if (!(['Good luck!', 'Nice one!', 'I’m ready!', 'That was close!'] as string[]).includes(message)) throw new Error('Invalid quick message.')

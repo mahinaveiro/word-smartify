@@ -16,6 +16,7 @@ const PROTECTED_PREFIXES = [
   '/challenge',
   '/review',
   '/session',
+  '/combat',
 ] as const
 
 function isProtectedPath(pathname: string) {

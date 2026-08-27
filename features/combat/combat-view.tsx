@@ -39,15 +39,16 @@ import {
   loadFriends,
   loadHistory,
   loadRequests,
+  readCombat,
   postCombat,
   postSocial,
   searchSocialUsers,
 } from './combat-api'
 
 const PRESET_COPY: Record<CombatPreset, { title: string; detail: string; questions: string }> = {
-  sprint: { title: 'Sprint', detail: 'Fast and focused', questions: '5 questions · 15s each' },
-  standard: { title: 'Standard', detail: 'A proper head-to-head', questions: '10 questions · 15s each' },
-  custom: { title: 'Custom', detail: 'Tune the pace', questions: '3–20 questions · 5–60s each' },
+  sprint: { title: 'Sprint', detail: 'Fast and focused', questions: '5 questions · 10s reply grace' },
+  standard: { title: 'Standard', detail: 'A proper head-to-head', questions: '10 questions · 10s reply grace' },
+  custom: { title: 'Custom', detail: 'Tune the length', questions: '3–20 questions · 10s reply grace' },
 }
 
 function formatRelativeTime(value: string | null): string {
@@ -85,12 +86,11 @@ function statusLabel(match: CombatMatch): string {
 export function CombatView() {
   const router = useRouter()
   const { user } = useAuth()
-  const [section, setSection] = React.useState<'overview' | 'match' | 'friends' | 'circle' | 'history'>('overview')
+  const [section, setSection] = React.useState<'overview' | 'match' | 'friends' | 'circle'>('overview')
   const [createOpen, setCreateOpen] = React.useState(false)
   const [joinOpen, setJoinOpen] = React.useState(false)
   const [preset, setPreset] = React.useState<CombatPreset>('sprint')
   const [customQuestions, setCustomQuestions] = React.useState(8)
-  const [customSeconds, setCustomSeconds] = React.useState(15)
   const [wagerXp, setWagerXp] = React.useState<0 | 100>(0)
   const [questionSource, setQuestionSource] = React.useState<CombatQuestionSource>({ mode: 'mixed' })
   const [levelFrom, setLevelFrom] = React.useState(1)
@@ -106,19 +106,15 @@ export function CombatView() {
 
   const friends = useSWR(user ? ['combat-friends', user.id] : null, () => loadFriends())
   const requests = useSWR(user ? ['combat-requests', user.id] : null, () => loadRequests())
-  const invites = useSWR<CombatInvite[]>(user ? ['combat-invites', user.id] : null, () => fetch('/api/combat?view=invites').then(async (response) => {
-    const payload = await response.json() as CombatInvite[] | { error?: string }
-    if (!response.ok) throw new Error((payload as { error?: string }).error ?? 'Invites could not be loaded.')
-    return payload as CombatInvite[]
-  }))
+  const invites = useSWR<CombatInvite[]>(user ? ['combat-invites', user.id] : null, () => readCombat<CombatInvite[]>({ view: 'invites' }))
   const history = useSWR(user ? ['combat-history', user.id] : null, () => loadHistory())
   const searchResults = useSWR<SocialProfile[]>(user && search.trim().length >= 2 ? ['combat-search', user.id, search.trim()] : null, () => searchSocialUsers(search))
   const books = useBooks()
 
   React.useEffect(() => {
     if (!user) return
-    void postSocial({ action: 'presence', state: 'in_combat' })
-    return () => { void postSocial({ action: 'presence', state: 'online' }) }
+    void postSocial({ action: 'presence', state: 'in_combat' }).catch(() => undefined)
+    return () => { void postSocial({ action: 'presence', state: 'online' }).catch(() => undefined) }
   }, [user])
 
   const refreshSocial = async () => {
@@ -159,7 +155,7 @@ export function CombatView() {
         action: 'create',
         preset: selectedPreset,
         questionCount: selectedPreset === 'custom' ? customQuestions : selectedPreset === 'standard' ? 10 : 5,
-        timeLimitSeconds: selectedPreset === 'custom' ? customSeconds : 15,
+        timeLimitSeconds: 15,
         wagerXp: selectedWager,
         questionSource: source,
       })
@@ -211,7 +207,7 @@ export function CombatView() {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 pb-28 md:gap-6 md:pb-10">
-      {section === 'overview' ? <section className="relative overflow-hidden rounded-lg border-2 border-foreground bg-foreground px-5 py-6 text-primary-foreground shadow-brutal sm:px-7 sm:py-8">
+      {section === 'overview' ? <section className="relative hidden overflow-hidden rounded-lg border-2 border-foreground bg-foreground px-5 py-6 text-primary-foreground shadow-brutal sm:block sm:px-7 sm:py-8">
         <div className="pointer-events-none absolute -right-12 -top-12 size-44 rounded-full border-[18px] border-coral/80 opacity-90" />
         <div className="pointer-events-none absolute -bottom-16 right-24 size-44 rounded-full border-[14px] border-mint/70 opacity-80" />
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
@@ -231,18 +227,17 @@ export function CombatView() {
       {error ? <div role="alert" className="flex items-start gap-2 rounded-md border-2 border-destructive bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive"><ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />{error}<button className="ml-auto" onClick={() => setError(null)} aria-label="Dismiss error"><X className="size-4" aria-hidden /></button></div> : null}
       {notice ? <div role="status" className="flex items-start gap-2 rounded-md border-2 border-mint bg-mint/15 px-4 py-3 text-sm font-semibold"><Check className="mt-0.5 size-4 shrink-0" aria-hidden />{notice}</div> : null}
 
-      <div className="flex justify-center overflow-x-auto border-b-2 border-foreground/10 pb-1" role="tablist" aria-label="Combat sections">
+      <div className="flex justify-center overflow-x-auto" role="tablist" aria-label="Combat sections">
         <div className="flex min-w-max items-center gap-1 rounded-lg border-2 border-foreground/10 bg-muted/30 p-1">
           <TabButton active={section === 'overview'} onClick={() => setSection('overview')}>Overview</TabButton>
           <TabButton active={section === 'friends'} onClick={() => setSection('friends')} icon={Search}>Friends</TabButton>
           <TabButton active={section === 'match'} onClick={() => setSection('match')} icon={Swords}>Match</TabButton>
           <TabButton active={section === 'circle'} onClick={() => setSection('circle')} badge={requests.data?.incoming.length ?? 0} icon={Users}>Circle</TabButton>
-          <TabButton active={section === 'history'} onClick={() => setSection('history')} icon={History}>History</TabButton>
         </div>
       </div>
 
+      {section === 'overview' ? <div className="grid gap-5"><MatchSection onQuickDuel={() => void createMatch('sprint')} onCreate={() => setCreateOpen(true)} onJoin={() => setJoinOpen(true)} onChallenge={() => setSection('circle')} busy={busy} /><HistorySection history={history.data ?? []} loading={history.isLoading} userId={user?.id} onOpen={(match) => router.push(`/combat/${match.id}`)} /></div> : null}
       {section === 'match' ? <MatchSection onQuickDuel={() => void createMatch('sprint')} onCreate={() => setCreateOpen(true)} onJoin={() => setJoinOpen(true)} onChallenge={() => setSection('circle')} busy={busy} /> : null}
-      {section === 'history' ? <HistorySection history={history.data ?? []} loading={history.isLoading} userId={user?.id} onOpen={(match) => router.push(`/combat/${match.id}`)} /> : null}
 
       {section === 'friends' ? <SearchSection search={search} setSearch={setSearch} searchResults={searchResults.data ?? []} busy={busy} onAddFriend={(profile) => void addFriend(profile)} onRespondRequest={(id, response) => void respondToRequest(id, response)} /> : null}
       {section === 'circle' ? <CircleSection invites={invites.data ?? []} invitesLoading={invites.isLoading} friends={friends.data ?? []} requests={requests.data} busy={busy} onRespondInvite={(invite, response) => void respondToInvite(invite, response)} onRespondRequest={(id, response) => void respondToRequest(id, response)} onChallenge={(friend) => void challengeFriend(friend)} /> : null}
@@ -255,10 +250,11 @@ export function CombatView() {
           {questionSource.mode === 'level' ? <div className="grid grid-cols-2 gap-2 rounded-md border-2 border-foreground/15 bg-muted/40 p-3"><div><Label htmlFor="combat-level-from">From level</Label><Input id="combat-level-from" type="number" min={1} max={104} value={levelFrom} onChange={(event) => setLevelFrom(Math.min(104, Math.max(1, Number(event.target.value) || 1)))} /></div><div><Label htmlFor="combat-level-to">To level</Label><Input id="combat-level-to" type="number" min={1} max={104} value={levelTo} onChange={(event) => setLevelTo(Math.min(104, Math.max(1, Number(event.target.value) || 1)))} /></div></div> : null}
           {questionSource.mode === 'book' ? <div className="rounded-md border-2 border-foreground/15 bg-muted/40 p-3"><Label htmlFor="combat-book">Book</Label><select id="combat-book" value={bookId} onChange={(event) => setBookId(event.target.value)} className="mt-1 h-10 w-full rounded-md border-2 border-foreground bg-background px-3 text-sm font-semibold outline-none focus-visible:outline-2 focus-visible:outline-foreground"><option value="">Choose a book</option>{(books.data ?? []).map((book) => <option key={book.id} value={book.id}>{book.name}</option>)}</select></div> : null}
           {questionSource.mode === 'letter' ? <div className="rounded-md border-2 border-foreground/15 bg-muted/40 p-3"><Label htmlFor="combat-letter">Starting letter</Label><Input id="combat-letter" value={letter} maxLength={1} onChange={(event) => setLetter(event.target.value.replace(/[^a-z]/gi, '').slice(0, 1).toUpperCase())} placeholder="A" className="mt-1 uppercase" /></div> : null}
-          {questionSource.mode === 'smart' ? <p className="rounded-md border-2 border-mint/40 bg-mint/10 p-3 text-xs leading-5 text-muted-foreground"><BookOpen className="mr-1 inline size-3.5 text-mint-foreground" aria-hidden /> Smart mode uses only the words both players have learned or mastered. The match will not silently switch to another source.</p> : null}
+          {questionSource.mode === 'smart' ? <p className="rounded-md border-2 border-mint/40 bg-mint/10 p-3 text-xs leading-5 text-muted-foreground"><BookOpen className="mr-1 inline size-3.5 text-mint-foreground" aria-hidden /> Smart mode selects only words both players have learned or mastered after they join. If there are not enough shared questions, the match will not start.</p> : null}
           {(Object.keys(PRESET_COPY) as CombatPreset[]).map((item) => <button key={item} type="button" onClick={() => setPreset(item)} className={cn('rounded-md border-2 border-foreground p-3 text-left transition-colors sm:p-4', preset === item ? 'bg-mint shadow-brutal-sm' : 'bg-card hover:bg-muted')}><div className="flex items-start justify-between gap-3"><div><p className="font-heading font-bold">{PRESET_COPY[item].title}</p><p className="mt-1 text-sm text-muted-foreground">{PRESET_COPY[item].detail}</p></div><span className="text-xs font-semibold text-muted-foreground">{PRESET_COPY[item].questions}</span></div></button>)}
-          {preset === 'custom' ? <div className="grid grid-cols-2 gap-3 rounded-md border-2 border-foreground/15 bg-muted/40 p-3"><div><Label htmlFor="combat-question-count">Questions</Label><Input id="combat-question-count" type="number" min={3} max={20} value={customQuestions} onChange={(event) => setCustomQuestions(Math.min(20, Math.max(3, Number(event.target.value) || 3)))} /></div><div><Label htmlFor="combat-time-limit">Seconds each</Label><Input id="combat-time-limit" type="number" min={5} max={60} value={customSeconds} onChange={(event) => setCustomSeconds(Math.min(60, Math.max(5, Number(event.target.value) || 5)))} /></div></div> : null}
+          {preset === 'custom' ? <div className="rounded-md border-2 border-foreground/15 bg-muted/40 p-3"><Label htmlFor="combat-question-count">Questions</Label><Input id="combat-question-count" type="number" min={3} max={20} value={customQuestions} onChange={(event) => setCustomQuestions(Math.min(20, Math.max(3, Number(event.target.value) || 3)))} /></div> : null}
           <div className="grid gap-2 rounded-md border-2 border-foreground/15 bg-muted/40 p-3"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Stake</p><div className="grid gap-2 sm:grid-cols-2"><button type="button" onClick={() => setWagerXp(0)} className={cn('rounded-md border-2 px-3 py-3 text-left', wagerXp === 0 ? 'border-foreground bg-card shadow-brutal-sm' : 'border-foreground/15 bg-background hover:bg-card')}><p className="text-sm font-bold">Practice match</p><p className="mt-1 text-xs text-muted-foreground">No XP at risk</p></button><button type="button" onClick={() => setWagerXp(100)} className={cn('rounded-md border-2 px-3 py-3 text-left', wagerXp === 100 ? 'border-foreground bg-mint/25 shadow-brutal-sm' : 'border-foreground/15 bg-background hover:bg-mint/10')}><p className="flex items-center gap-1.5 text-sm font-bold"><Coins className="size-4 text-coral" aria-hidden />100 XP wager</p><p className="mt-1 text-xs text-muted-foreground">Winner receives 200 XP</p></button></div><p className="text-xs leading-5 text-muted-foreground">The stake is reserved before play. Your opponent sees and accepts the exact amount before joining. A draw, cancellation, expiry, or protected no-contest refunds both players.</p></div><p className="text-xs leading-5 text-muted-foreground">Questions are selected from the shared eligible pool. The correct answer is never sent to your device during the match.</p>
+          <p className="text-xs leading-5 text-muted-foreground">There is no normal countdown. After either player submits, the other has 10 seconds to answer before the server closes the round.</p>
         </div>
       </Modal>
 
