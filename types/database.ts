@@ -318,3 +318,129 @@ export const QUIZZES_PER_WORD = 5
 export const WORD_SMART_1_COUNT = 850
 export const WORD_SMART_2_COUNT = 1038
 export const TOTAL_WORD_COUNT = WORD_SMART_1_COUNT + WORD_SMART_2_COUNT // 1888
+
+
+// ---------------------------------------------------------------------------
+// Social and Combat
+// ---------------------------------------------------------------------------
+
+export type FriendshipStatus = 'pending' | 'accepted' | 'declined' | 'cancelled' | 'removed'
+export type PresenceState = 'online' | 'learning' | 'reviewing' | 'mock_test' | 'in_combat' | 'idle' | 'offline'
+export type CombatPreset = 'sprint' | 'standard' | 'custom'
+export type CombatMatchStatus = 'waiting' | 'ready' | 'active' | 'completed' | 'draw' | 'cancelled' | 'expired' | 'abandoned' | 'no_contest'
+
+export interface SocialProfile {
+  id: UUID
+  display_name: string
+  avatar_id: string
+  avatar_url: string | null
+  presence: PresenceState
+  last_seen_at: ISOTimestamp | null
+}
+
+export interface Friendship {
+  id: UUID
+  requester_id: UUID
+  addressee_id: UUID
+  status: FriendshipStatus
+  created_at: ISOTimestamp
+  responded_at: ISOTimestamp | null
+  other_user: SocialProfile
+}
+
+export interface UserPrivacy {
+  user_id: UUID
+  discoverable: boolean
+  friend_challenges_enabled: boolean
+  presence_visible: boolean
+  updated_at: ISOTimestamp
+}
+
+export interface CombatMatchPlayer {
+  id: UUID
+  match_id: UUID
+  user_id: UUID
+  slot: 1 | 2
+  is_ready: boolean
+  correct_count: number
+  answered_count: number
+  total_time_ms: number
+  joined_at: ISOTimestamp
+  last_seen_at: ISOTimestamp
+  profile: SocialProfile
+}
+
+export type CombatInviteStatus = 'pending' | 'accepted' | 'declined' | 'cancelled' | 'expired'
+
+export interface CombatInvite {
+  id: UUID
+  match_id: UUID
+  sender_id: UUID
+  recipient_id: UUID
+  status: CombatInviteStatus
+  created_at: ISOTimestamp
+  responded_at: ISOTimestamp | null
+  sender: SocialProfile
+  match: CombatMatch | null
+}
+
+export interface CombatMatch {
+  id: UUID
+  host_id: UUID
+  opponent_id: UUID | null
+  visibility: 'private'
+  join_code: string
+  preset: CombatPreset
+  question_count: number
+  time_limit_seconds: number
+  status: CombatMatchStatus
+  current_question_index: number
+  created_at: ISOTimestamp
+  expires_at: ISOTimestamp
+  started_at: ISOTimestamp | null
+  current_question_started_at: ISOTimestamp | null
+  finished_at: ISOTimestamp | null
+  cancelled_at: ISOTimestamp | null
+  updated_at: ISOTimestamp
+  players: CombatMatchPlayer[]
+}
+
+export interface CombatQuestion {
+  id: UUID
+  question_id: UUID
+  word_id: UUID
+  position: number
+  question: string
+  options: string[]
+}
+
+export interface CombatAnswer {
+  question_id: UUID
+  selected_answer: string | null
+  is_correct: boolean
+  response_time_ms: number
+  submitted_at: ISOTimestamp
+}
+
+export interface CombatReviewQuestion extends CombatQuestion {
+  correct_answer: string
+  explanation: string | null
+  selected_answer: string | null
+}
+
+export type CombatOutcome = 'win' | 'loss' | 'draw' | 'cancelled' | 'expired' | 'abandoned' | 'no_contest'
+
+export interface CombatResult {
+  match: CombatMatch
+  outcome: CombatOutcome
+  winner_id: UUID | null
+  my_score: number
+  opponent_score: number
+  my_accuracy: number
+  opponent_accuracy: number
+  my_total_time_ms: number
+  opponent_total_time_ms: number
+  my_answers: CombatAnswer[]
+  opponent_answers: CombatAnswer[]
+  missed_questions: CombatReviewQuestion[]
+}

@@ -50,6 +50,8 @@ import type {
   SavedWordRepository,
   BadgeRepository,
 } from './interfaces'
+import { SupabaseSocialRepository } from './supabase-social'
+import { SupabaseCombatRepository } from './supabase-combat'
 import { SupabaseAuthRepository } from './supabase-auth'
 import { isMissingRowError } from '@/lib/supabase/errors'
 import { shuffleArray } from '@/lib/quiz-randomizer'
@@ -1025,6 +1027,8 @@ export function createSupabaseRepositories(client: Client): Repositories {
   const quizzes = new SupabaseQuizRepository(client)
   const savedWords = new SupabaseSavedWordRepository(client)
   const wordProgress = new SupabaseWordProgressRepository(client, levels, words, books, chapters)
+  const social = new SupabaseSocialRepository(client)
+  const combat = new SupabaseCombatRepository(client)
 
   return {
     auth: new SupabaseAuthRepository(client),
@@ -1040,5 +1044,7 @@ export function createSupabaseRepositories(client: Client): Repositories {
     dailyProgress: new SupabaseDailyProgressRepository(client),
     mockTests: new SupabaseMockTestRepository(client),
     savedWords,
+    social,
+    combat,
   }
 }
