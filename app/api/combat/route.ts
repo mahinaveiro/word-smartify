@@ -85,10 +85,12 @@ export async function POST(request: Request) {
         if (!['mixed', 'level', 'book', 'letter', 'smart'].includes(mode)) throw new Error('Invalid question source.')
         const questionSource: CombatQuestionSource = { mode }
         if (mode === 'level') {
-          questionSource.level_from = integer(rawSource.levelFrom ?? 1, 'levelFrom', 1, 104)
-          questionSource.level_to = integer(rawSource.levelTo ?? questionSource.level_from, 'levelTo', questionSource.level_from, 104)
+          const levelFromValue = rawSource.level_from ?? rawSource.levelFrom
+          const levelToValue = rawSource.level_to ?? rawSource.levelTo ?? levelFromValue
+          questionSource.level_from = integer(levelFromValue, 'levelFrom', 1, 104)
+          questionSource.level_to = integer(levelToValue, 'levelTo', questionSource.level_from, 104)
         }
-        if (mode === 'book') questionSource.book_id = uuid(rawSource.bookId, 'bookId')
+        if (mode === 'book') questionSource.book_id = uuid(rawSource.book_id ?? rawSource.bookId, 'bookId')
         if (mode === 'letter') {
           const letter = stringValue(rawSource.letter ?? 'A', 'letter', 1).toUpperCase()
           if (!/^[A-Z]$/.test(letter)) throw new Error('Choose a letter from A to Z.')
