@@ -30,6 +30,19 @@ import type {
   DictionarySearchFilters,
   SavedWord,
   SavedWordWithWord,
+  CombatMatch,
+  CombatAnswer,
+  CombatInvite,
+  CombatQuestion,
+  CombatResult,
+  CombatPreset,
+  CombatQuestionSource,
+  CombatQuickMessage,
+  Friendship,
+  SocialProfile,
+  ViewerFriendshipState,
+  UserPrivacy,
+  PresenceState,
 } from '@/types/database'
 import type { AuthUser, SignUpInput, SignUpResult } from '@/types/auth'
 
@@ -93,6 +106,45 @@ export interface BadgeRepository {
   getDisplayBadgesForUsers(userIds: UUID[]): Promise<Record<UUID, DisplayBadge[]>>
   getPendingAwards(userId: UUID): Promise<PendingBadgeAward[]>
   acknowledgeAwards(userId: UUID, awardIds: UUID[]): Promise<void>
+}
+
+export interface SocialRepository {
+  getFriends(userId: UUID): Promise<Friendship[]>
+  getRequests(userId: UUID): Promise<{ incoming: Friendship[]; outgoing: Friendship[] }>
+  searchUsers(userId: UUID, query: string, limit?: number): Promise<SocialProfile[]>
+  getRelationship(userId: UUID, otherUserId: UUID): Promise<ViewerFriendshipState>
+  getRelationshipDetails(userId: UUID, otherUserId: UUID): Promise<{ state: ViewerFriendshipState; friendship_id: UUID | null }>
+  sendFriendRequest(userId: UUID, otherUserId: UUID): Promise<Friendship>
+  respondToFriendRequest(userId: UUID, friendshipId: UUID, response: 'accepted' | 'declined' | 'cancelled'): Promise<void>
+  removeFriend(userId: UUID, friendshipId: UUID): Promise<void>
+  blockUser(userId: UUID, otherUserId: UUID): Promise<void>
+  unblockUser(userId: UUID, otherUserId: UUID): Promise<void>
+  getPrivacy(userId: UUID): Promise<UserPrivacy>
+  updatePrivacy(userId: UUID, patch: Partial<Omit<UserPrivacy, 'user_id' | 'updated_at'>>): Promise<UserPrivacy>
+  setPresence(userId: UUID, state: PresenceState): Promise<void>
+}
+
+export interface CombatRepository {
+  getMatch(matchId: UUID, userId: UUID): Promise<CombatMatch | null>
+  getMatchByCode(code: string, userId: UUID): Promise<CombatMatch | null>
+  getHistory(userId: UUID, limit?: number): Promise<CombatMatch[]>
+  getInvites(userId: UUID): Promise<CombatInvite[]>
+  inviteFriend(userId: UUID, matchId: UUID, recipientId: UUID): Promise<CombatInvite>
+  respondToInvite(userId: UUID, inviteId: UUID, response: 'accepted' | 'declined'): Promise<CombatMatch | null>
+  createMatch(userId: UUID, input: { preset: CombatPreset; question_count: number; time_limit_seconds: number; wager_xp?: 0 | 100; question_source?: CombatQuestionSource }): Promise<CombatMatch>
+  joinMatch(userId: UUID, joinCode: string): Promise<CombatMatch>
+  setReady(userId: UUID, matchId: UUID, ready: boolean): Promise<CombatMatch>
+  startMatch(userId: UUID, matchId: UUID): Promise<CombatMatch>
+  getQuestion(userId: UUID, matchId: UUID, position: number): Promise<CombatQuestion | null>
+  submitAnswer(userId: UUID, matchId: UUID, questionId: UUID, selectedAnswer: string | null, responseTimeMs: number): Promise<{ next_position: number; match: CombatMatch; result: CombatResult | null }>
+  heartbeat(userId: UUID, matchId: UUID): Promise<CombatMatch>
+  leaveMatch(userId: UUID, matchId: UUID): Promise<CombatMatch>
+  forfeitMatch(userId: UUID, matchId: UUID): Promise<CombatMatch>
+  sendQuickMessage(userId: UUID, matchId: UUID, message: CombatQuickMessage): Promise<{ id: UUID; match_id: UUID; sender_id: UUID; message: CombatQuickMessage; created_at: string }>
+  getMessages(userId: UUID, matchId: UUID): Promise<Array<{ id: UUID; match_id: UUID; sender_id: UUID; message: CombatQuickMessage; created_at: string }>>
+  getResult(userId: UUID, matchId: UUID): Promise<CombatResult | null>
+  cancelMatch(userId: UUID, matchId: UUID): Promise<void>
+  reportMatch(userId: UUID, matchId: UUID, reason: 'question' | 'connection' | 'cheating' | 'harassment' | 'other', note?: string): Promise<void>
 }
 
 export interface SavedWordRepository {
@@ -215,4 +267,6 @@ export interface Repositories {
   dailyProgress: DailyProgressRepository
   mockTests: MockTestRepository
   savedWords: SavedWordRepository
+  social: SocialRepository
+  combat: CombatRepository
 }

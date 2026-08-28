@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo } from 'react'
 import {
   Award,
+  ArrowRight,
   BookOpen,
   CalendarDays,
   FileText,
@@ -11,6 +12,7 @@ import {
   Lock,
   Settings,
   Target,
+  ChartColumn,
   Trophy,
   Zap,
 } from 'lucide-react'
@@ -148,6 +150,16 @@ export function ProfileView() {
         <StatTile icon={Flame} value={stats.current_streak} label="Streak" accent="coral" />
         <StatTile icon={Flame} value={stats.longest_streak} label="Best streak" accent="coral" className="col-span-2 sm:col-span-1" />
       </div>
+
+      <Card className="border-mint bg-mint/10">
+        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-md border-2 border-foreground bg-mint text-mint-foreground shadow-brutal-sm"><ChartColumn className="size-5" aria-hidden /></span>
+            <div><p className="font-heading font-bold">Your full progress</p><p className="text-sm text-muted-foreground">See activity, levels, mastery, and cumulative learning in one place.</p></div>
+          </div>
+          <Button asChild variant="outline" size="sm" className="self-start sm:self-auto"><Link href="/progress">Open Progress <ArrowRight className="size-4" aria-hidden /></Link></Button>
+        </CardContent>
+      </Card>
 
       <section>
         <SectionHeader title="Book progress" />
