@@ -1,8 +1,9 @@
 'use client'
 
 import Image from 'next/image'
+import { createPortal } from 'react-dom'
 import { type CSSProperties, useCallback, useEffect, useState } from 'react'
-import { Check, Copy, HeartHandshake, ImageIcon, X } from 'lucide-react'
+import { Check, Copy, HeartHandshake, ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 
@@ -92,23 +93,40 @@ function MailPreview({ onOpen }: { onOpen: () => void }) {
 }
 
 function MailViewer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  return (
-    <Modal open={open} onClose={onClose} title="Hosting usage email" description="Tap close when you are finished viewing it." className="max-h-[calc(100dvh-2rem)] max-w-5xl overflow-y-auto">
-      <div className="relative overflow-auto rounded-md border-2 border-foreground/15 bg-background p-2">
-        <Image
-          src="/images/mail.jpg"
-          alt="A hosting usage email about Word Smartify’s growing usage"
-          width={1296}
-          height={832}
-          className="h-auto w-full object-contain"
-          priority
-        />
-        <Button type="button" variant="outline" size="sm" onClick={onClose} className="mt-3 w-full sm:hidden">
-          <X className="size-4" aria-hidden />
-          Close image
-        </Button>
-      </div>
-    </Modal>
+  useEffect(() => {
+    if (!open) return
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose, open])
+
+  if (!open || typeof document === 'undefined') return null
+
+  return createPortal(
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label="Close the hosting usage email"
+      className="fixed inset-0 z-[200] h-[100dvh] w-screen cursor-zoom-out bg-black"
+      onClick={onClose}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') onClose()
+      }}
+    >
+      <Image
+        src="/images/mail.jpg"
+        alt="A hosting usage email about Word Smartify’s growing usage"
+        fill
+        sizes="100vw"
+        className="object-contain"
+        priority
+      />
+    </div>,
+    document.body,
   )
 }
 
