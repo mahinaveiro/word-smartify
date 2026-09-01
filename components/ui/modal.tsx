@@ -18,6 +18,7 @@ export interface ModalProps {
   children?: React.ReactNode
   footer?: React.ReactNode
   className?: string
+  dismissible?: boolean
 }
 
 export function Modal({
@@ -28,13 +29,14 @@ export function Modal({
   children,
   footer,
   className,
+  dismissible = true,
 }: ModalProps) {
   const mounted = React.useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot)
 
   React.useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (dismissible && e.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
@@ -42,7 +44,7 @@ export function Modal({
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''
     }
-  }, [open, onClose])
+  }, [dismissible, open, onClose])
 
   if (!mounted || !open) return null
 
@@ -50,7 +52,7 @@ export function Modal({
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-foreground/40 animate-in fade-in duration-micro dark:bg-black/60"
-        onClick={onClose}
+        onClick={dismissible ? onClose : undefined}
         aria-hidden
       />
       <div
@@ -71,9 +73,11 @@ export function Modal({
               <p className="mt-1 text-sm text-muted-foreground">{description}</p>
             ) : null}
           </div>
-          <IconButton label="Close" variant="ghost" size="sm" onClick={onClose}>
-            <X />
-          </IconButton>
+          {dismissible ? (
+            <IconButton label="Close" variant="ghost" size="sm" onClick={onClose}>
+              <X />
+            </IconButton>
+          ) : null}
         </div>
         {children ? <div className="p-5">{children}</div> : null}
         {footer ? (
