@@ -49,7 +49,10 @@ export function NameWithBadges({
                 type="button"
                 aria-label={`View ${badge.title} badge`}
                 title={badge.shortTitle}
-                className="group inline-flex shrink-0 rounded-full outline-none transition-transform hover:scale-110 focus-visible:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+                className={cn(
+                  'group inline-flex shrink-0 rounded-full outline-none transition-transform hover:scale-110 focus-visible:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+                  badge.key === 'word-smartify-owner' && 'border border-amber-500/80 bg-amber-100 p-0.5 dark:border-amber-300 dark:bg-amber-200',
+                )}
                 onClick={(event) => {
                   event.preventDefault()
                   event.stopPropagation()

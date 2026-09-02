@@ -167,8 +167,8 @@ export function MockTestResultView({ testId }: { testId: string }) {
       ) : null}
 
       <div className="flex gap-3">
-        <Button asChild size="sm" variant="outline" className="min-w-0 flex-1 px-3 text-sm">
-          <Link href="/mock-tests"><ArrowLeft className="size-4" aria-hidden /> Back to Mock Tests</Link>
+        <Button asChild size="sm" variant="outline" className="min-w-0 flex-1 px-3 text-xs sm:text-sm">
+          <Link href="/mock-tests"><ArrowLeft className="size-4" aria-hidden /> Mock Test</Link>
         </Button>
         <Button asChild size="sm" className="min-w-0 flex-1 px-3 text-sm">
           <Link href="/dashboard">Back to Dashboard</Link>
