@@ -181,13 +181,13 @@ export function ProfileView() {
         <SectionHeader title="Achievements" action={<span className="font-heading text-sm font-bold tabular-nums text-muted-foreground">{earnedCount}/{displayedAchievements.length}</span>} />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {displayedAchievements.map((achievement) => (
-            <Card key={achievement.id} flat className={cn(!achievement.earned && 'opacity-60', achievement.id === 'word-smartify-owner' && 'border-foreground bg-coral shadow-brutal-md')}>
+            <Card key={achievement.id} flat className={cn(!achievement.earned && 'opacity-60', achievement.id === 'word-smartify-owner' && 'border-foreground bg-coral text-slate-950 dark:text-slate-950 shadow-brutal-md')}>
               <CardContent className="flex flex-col items-center gap-2 p-4 text-center">
                 <span className={cn('grid size-12 place-items-center rounded-full border-2 border-foreground shadow-brutal-sm', achievement.id === 'word-smartify-owner' ? 'bg-card text-foreground' : achievement.earned ? 'bg-mint text-mint-foreground' : 'bg-muted text-muted-foreground')}>
                   {achievement.earned ? <Award className="size-6" aria-hidden /> : <Lock className="size-5" aria-hidden />}
                 </span>
                 <p className="font-heading text-sm font-bold leading-tight">{achievement.label}</p>
-                <p className="text-pretty text-xs text-muted-foreground">{achievement.description}</p>
+                <p className={cn('text-pretty text-xs', achievement.id === 'word-smartify-owner' ? 'text-slate-900 dark:text-slate-900' : 'text-muted-foreground')}>{achievement.description}</p>
               </CardContent>
             </Card>
           ))}

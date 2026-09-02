@@ -122,14 +122,14 @@ export function PublicProfileView({ userId }: { userId: string }) {
         {profile.achievements.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2">
             {profile.achievements.map((badge) => (
-              <Card key={badge.id} className={badge.id === 'word-smartify-owner' ? 'bg-coral shadow-brutal-md' : undefined}>
+              <Card key={badge.id} className={badge.id === 'word-smartify-owner' ? 'bg-coral text-slate-950 dark:text-slate-950 shadow-brutal-md' : undefined}>
                 <CardContent className="flex items-start gap-3 p-4">
                   <span className={badge.id === 'word-smartify-owner' ? 'grid size-10 shrink-0 place-items-center rounded-md border-2 border-foreground bg-card text-foreground shadow-brutal-sm' : 'grid size-10 shrink-0 place-items-center rounded-md border-2 border-foreground bg-mint text-mint-foreground shadow-brutal-sm'}>
                     <Award className="size-5" aria-hidden />
                   </span>
                   <div className="min-w-0">
                     <h3 className="font-heading font-bold">{badge.title}</h3>
-                    <p className="mt-0.5 text-sm text-muted-foreground">{badge.description}</p>
+                    <p className={cn('mt-0.5 text-sm', badge.id === 'word-smartify-owner' ? 'text-slate-900 dark:text-slate-900' : 'text-muted-foreground')}>{badge.description}</p>
                   </div>
                 </CardContent>
               </Card>
