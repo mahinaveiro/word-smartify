@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Avatar } from '@/features/shared/avatar'
-import { cn } from '@/lib/utils'
+import { cn as mergeClasses } from '@/lib/utils'
 import { formatWeekPeriod } from '@/lib/date'
 import { useLeaderboard } from '@/hooks/use-data'
 import { useAuth } from '@/features/auth/auth-provider'
@@ -68,7 +68,7 @@ export function LeaderboardView() {
             role="tab"
             aria-selected={mode === nextMode}
             onClick={() => setMode(nextMode)}
-            className={cn('rounded-sm px-3 py-2 font-heading text-sm font-bold transition-colors', mode === nextMode ? 'bg-foreground text-primary-foreground dark:bg-primary' : 'hover:bg-muted')}
+            className={mergeClasses('rounded-sm px-3 py-2 font-heading text-sm font-bold transition-colors', mode === nextMode ? 'bg-foreground text-primary-foreground dark:bg-primary' : 'hover:bg-muted')}
           >
             {nextMode === 'all_time' ? 'All Time' : 'This Week'}
           </button>
@@ -85,7 +85,7 @@ export function LeaderboardView() {
           return (
             <div
               key={entry.profile.id}
-              className={cn(
+              className={mergeClasses(
                 'relative flex flex-col items-center gap-2 rounded-md p-1',
                 isMe && 'ring-4 ring-mint ring-offset-2 ring-offset-background',
               )}
@@ -98,7 +98,7 @@ export function LeaderboardView() {
               <div className="relative z-10 flex w-full flex-col items-center gap-2 pointer-events-none">
                 <Avatar name={entry.profile.display_name} avatarId={entry.profile.avatar_id} avatarUrl={entry.profile.avatar_url} size={rank === 1 ? 'lg' : 'md'} />
                 <div className="text-center">
-                  <p className={cn('max-w-[8rem] truncate font-heading text-sm font-bold', isMe && 'text-foreground dark:text-white')}>
+                  <p className={mergeClasses('max-w-[8rem] truncate font-heading text-sm font-bold', isMe && 'text-foreground dark:text-white')}>
                     <span className="pointer-events-auto">
                       <OwnerDisplayName
                         userId={entry.profile.id}
@@ -110,7 +110,7 @@ export function LeaderboardView() {
                   </p>
                   <p className="text-xs tabular-nums text-muted-foreground">{scoreFor(entry, mode).toLocaleString()} {mode === 'weekly' ? 'XP this week' : 'XP'}</p>
                 </div>
-                <div className={cn('flex w-full items-start justify-center rounded-t-md border-2 border-foreground pt-2 font-heading text-xl font-bold shadow-brutal-sm', height, medal)}>{rank}</div>
+                <div className={mergeClasses('flex w-full items-start justify-center rounded-t-md border-2 border-foreground pt-2 font-heading text-xl font-bold shadow-brutal-sm', height, medal)}>{rank}</div>
               </div>
             </div>
           )
@@ -140,7 +140,7 @@ function LeaderboardRow({ entry, mode, meId }: { entry: NonNullable<ReturnType<t
         aria-label={`Open ${entry.profile.display_name}'s profile`}
         className="absolute inset-0 z-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
       />
-      <Card className={cn('relative z-10 pointer-events-none', isMe && 'border-4 border-mint bg-mint/20 shadow-[4px_4px_0_hsl(var(--foreground))]')}>
+      <Card className={mergeClasses('relative z-10 pointer-events-none', isMe && 'border-4 border-mint bg-mint/20 shadow-[4px_4px_0_hsl(var(--foreground))]')}>
         <div className="flex items-center gap-3 p-3">
           <span className="w-6 text-center font-heading text-sm font-bold tabular-nums text-muted-foreground">{entry.rank}</span>
           <Avatar name={entry.profile.display_name} avatarId={entry.profile.avatar_id} avatarUrl={entry.profile.avatar_url} size="sm" />
