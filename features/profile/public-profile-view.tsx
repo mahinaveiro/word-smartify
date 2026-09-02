@@ -14,6 +14,7 @@ import { StatTile } from '@/features/shared/stat-tile'
 import { Avatar } from '@/features/shared/avatar'
 import { useBooks, usePublicProfile } from '@/hooks/use-data'
 import { isOwnerUserId, OwnerDisplayName, STUDY_GC_DISCORD_URL, STUDY_GC_TELEGRAM_URL } from '@/lib/owner'
+import { cn } from '@/lib/utils'
 
 export function PublicProfileView({ userId }: { userId: string }) {
   const { data: profile, error, isLoading, mutate } = usePublicProfile(userId)
