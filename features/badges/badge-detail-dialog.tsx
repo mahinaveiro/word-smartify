@@ -8,7 +8,7 @@ import { formatBadgePeriod } from '@/lib/badges'
 import type { DisplayBadge } from '@/types/database'
 
 const toneClasses: Record<DisplayBadge['tone'], string> = {
-  gold: 'border-amber-500/60 bg-amber-50 dark:bg-amber-950/30',
+  gold: 'border-amber-600/70 bg-amber-100 text-amber-950 dark:border-amber-600/70 dark:bg-amber-100 dark:text-amber-950',
   violet: 'border-violet-500/60 bg-violet-50 dark:bg-violet-950/30',
   mint: 'border-mint bg-mint/10',
   coral: 'border-coral bg-coral/10',
@@ -23,7 +23,10 @@ export function BadgeDetailDialog({ badge, onClose }: { badge: DisplayBadge | nu
       open={badge != null}
       onClose={onClose}
       title={badge?.title}
-      className="max-w-sm overflow-hidden sm:max-w-md"
+      className={cn(
+        'max-w-sm overflow-hidden sm:max-w-md',
+        badge?.category === 'owner' && 'text-amber-950 dark:text-amber-950',
+      )}
     >
       {badge ? (
         <div className="space-y-4">
@@ -43,20 +46,23 @@ export function BadgeDetailDialog({ badge, onClose }: { badge: DisplayBadge | nu
 
           <div className="space-y-3">
             <div className="flex items-start gap-2">
-              <Sparkles className="mt-0.5 size-4 shrink-0 text-mint-foreground" aria-hidden />
-              <p className="text-sm font-semibold leading-relaxed">{badge.description}</p>
+              <Sparkles className="mt-0.5 size-4 shrink-0 text-amber-700" aria-hidden />
+              <p className={cn('text-sm font-semibold leading-relaxed', badge.category === 'owner' ? 'text-amber-950' : 'text-foreground')}>{badge.description}</p>
             </div>
-            <div className="rounded-md border-2 border-foreground/10 bg-muted/40 p-3">
-              <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Why this badge</p>
-              <p className="text-sm leading-relaxed text-foreground/80">{badge.reason}</p>
+            <div className={cn(
+              'rounded-md border-2 p-3',
+              badge.category === 'owner' ? 'border-amber-600/30 bg-amber-50 text-amber-950' : 'border-foreground/10 bg-muted/40',
+            )}>
+              <p className={cn('mb-1 text-[11px] font-bold uppercase tracking-[0.16em]', badge.category === 'owner' ? 'text-amber-950/75' : 'text-muted-foreground')}>Why this badge</p>
+              <p className={cn('text-sm leading-relaxed', badge.category === 'owner' ? 'text-amber-950' : 'text-foreground/80')}>{badge.reason}</p>
             </div>
             {period ? (
-              <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <p className={cn('flex items-center gap-2 text-xs font-medium', badge.category === 'owner' ? 'text-amber-950/80' : 'text-muted-foreground')}>
                 <CalendarDays className="size-3.5" aria-hidden />
                 Previous completed week: {period}
               </p>
             ) : badge.category === 'owner' ? (
-              <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <p className="flex items-center gap-2 text-xs font-medium text-amber-950/80">
                 <ShieldCheck className="size-3.5" aria-hidden />
                 Permanent creator badge
               </p>
