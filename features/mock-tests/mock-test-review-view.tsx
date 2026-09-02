@@ -97,11 +97,11 @@ export function MockTestReviewView({ testId }: { testId: string }) {
         })}
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <Button asChild variant="outline" className="flex-1">
+      <div className="flex flex-row gap-2 sm:gap-3">
+        <Button asChild variant="outline" className="min-w-0 flex-1 whitespace-nowrap px-2 text-xs sm:text-sm">
           <Link href={`/mock-tests/${testId}/result`}><ArrowLeft className="size-4" aria-hidden /> Back to Result</Link>
         </Button>
-        <Button asChild className="flex-1">
+        <Button asChild className="min-w-0 flex-1 whitespace-nowrap px-2 text-xs sm:text-sm">
           <Link href="/mock-tests">Back to Mock Tests</Link>
         </Button>
       </div>
