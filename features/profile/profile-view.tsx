@@ -186,8 +186,8 @@ export function ProfileView() {
                 <span className={cn('grid size-12 place-items-center rounded-full border-2 border-foreground shadow-brutal-sm', achievement.id === 'word-smartify-owner' ? 'bg-card text-foreground' : achievement.earned ? 'bg-mint text-mint-foreground' : 'bg-muted text-muted-foreground')}>
                   {achievement.earned ? <Award className="size-6" aria-hidden /> : <Lock className="size-5" aria-hidden />}
                 </span>
-                <p className="font-heading text-sm font-bold leading-tight">{achievement.label}</p>
-                <p className={cn('text-pretty text-xs', achievement.id === 'word-smartify-owner' ? 'text-slate-900 dark:text-slate-900' : 'text-muted-foreground')}>{achievement.description}</p>
+                <p className={cn('font-heading text-sm font-bold leading-tight', achievement.id === 'word-smartify-owner' && 'text-black dark:text-black')}>{achievement.label}</p>
+                <p className={cn('text-pretty text-xs', achievement.id === 'word-smartify-owner' ? 'text-black/80 dark:text-black/80' : 'text-muted-foreground')}>{achievement.description}</p>
               </CardContent>
             </Card>
           ))}

@@ -128,8 +128,8 @@ export function PublicProfileView({ userId }: { userId: string }) {
                     <Award className="size-5" aria-hidden />
                   </span>
                   <div className="min-w-0">
-                    <h3 className="font-heading font-bold">{badge.title}</h3>
-                    <p className={cn('mt-0.5 text-sm', badge.id === 'word-smartify-owner' ? 'text-slate-900 dark:text-slate-900' : 'text-muted-foreground')}>{badge.description}</p>
+                    <h3 className={cn('font-heading font-bold', badge.id === 'word-smartify-owner' && 'text-black dark:text-black')}>{badge.title}</h3>
+                    <p className={cn('mt-0.5 text-sm', badge.id === 'word-smartify-owner' ? 'text-black/80 dark:text-black/80' : 'text-muted-foreground')}>{badge.description}</p>
                   </div>
                 </CardContent>
               </Card>
