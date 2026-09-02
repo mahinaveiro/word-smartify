@@ -124,8 +124,8 @@ function LevelGrid({
 }) {
   // A level unlocks when the previous one is fully learned (first is always open).
   return (
-    <div className="overflow-x-auto pb-2 md:overflow-visible">
-      <div className="grid min-w-max auto-cols-[7.5rem] grid-flow-col grid-rows-2 gap-2 md:min-w-0 md:grid-flow-row md:grid-rows-none md:grid-cols-4 md:gap-3 lg:grid-cols-5 xl:grid-cols-6">
+    <div className="pb-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 md:gap-3 lg:grid-cols-5 xl:grid-cols-6">
       {levels.map((level, index) => {
         const p = progress?.[level.id]
         const learned = p?.learned ?? 0
@@ -201,7 +201,7 @@ function LevelCard({
   )
 
   const base =
-    'flex h-20 w-28 flex-col rounded-md border-2 border-foreground p-2.5 text-left md:h-24 md:w-auto md:p-3'
+    'flex h-20 w-full flex-col rounded-md border-2 border-foreground p-2.5 text-left md:h-24 md:p-3'
 
   if (locked) {
     return (

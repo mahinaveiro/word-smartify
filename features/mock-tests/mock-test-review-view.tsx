@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { BackButton } from '@/components/ui/back-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMockTest } from '@/hooks/use-data'
+import { QuestionReportDialog } from '@/features/session/question-report-dialog'
 
 export function MockTestReviewView({ testId }: { testId: string }) {
   const { data, error, isLoading, mutate } = useMockTest(testId)
@@ -68,7 +69,10 @@ export function MockTestReviewView({ testId }: { testId: string }) {
                     </span>
                     <h2 className="font-heading font-bold leading-snug">{question.question}</h2>
                   </div>
-                  <Badge variant={statusConfig.variant}><StatusIcon className="size-3" aria-hidden /> {statusConfig.label}</Badge>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Badge variant={statusConfig.variant}><StatusIcon className="size-3" aria-hidden /> {statusConfig.label}</Badge>
+                    <QuestionReportDialog question={question} mode="review" />
+                  </div>
                 </div>
 
                 <div className="grid gap-2 text-sm sm:grid-cols-2">

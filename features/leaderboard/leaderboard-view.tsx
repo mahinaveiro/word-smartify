@@ -98,7 +98,7 @@ export function LeaderboardView() {
               <div className="relative z-10 flex w-full flex-col items-center gap-2 pointer-events-none">
                 <Avatar name={entry.profile.display_name} avatarId={entry.profile.avatar_id} avatarUrl={entry.profile.avatar_url} size={rank === 1 ? 'lg' : 'md'} />
                 <div className="text-center">
-                  <p className={cn('max-w-[8rem] truncate font-heading text-sm font-bold', isMe && 'text-mint-foreground')}>
+                  <p className={cn('max-w-[8rem] truncate font-heading text-sm font-bold', isMe && 'text-foreground dark:text-white')}>
                     <span className="pointer-events-auto">
                       <OwnerDisplayName
                         userId={entry.profile.id}
